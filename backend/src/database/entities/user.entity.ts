@@ -38,6 +38,9 @@ export class User {
   @Column()
   email: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  name: string | null;
+
   @Column({ name: 'password_hash' })
   passwordHash: string;
 

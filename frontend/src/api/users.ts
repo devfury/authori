@@ -5,6 +5,7 @@ export interface User {
   id: string
   tenantId: string
   email: string
+  name: string | null
   loginId: string | null
   status: UserStatus
   failedLoginAttempts: number
@@ -14,7 +15,15 @@ export interface User {
 
 export interface CreateUserPayload {
   email: string
+  name?: string
   password: string
+  profile?: Record<string, unknown>
+}
+
+export interface UpdateUserPayload {
+  name?: string
+  loginId?: string
+  status?: UserStatus
   profile?: Record<string, unknown>
 }
 

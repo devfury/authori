@@ -39,6 +39,7 @@ export class UsersService {
     const user = this.userRepo.create({
       tenantId,
       email: dto.email,
+      name: dto.name ?? null,
       loginId: dto.loginId ?? null,
       passwordHash,
       profile,
@@ -76,6 +77,7 @@ export class UsersService {
     const user = await this.findOne(tenantId, id);
 
     if (dto.status) user.status = dto.status;
+    if (dto.name !== undefined) user.name = dto.name ?? null;
     if (dto.loginId !== undefined) user.loginId = dto.loginId;
 
     if (dto.profile) {

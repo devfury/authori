@@ -4,6 +4,7 @@ import { type AdminRole, type AdminStatus } from './enums'
 export interface AdminUser {
   id: string
   email: string
+  name: string | null
   role: AdminRole
   tenantId: string | null
   status: AdminStatus
@@ -12,6 +13,7 @@ export interface AdminUser {
 
 export interface CreateAdminPayload {
   email: string
+  name?: string
   password: string
   role: AdminRole
   tenantId?: string

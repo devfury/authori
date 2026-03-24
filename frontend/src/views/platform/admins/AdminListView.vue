@@ -3,20 +3,26 @@ import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Plus } from 'lucide-vue-next'
 import { adminsApi, type AdminUser } from '@/api/admins'
+import { tenantsApi } from '@/api/tenants'
 import { AdminRole, AdminStatus } from '@/api/enums'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
 const admins = ref<AdminUser[]>([])
+const tenantSlugMap = ref<Record<string, string>>({})
 const loading = ref(true)
 const deactivateTarget = ref<AdminUser | null>(null)
 
 async function load() {
   loading.value = true
   try {
-    const { data } = await adminsApi.findAll()
-    admins.value = data
+    const [{ data: adminData }, { data: tenantData }] = await Promise.all([
+      adminsApi.findAll(),
+      tenantsApi.findAll(),
+    ])
+    admins.value = adminData
+    tenantSlugMap.value = Object.fromEntries(tenantData.map((t) => [t.id, t.slug]))
   } finally {
     loading.value = false
   }
@@ -54,6 +60,7 @@ onMounted(load)
       <table v-else class="w-full text-sm">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
+            <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이메일</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">역할</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">테넌트</th>
@@ -63,6 +70,7 @@ onMounted(load)
         </thead>
         <tbody class="divide-y divide-gray-100">
           <tr v-for="admin in admins" :key="admin.id" class="hover:bg-gray-50 transition-colors">
+            <td class="px-4 py-3 text-gray-900">{{ admin.name ?? '—' }}</td>
             <td class="px-4 py-3 text-gray-900">{{ admin.email }}</td>
             <td class="px-4 py-3">
               <span
@@ -72,7 +80,9 @@ onMounted(load)
                 {{ admin.role === AdminRole.PLATFORM_ADMIN ? '플랫폼 관리자' : '테넌트 관리자' }}
               </span>
             </td>
-            <td class="px-4 py-3 text-gray-400 font-mono text-xs">{{ admin.tenantId ?? '—' }}</td>
+            <td class="px-4 py-3 text-gray-500 font-mono text-xs">
+              {{ admin.tenantId ? (tenantSlugMap[admin.tenantId] ?? admin.tenantId) : '—' }}
+            </td>
             <td class="px-4 py-3"><StatusBadge :status="admin.status" /></td>
             <td class="px-4 py-3 text-right">
               <button

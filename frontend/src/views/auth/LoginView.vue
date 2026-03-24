@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
+import { authApi } from '@/api/auth'
 
 const auth = useAuthStore()
 
@@ -8,6 +9,16 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const bootstrapNeeded = ref(false)
+
+onMounted(async () => {
+  try {
+    const { data } = await authApi.bootstrapStatus()
+    bootstrapNeeded.value = data.needed
+  } catch {
+    // 확인 실패 시 링크 숨김
+  }
+})
 
 async function submit() {
   error.value = ''
@@ -64,7 +75,7 @@ async function submit() {
       </button>
     </form>
 
-    <p class="mt-4 text-center text-xs text-gray-400">
+    <p v-if="bootstrapNeeded" class="mt-4 text-center text-xs text-gray-400">
       처음 설정하시나요?
       <RouterLink to="/admin/bootstrap" class="text-indigo-600 hover:underline">
         플랫폼 관리자 생성

@@ -9,6 +9,7 @@ const route = useRoute()
 const tenantId = route.params.tenantId as string
 
 const email = ref('')
+const name = ref('')
 const password = ref('')
 const profileJson = ref('{}')
 const jsonError = ref('')
@@ -33,6 +34,7 @@ async function submit() {
   try {
     await usersApi.create(tenantId, {
       email: email.value,
+      name: name.value || undefined,
       password: password.value,
       profile: JSON.parse(profileJson.value),
     })
@@ -52,6 +54,15 @@ async function submit() {
 
     <div class="bg-white rounded-xl border border-gray-200 p-6">
       <form class="space-y-4" @submit.prevent="submit">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
+          <input
+            v-model="name"
+            type="text"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            placeholder="홍길동"
+          />
+        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">이메일</label>
           <input

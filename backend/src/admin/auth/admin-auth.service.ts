@@ -62,6 +62,7 @@ export class AdminAuthService {
     const passwordHash = await CryptoUtil.hash(dto.password);
     const admin = this.adminRepo.create({
       email: dto.email,
+      name: dto.name ?? null,
       passwordHash,
       role: dto.role,
       tenantId: dto.tenantId ?? null,
@@ -75,6 +76,13 @@ export class AdminAuthService {
 
   async deactivate(id: string): Promise<void> {
     await this.adminRepo.update(id, { status: AdminStatus.INACTIVE });
+  }
+
+  async isBootstrapNeeded(): Promise<{ needed: boolean }> {
+    const exists = await this.adminRepo.findOne({
+      where: { role: AdminRole.PLATFORM_ADMIN },
+    });
+    return { needed: !exists };
   }
 
   async bootstrap(dto: BootstrapAdminDto): Promise<{ message: string }> {
@@ -93,6 +101,7 @@ export class AdminAuthService {
     const passwordHash = await CryptoUtil.hash(dto.password);
     const admin = this.adminRepo.create({
       email: dto.email,
+      name: dto.name ?? null,
       passwordHash,
       role: AdminRole.PLATFORM_ADMIN,
       tenantId: null,

@@ -22,6 +22,12 @@ import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 export class AdminAuthController {
   constructor(private readonly adminAuthService: AdminAuthService) {}
 
+  @Get('bootstrap/status')
+  @ApiOperation({ summary: '플랫폼 관리자 존재 여부 확인' })
+  bootstrapStatus() {
+    return this.adminAuthService.isBootstrapNeeded();
+  }
+
   @Post('bootstrap')
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })

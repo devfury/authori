@@ -7,6 +7,11 @@ export class CreateAdminDto {
   @IsEmail()
   email: string;
 
+  @ApiPropertyOptional({ example: '홍길동' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
   @ApiProperty()
   @IsString()
   @MinLength(10)
