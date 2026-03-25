@@ -1,5 +1,22 @@
 import { registerAs } from '@nestjs/config';
 
+function parseCorsOrigins(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function getDefaultCorsOrigins(): string[] {
+  const loginPageUrl = process.env.LOGIN_PAGE_URL ?? 'http://localhost:5173/login';
+
+  try {
+    return [new URL(loginPageUrl).origin];
+  } catch {
+    return ['*'];
+  }
+}
+
 export const appConfig = registerAs('app', () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -9,7 +26,11 @@ export const appConfig = registerAs('app', () => ({
   platformAdminSecret: process.env.PLATFORM_ADMIN_SECRET ?? '',
   adminJwtSecret: process.env.JWT_ADMIN_SECRET ?? 'change_me_admin_secret',
   adminJwtExpiry: parseInt(process.env.JWT_ADMIN_EXPIRY ?? '86400', 10),
-  corsOrigins: (process.env.CORS_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+  corsOrigins: (() => {
+    const origins = parseCorsOrigins(process.env.CORS_ORIGINS ?? '');
+    return origins.length > 0 ? origins : getDefaultCorsOrigins();
+  })(),
+  loginPageUrl: process.env.LOGIN_PAGE_URL ?? 'http://localhost:5173/login',
 }));
 
 export const dbConfig = registerAs('db', () => ({

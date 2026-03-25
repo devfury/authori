@@ -8,9 +8,11 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { TenantAdminGuard } from '../admin/guards/tenant-admin.guard';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -25,8 +27,14 @@ export class UsersController {
 
   @Post()
   @ApiOperation({ summary: '사용자 생성' })
-  create(@Param('tenantId') tenantId: string, @Body() dto: CreateUserDto) {
-    return this.usersService.create(tenantId, dto);
+  create(@Param('tenantId') tenantId: string, @Body() dto: CreateUserDto, @Req() req: Request) {
+    return this.usersService.create(tenantId, dto, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
   }
 
   @Get()
@@ -54,7 +62,13 @@ export class UsersController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '사용자 비활성화' })
-  deactivate(@Param('tenantId') tenantId: string, @Param('id') id: string) {
-    return this.usersService.deactivate(tenantId, id);
+  deactivate(@Param('tenantId') tenantId: string, @Param('id') id: string, @Req() req: Request) {
+    return this.usersService.deactivate(tenantId, id, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
   }
 }

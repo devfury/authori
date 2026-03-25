@@ -7,9 +7,11 @@ import {
   HttpStatus,
   Param,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { TenantAdminGuard } from '../admin/guards/tenant-admin.guard';
 import { ProfileSchemaService } from './profile-schema.service';
 import { CreateSchemaDto } from './dto/create-schema.dto';
@@ -23,8 +25,14 @@ export class ProfileSchemaController {
 
   @Post()
   @ApiOperation({ summary: '새 schema 버전 발행' })
-  publish(@Param('tenantId') tenantId: string, @Body() dto: CreateSchemaDto) {
-    return this.schemaService.publish(tenantId, dto);
+  publish(@Param('tenantId') tenantId: string, @Body() dto: CreateSchemaDto, @Req() req: Request) {
+    return this.schemaService.publish(tenantId, dto, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
   }
 
   @Get()

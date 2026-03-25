@@ -22,7 +22,7 @@ import {
   TenantSettings,
 } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
-import { AuditService } from '../../common/audit/audit.service';
+import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { KeysService } from '../keys/keys.service';
 import { TokenRequestDto } from './dto/token-request.dto';
 
@@ -56,7 +56,7 @@ export class TokenService {
     private readonly auditService: AuditService,
   ) {}
 
-  async issue(tenantId: string, req: TokenRequestDto, basicAuth: { id?: string; secret?: string }): Promise<TokenResponse> {
+  async issue(tenantId: string, req: TokenRequestDto, basicAuth: { id?: string; secret?: string }, ctx?: AuditContext): Promise<TokenResponse> {
     const clientId = req.client_id ?? basicAuth.id;
     const clientSecret = req.client_secret ?? basicAuth.secret;
     if (!clientId) throw new BadRequestException('client_id required');
@@ -85,11 +85,11 @@ export class TokenService {
 
     switch (req.grant_type) {
       case 'authorization_code':
-        return this.handleAuthorizationCode(tenantId, client, req, accessTtl, refreshTtl);
+        return this.handleAuthorizationCode(tenantId, client, req, accessTtl, refreshTtl, ctx);
       case 'refresh_token':
-        return this.handleRefreshToken(tenantId, client, req, settings, accessTtl, refreshTtl);
+        return this.handleRefreshToken(tenantId, client, req, settings, accessTtl, refreshTtl, ctx);
       case 'client_credentials':
-        return this.handleClientCredentials(tenantId, client, req, accessTtl);
+        return this.handleClientCredentials(tenantId, client, req, accessTtl, ctx);
       default:
         throw new BadRequestException('unsupported_grant_type');
     }
@@ -101,6 +101,7 @@ export class TokenService {
     req: TokenRequestDto,
     accessTtl: number,
     refreshTtl: number,
+    ctx?: AuditContext,
   ): Promise<TokenResponse> {
     if (!req.code) throw new BadRequestException('code required');
     if (!req.redirect_uri) throw new BadRequestException('redirect_uri required');
@@ -126,7 +127,7 @@ export class TokenService {
     await this.codeRepo.save(authCode);
 
     return this.issueTokenPair(
-      tenantId, client.clientId, authCode.userId, authCode.scopes, accessTtl, refreshTtl,
+      tenantId, client.clientId, authCode.userId, authCode.scopes, accessTtl, refreshTtl, ctx,
     );
   }
 
@@ -137,6 +138,7 @@ export class TokenService {
     settings: TenantSettings | null,
     accessTtl: number,
     refreshTtl: number,
+    ctx?: AuditContext,
   ): Promise<TokenResponse> {
     if (!req.refresh_token) throw new BadRequestException('refresh_token required');
 
@@ -161,7 +163,7 @@ export class TokenService {
       : stored.scopes;
 
     const result = await this.issueTokenPair(
-      tenantId, client.clientId, stored.userId, scopes, accessTtl, refreshTtl,
+      tenantId, client.clientId, stored.userId, scopes, accessTtl, refreshTtl, ctx,
     );
 
     // 같은 family로 새 refresh token 저장
@@ -181,6 +183,7 @@ export class TokenService {
       targetType: 'oauth_client',
       targetId: client.clientId,
       metadata: { familyId: stored.familyId, scopes },
+      ...ctx,
     });
 
     return result;
@@ -191,12 +194,13 @@ export class TokenService {
     client: OAuthClient,
     req: TokenRequestDto,
     accessTtl: number,
+    ctx?: AuditContext,
   ): Promise<TokenResponse> {
     const scopes = req.scope
       ? req.scope.split(' ').filter((s) => client.allowedScopes.includes(s))
       : client.allowedScopes;
 
-    return this.issueTokenPair(tenantId, client.clientId, null, scopes, accessTtl, null);
+    return this.issueTokenPair(tenantId, client.clientId, null, scopes, accessTtl, null, ctx);
   }
 
   private async issueTokenPair(
@@ -206,6 +210,7 @@ export class TokenService {
     scopes: string[],
     accessTtl: number,
     refreshTtl: number | null,
+    ctx?: AuditContext,
   ): Promise<TokenResponse> {
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     const activeKey = await this.keysService.getActiveKey(null);
@@ -280,6 +285,7 @@ export class TokenService {
       targetType: 'oauth_client',
       targetId: clientId,
       metadata: { grantType, scopes, jti },
+      ...ctx,
     });
 
     return response;

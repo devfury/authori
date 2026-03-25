@@ -16,7 +16,7 @@ export class UpdateClientDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
-  @IsUrl({}, { each: true })
+  @IsUrl({ require_tld: false }, { each: true })
   redirectUris?: string[];
 
   @ApiPropertyOptional()

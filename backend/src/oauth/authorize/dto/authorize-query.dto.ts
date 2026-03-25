@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 
 export enum ResponseType {
-  CODE = 'CODE',
+  CODE = 'code',
 }
 
 export class AuthorizeQueryDto {

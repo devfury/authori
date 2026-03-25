@@ -22,7 +22,7 @@ export class CreateClientDto {
   @ApiProperty({ description: '허용 redirect URIs', example: ['https://app.example.com/callback'] })
   @IsArray()
   @ArrayMinSize(1)
-  @IsUrl({}, { each: true })
+  @IsUrl({ require_tld: false }, { each: true })
   redirectUris: string[];
 
   @ApiPropertyOptional({ description: '허용 scopes', default: ['openid'] })

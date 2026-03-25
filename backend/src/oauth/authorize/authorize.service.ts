@@ -19,19 +19,13 @@ import {
   UserStatus,
 } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
-import { AuditService } from '../../common/audit/audit.service';
+import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { PendingRequestStore } from './pending-request.store';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
-
-export interface AuditContext {
-  ipAddress?: string;
-  userAgent?: string;
-  requestId?: string;
-}
 
 @Injectable()
 export class AuthorizeService {
@@ -227,6 +221,6 @@ export class AuthorizeService {
     redirectUrl.searchParams.set('code', code);
     if (pending.state) redirectUrl.searchParams.set('state', pending.state);
 
-    return { redirectTo: redirectUrl.toString() };
+    return { url: redirectUrl.toString() };
   }
 }

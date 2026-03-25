@@ -1,6 +1,7 @@
-import { Body, Controller, Headers, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 import { TokenService } from './token.service';
 import { TokenRequestDto } from './dto/token-request.dto';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
@@ -22,10 +23,15 @@ export class TokenController {
   issue(
     @CurrentTenant() tenant: TenantContext,
     @Body() dto: TokenRequestDto,
+    @Req() req: Request,
     @Headers('authorization') authHeader?: string,
   ) {
     const basicAuth = this.parseBasicAuth(authHeader);
-    return this.tokenService.issue(tenant.tenantId, dto, basicAuth);
+    return this.tokenService.issue(tenant.tenantId, dto, basicAuth, {
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
   }
 
   private parseBasicAuth(header?: string): { id?: string; secret?: string } {

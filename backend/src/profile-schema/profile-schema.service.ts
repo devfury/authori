@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Ajv from 'ajv';
 import { AuditAction, ProfileSchemaVersion, SchemaStatus } from '../database/entities';
-import { AuditService } from '../common/audit/audit.service';
+import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { CreateSchemaDto } from './dto/create-schema.dto';
 
 const ajv = new Ajv();
@@ -16,7 +16,7 @@ export class ProfileSchemaService {
     private readonly auditService: AuditService,
   ) {}
 
-  async publish(tenantId: string, dto: CreateSchemaDto): Promise<ProfileSchemaVersion> {
+  async publish(tenantId: string, dto: CreateSchemaDto, ctx?: AuditContext): Promise<ProfileSchemaVersion> {
     // 유효한 JSON Schema인지 컴파일로 검증
     try {
       ajv.compile(dto.schemaJsonb);
@@ -35,18 +35,18 @@ export class ProfileSchemaService {
       version: nextVersion,
       schemaJsonb: dto.schemaJsonb,
       status: SchemaStatus.PUBLISHED,
-      publishedBy: dto.publishedBy ?? null,
+      publishedBy: ctx?.actorId ?? dto.publishedBy ?? null,
     });
 
     const saved = await this.schemaRepo.save(schema);
     await this.auditService.record({
       tenantId,
       action: AuditAction.SCHEMA_PUBLISHED,
-      actorId: dto.publishedBy ?? null,
       actorType: 'admin',
       targetType: 'profile_schema',
       targetId: saved.id,
       metadata: { version: saved.version },
+      ...ctx,
     });
     return saved;
   }

@@ -1,5 +1,6 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { RevokeService } from './revoke.service';
 import { RevokeRequestDto } from './dto/revoke-request.dto';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
@@ -15,7 +16,11 @@ export class RevokeController {
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '토큰 폐기 (RFC 7009)' })
-  revoke(@CurrentTenant() tenant: TenantContext, @Body() dto: RevokeRequestDto) {
-    return this.revokeService.revoke(tenant.tenantId, dto);
+  revoke(@CurrentTenant() tenant: TenantContext, @Body() dto: RevokeRequestDto, @Req() req: Request) {
+    return this.revokeService.revoke(tenant.tenantId, dto, {
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
   }
 }

@@ -4,20 +4,28 @@ import type { ClientStatus } from './enums'
 export interface OAuthClient {
   clientId: string
   name: string
-  type: 'public' | 'confidential'
+  type: 'PUBLIC' | 'CONFIDENTIAL'
   status: ClientStatus
   allowedScopes: string[]
   allowedGrants: string[]
+  redirectUris: { uri: string }[]
   tenantId: string
   createdAt: string
 }
 
 export interface CreateClientPayload {
   name: string
-  type: 'public' | 'confidential'
+  type: 'PUBLIC' | 'CONFIDENTIAL'
   allowedScopes: string[]
   allowedGrants: string[]
   redirectUris: string[]
+}
+
+export interface UpdateClientPayload {
+  name?: string
+  allowedScopes?: string[]
+  allowedGrants?: string[]
+  redirectUris?: string[]
 }
 
 export interface ClientCreatedResponse extends OAuthClient {
@@ -28,8 +36,14 @@ export const clientsApi = {
   findAll(tenantId: string) {
     return http.get<OAuthClient[]>(`/admin/tenants/${tenantId}/clients`)
   },
+  findOne(tenantId: string, clientId: string) {
+    return http.get<OAuthClient>(`/admin/tenants/${tenantId}/clients/${clientId}`)
+  },
   create(tenantId: string, payload: CreateClientPayload) {
     return http.post<ClientCreatedResponse>(`/admin/tenants/${tenantId}/clients`, payload)
+  },
+  update(tenantId: string, clientId: string, payload: UpdateClientPayload) {
+    return http.patch<OAuthClient>(`/admin/tenants/${tenantId}/clients/${clientId}`, payload)
   },
   rotateSecret(tenantId: string, clientId: string) {
     return http.post<{ plainSecret: string }>(

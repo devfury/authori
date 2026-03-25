@@ -57,15 +57,17 @@ onMounted(load)
       <table v-else class="w-full text-sm">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
+            <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이메일</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-            <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">실패 횟수</th>
+            <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">로그인 실패 횟수</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">마지막 로그인</th>
             <th class="px-4 py-3"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
           <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50 transition-colors">
+            <td class="px-4 py-3 text-gray-500">{{ user.name ?? '—' }}</td>
             <td class="px-4 py-3 text-gray-900">
               <RouterLink
                 :to="{ name: 'user-detail', params: { tenantId, userId: user.id } }"

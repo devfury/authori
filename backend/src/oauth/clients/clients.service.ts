@@ -92,10 +92,11 @@ export class ClientsService {
       const uris = dto.redirectUris.map((uri) =>
         this.redirectUriRepo.create({ clientId: client.clientId, uri }),
       );
-      await this.redirectUriRepo.save(uris);
+      client.redirectUris = await this.redirectUriRepo.save(uris);
     }
 
-    return this.clientRepo.save(client);
+    await this.clientRepo.save(client);
+    return this.findOne(tenantId, clientId);
   }
 
   async rotateSecret(tenantId: string, clientId: string, ctx?: AuditContext): Promise<{ plainSecret: string }> {

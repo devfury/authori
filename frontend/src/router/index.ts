@@ -8,6 +8,13 @@ const router = createRouter({
       path: '/',
       redirect: '/admin',
     },
+    // ── OAuth 로그인 페이지 (end-user) ────────────────
+    {
+      path: '/login',
+      name: 'oauth-login',
+      component: () => import('@/views/oauth/OAuthLoginView.vue'),
+      meta: { layout: 'auth', public: true },
+    },
     // ── 인증 ──────────────────────────────────────────
     {
       path: '/admin/login',

@@ -43,6 +43,10 @@ onMounted(load)
       <div class="bg-white rounded-xl border border-gray-200 p-5">
         <dl class="grid grid-cols-2 gap-4 text-sm">
           <div>
+            <dt class="text-xs text-gray-400 mb-0.5">이름</dt>
+            <dd class="text-gray-800">{{ user.name ?? '—' }}</dd>
+          </div>
+          <div>
             <dt class="text-xs text-gray-400 mb-0.5">ID</dt>
             <dd class="font-mono text-xs text-gray-800">{{ user.id }}</dd>
           </div>

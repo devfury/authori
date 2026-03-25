@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AccessToken, AuditAction, RefreshToken } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
-import { AuditService } from '../../common/audit/audit.service';
+import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { RevokeRequestDto } from './dto/revoke-request.dto';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class RevokeService {
   /**
    * RFC 7009: 토큰을 찾지 못해도 200 OK 반환 (정보 노출 방지)
    */
-  async revoke(tenantId: string, dto: RevokeRequestDto): Promise<void> {
+  async revoke(tenantId: string, dto: RevokeRequestDto, ctx?: AuditContext): Promise<void> {
     const hint = dto.token_type_hint;
 
     if (!hint || hint === 'refresh_token') {
@@ -38,6 +38,7 @@ export class RevokeService {
           actorId: refreshToken.userId,
           actorType: 'user',
           metadata: { tokenType: 'refresh_token', familyId: refreshToken.familyId },
+          ...ctx,
         });
         return;
       }
@@ -56,6 +57,7 @@ export class RevokeService {
               actorId: payload.sub,
               actorType: 'user',
               metadata: { tokenType: 'access_token', jti: payload.jti },
+              ...ctx,
             });
           }
         } catch {

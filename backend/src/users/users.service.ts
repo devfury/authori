@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditAction, User, UserProfile, UserStatus } from '../database/entities';
 import { CryptoUtil } from '../common/crypto/crypto.util';
-import { AuditService } from '../common/audit/audit.service';
+import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { ProfileSchemaService } from '../profile-schema/profile-schema.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -19,7 +19,7 @@ export class UsersService {
     private readonly auditService: AuditService,
   ) {}
 
-  async create(tenantId: string, dto: CreateUserDto): Promise<User> {
+  async create(tenantId: string, dto: CreateUserDto, ctx?: AuditContext): Promise<User> {
     const exists = await this.userRepo.findOne({ where: { tenantId, email: dto.email } });
     if (exists) throw new ConflictException(`Email '${dto.email}' already exists`);
 
@@ -52,6 +52,7 @@ export class UsersService {
       targetType: 'user',
       targetId: saved.id,
       metadata: { email: saved.email },
+      ...ctx,
     });
     return saved;
   }
@@ -93,7 +94,7 @@ export class UsersService {
     return this.userRepo.save(user);
   }
 
-  async deactivate(tenantId: string, id: string): Promise<void> {
+  async deactivate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {
     const user = await this.findOne(tenantId, id);
     user.status = UserStatus.INACTIVE;
     await this.userRepo.save(user);
@@ -102,6 +103,7 @@ export class UsersService {
       action: AuditAction.USER_DEACTIVATED,
       targetType: 'user',
       targetId: id,
+      ...ctx,
     });
   }
 }
