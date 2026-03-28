@@ -37,6 +37,8 @@ export class RevokeService {
           action: AuditAction.TOKEN_REVOKED,
           actorId: refreshToken.userId,
           actorType: 'user',
+          targetId: refreshToken.familyId,
+          targetType: 'refresh_token',
           metadata: { tokenType: 'refresh_token', familyId: refreshToken.familyId },
           ...ctx,
         });
@@ -56,6 +58,8 @@ export class RevokeService {
               action: AuditAction.TOKEN_REVOKED,
               actorId: payload.sub,
               actorType: 'user',
+              targetId: payload.jti,
+              targetType: 'access_token',
               metadata: { tokenType: 'access_token', jti: payload.jti },
               ...ctx,
             });

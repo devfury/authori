@@ -37,6 +37,7 @@ export class RefreshToken {
   tokenHash: string;
 
   /** rotation 계보 추적 — 최초 발급 토큰의 id */
+  @Index()
   @Column({ name: 'family_id' })
   familyId: string;
 

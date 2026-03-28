@@ -180,8 +180,8 @@ export class TokenService {
       action: AuditAction.TOKEN_REFRESHED,
       actorId: stored.userId,
       actorType: 'user',
-      targetType: 'oauth_client',
-      targetId: client.clientId,
+      targetId: stored.familyId,
+      targetType: 'refresh_token',
       metadata: { familyId: stored.familyId, scopes },
       ...ctx,
     });
@@ -236,6 +236,7 @@ export class TokenService {
       },
     );
 
+    const grantType = refreshTtl === null ? 'client_credentials' : 'authorization_code';
     const expiresAt = new Date(Date.now() + accessTtl * 1000);
     await this.accessTokenRepo.save(
       this.accessTokenRepo.create({
@@ -247,6 +248,16 @@ export class TokenService {
         expiresAt,
       }),
     );
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.TOKEN_ISSUED,
+      actorId: userId ?? clientId,
+      actorType: userId ? 'user' : 'client',
+      targetId: jti,
+      targetType: 'access_token',
+      metadata: { grantType, scopes, jti },
+      ...ctx,
+    });
 
     const response: TokenResponse = {
       access_token: accessTokenJwt,
@@ -272,21 +283,19 @@ export class TokenService {
           expiresAt: refreshExpiresAt,
         }),
       );
+      await this.auditService.record({
+        tenantId,
+        action: AuditAction.TOKEN_ISSUED,
+        actorId: userId ?? clientId,
+        actorType: userId ? 'user' : 'client',
+        targetId: familyId,
+        targetType: 'refresh_token',
+        metadata: { plainRefresh, familyId, scopes },
+        ...ctx,
+      });
 
       response.refresh_token = plainRefresh;
     }
-
-    const grantType = refreshTtl === null ? 'client_credentials' : 'authorization_code';
-    await this.auditService.record({
-      tenantId,
-      action: AuditAction.TOKEN_ISSUED,
-      actorId: userId ?? clientId,
-      actorType: userId ? 'user' : 'client',
-      targetType: 'oauth_client',
-      targetId: clientId,
-      metadata: { grantType, scopes, jti },
-      ...ctx,
-    });
 
     return response;
   }

@@ -35,25 +35,62 @@ function indexById<T>(items: T[], getId: (item: T) => string): Record<string, T>
 
 function formatActor(log: AuditLog): string {
   if (log.actorType === 'admin') {
-    const admin = log.actorId ? adminMap.value[log.actorId] : null
-    return admin?.name || admin?.email || (log.actorId ? `관리자 (${log.actorId})` : '관리자')
+    const name = log.actorId ? (adminMap.value[log.actorId]?.name ?? adminMap.value[log.actorId]?.email ?? log.actorId) : ''
+    return `관리자${name && ` (${name})`}`
   }
 
   if (log.actorType === 'user') {
-    const user = log.actorId ? userMap.value[log.actorId] : null
-    return user?.name || user?.email || (log.actorId ? `사용자 (${log.actorId})` : '사용자')
+    const name = log.actorId ? (userMap.value[log.actorId]?.name ?? userMap.value[log.actorId]?.email ?? log.actorId) : ''
+    return `사용자${name && ` (${name})`}`
   }
 
   if (log.actorType === 'client') {
-    const client = log.actorId ? clientMap.value[log.actorId] : null
-    return client?.name || (log.actorId ? `클라이언트 (${log.actorId})` : '클라이언트')
+    const name = log.actorId ? (clientMap.value[log.actorId]?.name ?? log.actorId) : ''
+    return `클라이언트${name && ` (${name})`}`
   }
 
   if (log.actorType === 'system') {
-    return log.actorId ? `시스템 (${log.actorId})` : '시스템'
+    const name = log.actorId ? (systemMap.value[log.actorId]?.name ?? log.actorId) : ''
+    return `시스템${name && ` (${name})`}`
   }
 
   return log.actorId ?? '—'
+}
+
+function formatTarget(log: AuditLog): string {
+  if (!log.targetType && !log.targetId) return '—'
+
+  if (log.targetType === 'admin') {
+    const name = log.targetId ? (adminMap.value[log.targetId]?.name ?? adminMap.value[log.targetId]?.email ?? log.targetId) : ''
+    return `관리자${name && ` (${name})`}`
+  }
+
+  if (log.targetType === 'user') {
+    const name = log.targetId ? (userMap.value[log.targetId]?.name ?? userMap.value[log.targetId]?.email ?? log.targetId) : ''
+    return `사용자${name && ` (${name})`}`
+  }
+
+  if (log.targetType === 'oauth_client') {
+    const name = log.targetId ? (clientMap.value[log.targetId]?.name ?? log.targetId) : ''
+    return `클라이언트${name && ` (${name})`}`
+  }
+
+  if (log.targetType === 'auth_code') {
+    const value = log.targetId ?? ''
+    return `인증 코드${value && ` (${value})`}`
+  }
+
+  if (log.targetType === 'access_token') {
+    const value = log.targetId ?? ''
+    return `액세스 토큰${value && ` (${value})`}`
+  }
+
+  if (log.targetType === 'refresh_token') {
+    const value = log.targetId ?? ''
+    return `리프레시 토큰${value && ` (${value})`}`
+  }
+
+  return log.targetId ?? '—'
 }
 
 onMounted(async () => {
@@ -98,6 +135,8 @@ onMounted(async () => {
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">액션</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">행위자</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">행위자 유형</th>
+            <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">대상</th>
+            <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">대상 유형</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">결과</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">IP</th>
             <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">시각</th>
@@ -117,6 +156,8 @@ onMounted(async () => {
               {{ formatActor(log) }}
             </td>
             <td class="px-4 py-3 text-gray-500 text-xs">{{ log.actorType ?? '—' }}</td>
+            <td class="px-4 py-3 text-gray-500 text-xs">{{ formatTarget(log) }}</td>
+            <td class="px-4 py-3 text-gray-500 text-xs">{{ log.targetType ?? '—' }}</td>
             <td class="px-4 py-3">
               <span
                 class="text-xs font-medium"
