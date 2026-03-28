@@ -528,7 +528,9 @@ const requestedScopes = computed(() => pendingSession.value?.request.requestedSc
       <article class="panel code-panel">
         <p class="panel-eyebrow">Raw Tokens</p>
         <h2>토큰 원문</h2>
-        <pre>{{ hasToken ? JSON.stringify(tokenSession?.response, null, 2) : '아직 토큰이 없습니다.' }}</pre>
+        <div class="scroll-wrap">
+          <pre>{{ hasToken ? JSON.stringify(tokenSession?.response, null, 2) : '아직 토큰이 없습니다.' }}</pre>
+        </div>
       </article>
 
       <article class="panel claims-panel">
@@ -537,12 +539,16 @@ const requestedScopes = computed(() => pendingSession.value?.request.requestedSc
 
         <div class="claims-block">
           <h3>Access Token</h3>
-          <pre>{{ accessTokenClaims ? JSON.stringify(accessTokenClaims, null, 2) : 'JWT payload를 해석할 수 없습니다.' }}</pre>
+          <div class="scroll-wrap">
+            <pre>{{ accessTokenClaims ? JSON.stringify(accessTokenClaims, null, 2) : 'JWT payload를 해석할 수 없습니다.' }}</pre>
+          </div>
         </div>
 
         <div class="claims-block">
           <h3>Refresh Token</h3>
-          <pre>{{ refreshTokenClaims ? JSON.stringify(refreshTokenClaims, null, 2) : 'refresh token이 JWT가 아니거나 아직 없습니다.' }}</pre>
+          <div class="scroll-wrap">
+            <pre>{{ refreshTokenClaims ? JSON.stringify(refreshTokenClaims, null, 2) : 'refresh token이 JWT가 아니거나 아직 없습니다.' }}</pre>
+          </div>
         </div>
       </article>
     </section>
@@ -574,8 +580,9 @@ body,
   min-height: 100%;
 }
 
+html,
 body {
-  min-width: 1100px;
+  overflow-x: hidden;
 }
 
 button,
@@ -633,9 +640,11 @@ pre {
 }
 
 .app-shell {
-  width: min(1240px, calc(100vw - 48px));
+  width: 100%;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 32px 0 48px;
+  padding: 32px 24px 48px;
+  min-width: 0;
 }
 
 .hero-card,
@@ -653,6 +662,14 @@ pre {
   padding: 28px 30px;
   border-radius: 28px;
   margin-bottom: 22px;
+}
+
+.hero-card > *,
+.panel-header > *,
+.request-card > *,
+.token-meta > *,
+.endpoint-list div {
+  min-width: 0;
 }
 
 .eyebrow,
@@ -710,6 +727,9 @@ pre {
 .panel {
   border-radius: 24px;
   padding: 24px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .panel-header,
@@ -791,6 +811,7 @@ input:focus {
 .request-card code {
   color: #fbd38d;
   word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .flow-panel {
@@ -849,16 +870,39 @@ input:focus {
   flex-wrap: wrap;
 }
 
+.code-panel,
+.claims-panel,
+.claims-block {
+  min-width: 0;
+}
+
+.scroll-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 pre {
+  display: block;
   margin: 0;
   padding: 18px;
   border-radius: 18px;
   min-height: 240px;
-  overflow: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: visible;
+  overflow-y: visible;
   color: #fef3c7;
   background: rgba(7, 10, 19, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.08);
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .claims-block + .claims-block {
@@ -866,12 +910,8 @@ pre {
 }
 
 @media (max-width: 1180px) {
-  body {
-    min-width: 0;
-  }
-
   .app-shell {
-    width: min(100vw - 32px, 1240px);
+    padding-inline: 16px;
   }
 
   .two-columns,
@@ -890,6 +930,38 @@ pre {
 
   .hero-meta {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    padding-top: 20px;
+    padding-inline: 12px;
+    padding-bottom: 32px;
+  }
+
+  .panel {
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .hero-card {
+    border-radius: 20px;
+    padding: 20px 16px;
+  }
+
+  button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .panel-actions.compact button {
+    width: auto;
+  }
+
+  .endpoint-list code,
+  .request-card code {
+    font-size: 0.8rem;
   }
 }
 </style>
