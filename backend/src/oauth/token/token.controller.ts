@@ -1,5 +1,5 @@
 import { Body, Controller, Headers, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { TokenService } from './token.service';
@@ -9,6 +9,7 @@ import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import type { TenantContext } from '../../common/tenant/tenant-context';
 
 @ApiTags('OAuth2')
+@ApiParam({ name: 'tenantSlug', description: '테넌트 슬러그' })
 @Controller('t/:tenantSlug/oauth')
 @UseGuards(RequireTenantGuard)
 export class TokenController {

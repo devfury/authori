@@ -6,7 +6,10 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/admin',
+      redirect: () => {
+        const auth = useAuthStore()
+        return auth.isAuthenticated ? '/admin' : '/admin/login'
+      },
     },
     // ── OAuth 로그인 페이지 (end-user) ────────────────
     {
@@ -125,6 +128,24 @@ const router = createRouter({
       component: () => import('@/views/tenant/audit/AuditLogView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/tenants/:tenantId/external-auth',
+      name: 'external-auth-list',
+      component: () => import('@/views/tenant/external-auth/ExternalAuthListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/tenants/:tenantId/external-auth/new',
+      name: 'external-auth-create',
+      component: () => import('@/views/tenant/external-auth/ExternalAuthFormView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/tenants/:tenantId/external-auth/:id',
+      name: 'external-auth-detail',
+      component: () => import('@/views/tenant/external-auth/ExternalAuthFormView.vue'),
+      meta: { requiresAuth: true },
+    },
     // ── 403 ──────────────────────────────────────────
     {
       path: '/403',
@@ -134,7 +155,10 @@ const router = createRouter({
     },
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/admin',
+      redirect: () => {
+        const auth = useAuthStore()
+        return auth.isAuthenticated ? '/admin' : '/admin/login'
+      },
     },
   ],
 })

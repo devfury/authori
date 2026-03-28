@@ -16,6 +16,13 @@ import { AccessToken } from './access-token.entity';
 import { RefreshToken } from './refresh-token.entity';
 import { Consent } from './consent.entity';
 
+export interface LoginBranding {
+  logoUrl?: string;
+  primaryColor?: string | null;
+  bgColor?: string | null;
+  title?: string | null;
+}
+
 export enum ClientType {
   CONFIDENTIAL = 'CONFIDENTIAL',
   PUBLIC = 'PUBLIC',
@@ -60,6 +67,9 @@ export class OAuthClient {
 
   @Column({ name: 'allowed_grants', type: 'text', array: true, default: ['authorization_code'] })
   allowedGrants: string[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  branding: LoginBranding | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

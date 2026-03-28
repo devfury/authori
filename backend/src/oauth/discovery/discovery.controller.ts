@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { verify } from 'jsonwebtoken';
 import { createPublicKey } from 'crypto';
 import { AccessToken, Tenant, User, UserProfile } from '../../database/entities';
@@ -14,6 +14,7 @@ import { Headers } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
 
 @ApiTags('OAuth2 Discovery')
+@ApiParam({ name: 'tenantSlug', description: '테넌트 슬러그' })
 @Controller('t/:tenantSlug')
 export class DiscoveryController {
   constructor(

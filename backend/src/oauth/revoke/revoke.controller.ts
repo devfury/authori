@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { RevokeService } from './revoke.service';
 import { RevokeRequestDto } from './dto/revoke-request.dto';
@@ -8,6 +8,7 @@ import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import type { TenantContext } from '../../common/tenant/tenant-context';
 
 @ApiTags('OAuth2')
+@ApiParam({ name: 'tenantSlug', description: '테넌트 슬러그' })
 @Controller('t/:tenantSlug/oauth')
 @UseGuards(RequireTenantGuard)
 export class RevokeController {

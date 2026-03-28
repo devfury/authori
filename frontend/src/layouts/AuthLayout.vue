@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+  <div class="min-h-screen flex items-center justify-center p-4" style="background-color: var(--auth-bg-color, #f9fafb)">
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
         <h1 class="text-2xl font-bold text-gray-900">Authori</h1>

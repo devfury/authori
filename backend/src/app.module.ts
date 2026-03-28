@@ -20,6 +20,8 @@ import { RevokeModule } from './oauth/revoke/revoke.module';
 import { DiscoveryModule } from './oauth/discovery/discovery.module';
 // Phase 4
 import { AdminAuthModule } from './admin/auth/admin-auth.module';
+// Phase 5
+import { ExternalAuthModule } from './external-auth/external-auth.module';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { AdminAuthModule } from './admin/auth/admin-auth.module';
     DiscoveryModule,
     // Phase 4
     AdminAuthModule,
+    // Phase 5
+    ExternalAuthModule,
   ],
 })
 export class AppModule implements NestModule {

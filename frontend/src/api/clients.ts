@@ -1,6 +1,13 @@
 import http from './http'
 import type { ClientStatus } from './enums'
 
+export interface LoginBranding {
+  logoUrl?: string
+  primaryColor?: string
+  bgColor?: string
+  title?: string
+}
+
 export interface OAuthClient {
   clientId: string
   name: string
@@ -9,6 +16,7 @@ export interface OAuthClient {
   allowedScopes: string[]
   allowedGrants: string[]
   redirectUris: { uri: string }[]
+  branding: LoginBranding | null
   tenantId: string
   createdAt: string
 }
@@ -26,6 +34,7 @@ export interface UpdateClientPayload {
   allowedScopes?: string[]
   allowedGrants?: string[]
   redirectUris?: string[]
+  branding?: LoginBranding | null
 }
 
 export interface ClientCreatedResponse extends OAuthClient {

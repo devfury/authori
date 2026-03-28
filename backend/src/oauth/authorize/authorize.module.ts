@@ -5,11 +5,13 @@ import {
   Consent,
   OAuthClient,
   OAuthClientRedirectUri,
-  Tenant,
+  ProfileSchemaVersion,
   TenantSettings,
   User,
+  UserProfile,
 } from '../../database/entities';
 import { AuditModule } from '../../common/audit/audit.module';
+import { ExternalAuthModule } from '../../external-auth/external-auth.module';
 import { AuthorizeService } from './authorize.service';
 import { AuthorizeController } from './authorize.controller';
 
@@ -20,11 +22,13 @@ import { AuthorizeController } from './authorize.controller';
       OAuthClientRedirectUri,
       AuthorizationCode,
       User,
+      UserProfile,
+      ProfileSchemaVersion,
       Consent,
-      Tenant,
       TenantSettings,
     ]),
     AuditModule,
+    ExternalAuthModule,
   ],
   controllers: [AuthorizeController],
   providers: [AuthorizeService],

@@ -12,3 +12,6 @@ export { Consent } from './consent.entity';
 export { SigningKey, KeyAlgorithm, KeyStatus } from './signing-key.entity';
 export { AuditLog, AuditAction } from './audit-log.entity';
 export { AdminUser, AdminRole, AdminStatus } from './admin-user.entity';
+export { ExternalAuthProvider } from './external-auth-provider.entity';
+export type { ExternalAuthFieldMapping } from './external-auth-provider.entity';
+export type { LoginBranding } from './oauth-client.entity';

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { clientsApi, type OAuthClient } from '@/api/clients'
+import { clientsApi, type OAuthClient, type LoginBranding } from '@/api/clients'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import CopyableField from '@/components/shared/CopyableField.vue'
@@ -23,6 +23,7 @@ const editName = ref('')
 const editScopes = ref('')
 const editGrants = ref<string[]>([])
 const editRedirectUris = ref('')
+const editBranding = ref<LoginBranding>({})
 const saving = ref(false)
 const saveError = ref('')
 
@@ -38,6 +39,7 @@ function startEdit() {
   editScopes.value = client.value.allowedScopes.join(' ')
   editGrants.value = [...client.value.allowedGrants]
   editRedirectUris.value = client.value.redirectUris.map((r) => r.uri).join('\n')
+  editBranding.value = client.value.branding ? { ...client.value.branding } : {}
   saveError.value = ''
   editing.value = true
 }
@@ -59,6 +61,7 @@ async function saveEdit() {
       allowedScopes: editScopes.value.split(/\s+/).filter(Boolean),
       allowedGrants: editGrants.value,
       redirectUris: editRedirectUris.value.split('\n').map((s) => s.trim()).filter(Boolean),
+      branding: Object.keys(editBranding.value).length > 0 ? editBranding.value : null,
     })
     client.value = data
     editing.value = false
@@ -141,6 +144,17 @@ onMounted(load)
                 >{{ r.uri }}</p>
                 <p v-if="client.redirectUris.length === 0" class="text-gray-400 text-xs">—</p>
               </div>
+              <div v-if="client.branding && Object.keys(client.branding).length > 0" class="col-span-2">
+                <p class="text-xs text-gray-400 mb-1">로그인 브랜딩</p>
+                <div class="flex items-center gap-3 text-xs">
+                  <img v-if="client.branding.logoUrl" :src="client.branding.logoUrl" class="h-6 object-contain" alt="logo" />
+                  <span v-if="client.branding.primaryColor" class="flex items-center gap-1">
+                    <span class="w-3 h-3 rounded-full inline-block border border-gray-200" :style="{ backgroundColor: client.branding.primaryColor }" />
+                    {{ client.branding.primaryColor }}
+                  </span>
+                  <span v-if="client.branding.title" class="text-gray-600 italic">{{ client.branding.title }}</span>
+                </div>
+              </div>
             </div>
             <div class="pt-2">
               <button
@@ -205,6 +219,79 @@ onMounted(load)
                   rows="3"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                 />
+              </div>
+
+
+              <div class="border-t border-gray-100 pt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-3">로그인 화면 브랜딩 <span class="text-xs font-normal text-gray-400">(선택)</span></label>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">로고 URL</label>
+                    <input
+                      v-model="editBranding.logoUrl"
+                      type="url"
+                      placeholder="https://cdn.example.com/logo.png"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">주 색상</label>
+                    <div class="flex gap-2 items-center">
+                      <input
+                        v-model="editBranding.primaryColor"
+                        type="color"
+                        :disabled="!editBranding.primaryColor"
+                        class="h-9 w-14 px-1 py-1 border border-gray-300 rounded-lg cursor-pointer disabled:opacity-30"
+                      />
+                      <input
+                        v-model="editBranding.primaryColor"
+                        type="text"
+                        placeholder="#4f46e5"
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                      <button
+                        v-if="editBranding.primaryColor"
+                        type="button"
+                        title="기본값으로 초기화"
+                        class="text-gray-400 hover:text-gray-600 text-xs px-1"
+                        @click="editBranding.primaryColor = ''"
+                      >✕</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500 mb-1">배경 색상</label>
+                    <div class="flex gap-2 items-center">
+                      <input
+                        v-model="editBranding.bgColor"
+                        type="color"
+                        :disabled="!editBranding.bgColor"
+                        class="h-9 w-14 px-1 py-1 border border-gray-300 rounded-lg cursor-pointer disabled:opacity-30"
+                      />
+                      <input
+                        v-model="editBranding.bgColor"
+                        type="text"
+                        placeholder="#f9fafb"
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                      <button
+                        v-if="editBranding.bgColor"
+                        type="button"
+                        title="기본값으로 초기화"
+                        class="text-gray-400 hover:text-gray-600 text-xs px-1"
+                        @click="editBranding.bgColor = ''"
+                      >✕</button>
+                    </div>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">로그인 타이틀 <span class="text-gray-400">(기본: "{앱이름}에 로그인")</span></label>
+                    <input
+                      v-model="editBranding.title"
+                      type="text"
+                      placeholder="MyApp 계정으로 로그인"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
               </div>
 
               <p v-if="saveError" class="text-sm text-red-600">{{ saveError }}</p>

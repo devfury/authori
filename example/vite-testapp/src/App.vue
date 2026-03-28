@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   buildAuthorizeUrl,
   clearOAuthState,
@@ -17,6 +17,7 @@ import {
 
 const tenantSlug = 'test'
 const redirectUri = `${window.location.origin}${window.location.pathname}`
+const integrationSettingsStorageKey = 'authori-vite-testapp-integration-settings'
 
 const form = reactive({
   authServerBaseUrl: 'http://localhost:3000',
@@ -35,6 +36,31 @@ const loginForm = reactive({
   email: '',
   password: '',
 })
+
+function persistIntegrationSettings() {
+  localStorage.setItem(
+    integrationSettingsStorageKey,
+    JSON.stringify({
+      authServerBaseUrl: form.authServerBaseUrl,
+      clientId: form.clientId,
+      scope: form.scope,
+    }),
+  )
+}
+
+function readStoredIntegrationSettings() {
+  const raw = localStorage.getItem(integrationSettingsStorageKey)
+  if (!raw) return
+
+  try {
+    const saved = JSON.parse(raw) as Partial<typeof form>
+    form.authServerBaseUrl = saved.authServerBaseUrl ?? form.authServerBaseUrl
+    form.clientId = saved.clientId ?? form.clientId
+    form.scope = saved.scope ?? form.scope
+  } catch {
+    localStorage.removeItem(integrationSettingsStorageKey)
+  }
+}
 
 const authorizationEndpoint = computed(() => `${form.authServerBaseUrl}/t/${tenantSlug}/oauth/authorize`)
 const tokenEndpoint = computed(() => `${form.authServerBaseUrl}/t/${tenantSlug}/oauth/token`)
@@ -238,9 +264,14 @@ async function loadUserInfo() {
 }
 
 onMounted(async () => {
+  readStoredIntegrationSettings()
   readStoredTokenResponse()
   await handleOAuthCallback()
 })
+
+watch(form, () => {
+  persistIntegrationSettings()
+}, { deep: true })
 </script>
 
 <template>

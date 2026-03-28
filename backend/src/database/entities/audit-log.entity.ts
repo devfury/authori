@@ -33,6 +33,8 @@ export enum AuditAction {
   CLIENT_SECRET_ROTATED = 'CLIENT.SECRET_ROTATED',
   // 스키마
   SCHEMA_PUBLISHED = 'SCHEMA.PUBLISHED',
+  // 외부 인증
+  EXTERNAL_AUTH_ERROR = 'EXTERNAL_AUTH.ERROR',
 }
 
 @Entity('audit_logs')

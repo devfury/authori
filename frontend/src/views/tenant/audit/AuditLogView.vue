@@ -50,8 +50,7 @@ function formatActor(log: AuditLog): string {
   }
 
   if (log.actorType === 'system') {
-    const name = log.actorId ? (systemMap.value[log.actorId]?.name ?? log.actorId) : ''
-    return `시스템${name && ` (${name})`}`
+    return '시스템'
   }
 
   return log.actorId ?? '—'

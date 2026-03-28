@@ -4,4 +4,11 @@ import router from './router'
 import './style.css'
 import App from './App.vue'
 
-createApp(App).use(createPinia()).use(router).mount('#app')
+const app = createApp(App)
+
+app.use(createPinia())
+app.use(router)
+
+router.isReady().then(() => {
+  app.mount('#app')
+})

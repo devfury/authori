@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Headers, Post, Query, Redirect, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
@@ -11,6 +11,7 @@ import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
 import type { TenantContext } from '../../common/tenant/tenant-context';
 
 @ApiTags('OAuth2')
+@ApiParam({ name: 'tenantSlug', description: '테넌트 슬러그' })
 @Controller('t/:tenantSlug/oauth')
 @UseGuards(RequireTenantGuard)
 export class AuthorizeController {
@@ -38,7 +39,7 @@ export class AuthorizeController {
       const loginUrl = new URL(loginPageUrl);
       loginUrl.searchParams.set('requestId', result.requestId);
       loginUrl.searchParams.set('tenantSlug', result.tenantSlug);
-      loginUrl.searchParams.set('clientName', result.client.name);
+      loginUrl.searchParams.set('clientId', result.client.clientId);
       loginUrl.searchParams.set('scopes', result.requestedScopes.join(' '));
       res.redirect(loginUrl.toString());
       return;
@@ -47,13 +48,23 @@ export class AuthorizeController {
     return result;
   }
 
+  @Get('login-config')
+  @ApiOperation({
+    summary: '로그인 페이지 설정 조회',
+    description: 'clientId로 해당 클라이언트의 브랜딩 정보를 반환한다. 인증 불필요.',
+  })
+  async loginConfig(
+    @CurrentTenant() tenant: TenantContext,
+    @Query('client_id') clientId?: string,
+  ) {
+    return this.authorizeService.getLoginConfig(tenant.tenantId, clientId);
+  }
+
   @Post('authorize')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  // @Redirect()
   @ApiOperation({
     summary: '로그인 + 동의 처리 → 인가 코드 발급',
     description: 'requestId, 사용자 자격증명, 동의 스코프를 받아 redirect_uri를 반환한다.',
-    // description: 'requestId, 사용자 자격증명을 받아 redirect_uri로 브라우저를 리다이렉트한다.',
   })
   loginAndAuthorize(
     @CurrentTenant() tenant: TenantContext,

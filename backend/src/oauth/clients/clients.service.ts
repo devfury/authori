@@ -93,6 +93,7 @@ export class ClientsService {
     if (dto.status) client.status = dto.status;
     if (dto.allowedScopes) client.allowedScopes = dto.allowedScopes;
     if (dto.allowedGrants) client.allowedGrants = dto.allowedGrants;
+    if (dto.branding !== undefined) client.branding = dto.branding ?? null;
 
     if (dto.redirectUris) {
       await this.dataSource.transaction(async (manager) => {

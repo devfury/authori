@@ -10,6 +10,7 @@ import {
   FileJson,
   ClipboardList,
   UserCog,
+  Link2,
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -37,6 +38,7 @@ const tenantLinks = computed(() => {
     { name: 'user-list', label: '사용자', icon: Users, params: { tenantId: props.tenantId } },
     { name: 'schema-list', label: '프로필 스키마', icon: FileJson, params: { tenantId: props.tenantId } },
     { name: 'audit-log', label: '감사 로그', icon: ClipboardList, params: { tenantId: props.tenantId } },
+    { name: 'external-auth-list', label: '외부 인증 연동', icon: Link2, params: { tenantId: props.tenantId } },
   ]
 })
 </script>
