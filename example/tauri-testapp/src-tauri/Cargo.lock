@@ -3898,7 +3898,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "test-tauriapp"
+name = "tauri-testapp"
 version = "0.1.0"
 dependencies = [
  "serde",

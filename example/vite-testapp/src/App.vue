@@ -20,7 +20,7 @@ const redirectUri = `${window.location.origin}${window.location.pathname}`
 
 const form = reactive({
   authServerBaseUrl: 'http://localhost:3000',
-  clientId: 'test-webapp',
+  clientId: 'vite-testapp',
   scope: 'openid profile email',
 })
 
@@ -57,17 +57,17 @@ function resetStatus() {
 
 function storeTokenResponse(payload: TokenResponse) {
   tokenResponse.value = payload
-  localStorage.setItem('authori-test-webapp-token-response', JSON.stringify(payload))
+  localStorage.setItem('authori-vite-testapp-token-response', JSON.stringify(payload))
 }
 
 function readStoredTokenResponse() {
-  const raw = localStorage.getItem('authori-test-webapp-token-response')
+  const raw = localStorage.getItem('authori-vite-testapp-token-response')
   if (!raw) return
 
   try {
     tokenResponse.value = JSON.parse(raw) as TokenResponse
   } catch {
-    localStorage.removeItem('authori-test-webapp-token-response')
+    localStorage.removeItem('authori-vite-testapp-token-response')
   }
 }
 
@@ -77,7 +77,7 @@ function clearStoredSession() {
   userInfo.value = null
   authorizationCode.value = ''
   pendingAuthorize.value = null
-  localStorage.removeItem('authori-test-webapp-token-response')
+  localStorage.removeItem('authori-vite-testapp-token-response')
   resetStatus()
 }
 

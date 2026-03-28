@@ -38,7 +38,7 @@ export type LoginAuthorizeResponse = {
   url: string
 }
 
-const STORAGE_KEY = 'authori-test-webapp-oauth-state'
+const STORAGE_KEY = 'authori-vite-testapp-oauth-state'
 
 function readStringField(payload: Record<string, unknown>, key: string): string | null {
   const value = payload[key]

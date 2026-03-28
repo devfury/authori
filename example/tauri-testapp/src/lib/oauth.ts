@@ -1,6 +1,6 @@
 const textEncoder = new TextEncoder()
 
-const STORAGE_KEY = 'authori-test-tauriapp-settings'
+const STORAGE_KEY = 'authori-tauri-testapp-settings'
 const PKCE_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
 
 export type OAuthSettings = {

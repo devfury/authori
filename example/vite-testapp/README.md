@@ -1,4 +1,4 @@
-# test_webapp
+# vite-testapp
 
 Authori 인증 서버 연동 예시용 Vite + Vue + TypeScript 웹앱입니다.
 
