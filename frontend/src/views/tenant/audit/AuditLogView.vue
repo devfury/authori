@@ -89,6 +89,11 @@ function formatTarget(log: AuditLog): string {
     return `리프레시 토큰${value && ` (${value})`}`
   }
 
+  if (log.targetType === 'external_auth_provider') {
+    const value = log.targetId ?? ''
+    return `외부 인증 제공자${value && ` (${value})`}`
+  }
+
   return log.targetId ?? '—'
 }
 
