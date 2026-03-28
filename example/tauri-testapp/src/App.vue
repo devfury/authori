@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import {
   buildOAuthEndpoint,
   createPkcePair,
@@ -20,14 +20,7 @@ import {
   type TokenResponse,
 } from './lib/oauth'
 
-type BusyAction = 'save' | 'start' | 'login' | 'refresh' | 'logout' | null
-
-type PendingSession = {
-  settings: OAuthSettings
-  request: AuthorizeInitiationResponse
-  state: string
-  codeVerifier: string
-}
+type BusyAction = 'login' | 'refresh' | 'logout' | null
 
 type TokenSession = {
   settings: OAuthSettings
@@ -41,13 +34,21 @@ const credentials = reactive({
   password: '',
 })
 
-const pendingSession = ref<PendingSession | null>(null)
+const authorizeResponse = ref<AuthorizeInitiationResponse | null>(null)
 const tokenSession = ref<TokenSession | null>(null)
 const latestAuthorizationCode = ref('')
 const successMessage = ref('')
 const errorMessage = ref('')
 const settingsMessage = ref('')
 const busyAction = ref<BusyAction>(null)
+
+watch(
+  settings,
+  (nextSettings) => {
+    persistOAuthSettings({ ...nextSettings })
+  },
+  { deep: true },
+)
 
 function resetFeedback() {
   successMessage.value = ''
@@ -59,7 +60,7 @@ function setBusy(action: BusyAction) {
 }
 
 function clearAuthState() {
-  pendingSession.value = null
+  authorizeResponse.value = null
   tokenSession.value = null
   latestAuthorizationCode.value = ''
   credentials.password = ''
@@ -135,67 +136,19 @@ function translateError(error: unknown, fallback: string) {
   return message || fallback
 }
 
-async function saveSettings() {
-  resetFeedback()
-  settingsMessage.value = ''
-
-  try {
-    setBusy('save')
-
-    const nextSettings = currentSettings()
-    if (!nextSettings.clientId) {
-      throw new Error('Client ID를 입력해 주세요.')
-    }
-
-    new URL(nextSettings.authServerBaseUrl)
-    new URL(nextSettings.redirectUri)
-
-    updateSettings(persistOAuthSettings(nextSettings))
-    settingsMessage.value = '설정을 저장했습니다.'
-  } catch (error) {
-    errorMessage.value = translateError(error, '설정 저장에 실패했습니다.')
-  } finally {
-    setBusy(null)
-  }
-}
-
 function resetSettings() {
   updateSettings({ ...DEFAULT_OAUTH_SETTINGS })
-  settingsMessage.value = '기본 설정으로 되돌렸습니다. 저장 버튼으로 반영하세요.'
-}
-
-async function startPkceLogin() {
-  resetFeedback()
-  settingsMessage.value = ''
-
-  try {
-    setBusy('start')
-
-    const nextSettings = currentSettings()
-    if (!nextSettings.clientId) {
-      throw new Error('Client ID를 입력해 주세요.')
-    }
-
-    const { codeVerifier, codeChallenge } = await createPkcePair()
-    const state = createState()
-    const request = await initiateAuthorizeRequest(nextSettings, state, codeChallenge)
-
-    updateSettings(nextSettings)
-    pendingSession.value = { settings: nextSettings, request, state, codeVerifier }
-    latestAuthorizationCode.value = ''
-    successMessage.value = '인가 요청을 준비했습니다. 아래 로그인 폼을 제출해 주세요.'
-  } catch (error) {
-    errorMessage.value = translateError(error, '인가 요청 시작에 실패했습니다.')
-  } finally {
-    setBusy(null)
-  }
+  settingsMessage.value = '기본 설정으로 되돌렸습니다.'
 }
 
 async function submitLogin() {
   resetFeedback()
+  settingsMessage.value = ''
 
-  if (!pendingSession.value) {
-    errorMessage.value = '먼저 PKCE 로그인 시작 버튼을 눌러 requestId를 받아오세요.'
+  const nextSettings = currentSettings()
+
+  if (!nextSettings.clientId) {
+    errorMessage.value = 'Client ID를 입력해 주세요.'
     return
   }
 
@@ -207,12 +160,14 @@ async function submitLogin() {
   try {
     setBusy('login')
 
-    const session = pendingSession.value
-    const { url } = await submitAuthorizeLogin(session.settings, {
-      requestId: pendingSession.value.request.requestId,
+    const { codeVerifier, codeChallenge } = await createPkcePair()
+    const state = createState()
+    const request = await initiateAuthorizeRequest(nextSettings, state, codeChallenge)
+    const { url } = await submitAuthorizeLogin(nextSettings, {
+      requestId: request.requestId,
       email: credentials.email,
       password: credentials.password,
-      grantedScopes: pendingSession.value.request.requestedScopes,
+      grantedScopes: request.requestedScopes,
     })
 
     const redirect = parseAuthorizeRedirect(url)
@@ -225,24 +180,20 @@ async function submitLogin() {
       throw new Error('인가 코드가 반환되지 않았습니다.')
     }
 
-    if (redirect.state !== pendingSession.value.state) {
+    if (redirect.state !== state) {
       throw new Error('state 검증에 실패했습니다. 다시 로그인해 주세요.')
     }
 
-    const tokenResponse = await exchangeCodeForToken(
-      session.settings,
-      redirect.code,
-      pendingSession.value.codeVerifier,
-    )
+    const tokenResponse = await exchangeCodeForToken(nextSettings, redirect.code, codeVerifier)
 
-    updateSettings(session.settings)
+    updateSettings(nextSettings)
+    authorizeResponse.value = request
     latestAuthorizationCode.value = redirect.code
     tokenSession.value = {
-      settings: session.settings,
+      settings: nextSettings,
       response: tokenResponse,
       receivedAt: Date.now(),
     }
-    pendingSession.value = null
     credentials.password = ''
     successMessage.value = '로그인과 토큰 교환에 성공했습니다.'
   } catch (error) {
@@ -330,7 +281,7 @@ const accessTokenClaims = computed(() => decodeJwtPayload(tokenSession.value?.re
 const refreshTokenClaims = computed(() => decodeJwtPayload(tokenSession.value?.response.refresh_token))
 const isBusy = computed(() => busyAction.value !== null)
 const hasToken = computed(() => Boolean(tokenSession.value?.response.access_token))
-const requestedScopes = computed(() => pendingSession.value?.request.requestedScopes ?? [])
+const requestedScopes = computed(() => authorizeResponse.value?.requestedScopes ?? [])
 </script>
 
 <template>
@@ -360,7 +311,6 @@ const requestedScopes = computed(() => pendingSession.value?.request.requestedSc
           </div>
           <div class="panel-actions compact">
             <button class="ghost" type="button" :disabled="isBusy" @click="resetSettings">기본값</button>
-            <button type="button" :disabled="isBusy" @click="saveSettings">설정 저장</button>
           </div>
         </div>
 
@@ -423,14 +373,13 @@ const requestedScopes = computed(() => pendingSession.value?.request.requestedSc
       <div class="panel-header">
         <div>
           <p class="panel-eyebrow">Flow</p>
-          <h2>PKCE 로그인 시작</h2>
+          <h2>원클릭 PKCE 로그인</h2>
         </div>
-        <button type="button" :disabled="isBusy" @click="startPkceLogin">로그인 버튼</button>
       </div>
 
       <p class="panel-description">
-        버튼을 누르면 `code_verifier`, `code_challenge`, `state`를 생성한 뒤 `GET /authorize`를
-        `Accept: application/json`으로 호출합니다.
+        로그인 시 `code_verifier`, `code_challenge`, `state` 생성부터 `GET /authorize`, 로그인 제출,
+        코드/토큰 교환까지 한 번에 진행합니다.
       </p>
 
       <div class="status-stack">
@@ -445,45 +394,43 @@ const requestedScopes = computed(() => pendingSession.value?.request.requestedSc
         <p class="panel-eyebrow">Authorize</p>
         <h2>로그인 폼</h2>
 
-        <template v-if="pendingSession">
-          <div class="request-card">
-            <div>
-              <span class="request-label">연결된 앱</span>
-              <strong>{{ pendingSession.request.client.name }}</strong>
-            </div>
-            <div>
-              <span class="request-label">Client ID</span>
-              <code>{{ pendingSession.request.client.clientId }}</code>
-            </div>
-            <div>
-              <span class="request-label">Request ID</span>
-              <code>{{ pendingSession.request.requestId }}</code>
-            </div>
+        <div v-if="authorizeResponse" class="request-card">
+          <div>
+            <span class="request-label">연결된 앱</span>
+            <strong>{{ authorizeResponse.client.name }}</strong>
           </div>
-
-          <div class="scope-chips">
-            <span v-for="scope in requestedScopes" :key="scope" class="scope-chip">{{ scope }}</span>
+          <div>
+            <span class="request-label">Client ID</span>
+            <code>{{ authorizeResponse.client.clientId }}</code>
           </div>
+          <div>
+            <span class="request-label">Request ID</span>
+            <code>{{ authorizeResponse.requestId }}</code>
+          </div>
+        </div>
 
-          <form class="form-grid" @submit.prevent="submitLogin">
-            <label>
-              <span>이메일</span>
-              <input v-model="credentials.email" type="email" placeholder="user@example.com" required />
-            </label>
+        <div v-if="requestedScopes.length" class="scope-chips">
+          <span v-for="scope in requestedScopes" :key="scope" class="scope-chip">{{ scope }}</span>
+        </div>
 
-            <label>
-              <span>비밀번호</span>
-              <input v-model="credentials.password" type="password" placeholder="비밀번호" required />
-            </label>
+        <form class="form-grid" @submit.prevent="submitLogin">
+          <label>
+            <span>이메일</span>
+            <input v-model="credentials.email" type="email" placeholder="user@example.com" required />
+          </label>
 
-            <div class="full-width panel-actions">
-              <button type="submit" :disabled="isBusy">로그인 + 코드 발급</button>
-            </div>
-          </form>
-        </template>
+          <label>
+            <span>비밀번호</span>
+            <input v-model="credentials.password" type="password" placeholder="비밀번호" required />
+          </label>
 
-        <p v-else class="empty-state">
-          먼저 로그인 버튼을 눌러 requestId를 발급받으면 이 영역에 인증 폼이 표시됩니다.
+          <div class="full-width panel-actions">
+            <button type="submit" :disabled="isBusy">로그인</button>
+          </div>
+        </form>
+
+        <p class="panel-description">
+          앱을 열면 바로 로그인할 수 있으며, PKCE 준비와 인증 요청 생성은 제출 시 내부적으로 처리됩니다.
         </p>
       </article>
 
