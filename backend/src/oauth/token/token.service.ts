@@ -4,8 +4,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { sign } from 'jsonwebtoken';
 import { randomBytes, randomUUID } from 'crypto';
 import {
@@ -34,6 +34,20 @@ export interface TokenResponse {
   scope: string;
 }
 
+interface AuditEvent {
+  action: AuditAction;
+  actorId?: string | null;
+  actorType?: string | null;
+  targetId?: string | null;
+  targetType?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+interface IssueResult {
+  response: TokenResponse;
+  auditEvents: AuditEvent[];
+}
+
 @Injectable()
 export class TokenService {
   constructor(
@@ -51,6 +65,8 @@ export class TokenService {
     private readonly tenantRepo: Repository<Tenant>,
     @InjectRepository(TenantSettings)
     private readonly settingsRepo: Repository<TenantSettings>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly keysService: KeysService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
@@ -123,12 +139,17 @@ export class TokenService {
       if (!valid) throw new BadRequestException('invalid_grant: code_verifier mismatch');
     }
 
-    authCode.used = true;
-    await this.codeRepo.save(authCode);
+    const { response, auditEvents } = await this.dataSource.transaction(async (manager) => {
+      authCode.used = true;
+      await manager.save(AuthorizationCode, authCode);
 
-    return this.issueTokenPair(
-      tenantId, client.clientId, authCode.userId, authCode.scopes, accessTtl, refreshTtl, ctx,
-    );
+      return this.issueTokenPairInTx(
+        manager, tenantId, client.clientId, authCode.userId, authCode.scopes, accessTtl, refreshTtl,
+      );
+    });
+
+    await this.flushAuditEvents(tenantId, auditEvents, ctx);
+    return response;
   }
 
   private async handleRefreshToken(
@@ -154,39 +175,43 @@ export class TokenService {
     }
     if (new Date() > stored.expiresAt) throw new BadRequestException('invalid_grant: token expired');
 
-    // rotation: 기존 토큰 폐기
-    stored.revoked = true;
-    await this.refreshTokenRepo.save(stored);
-
     const scopes = req.scope
       ? req.scope.split(' ').filter((s) => stored.scopes.includes(s))
       : stored.scopes;
 
-    const result = await this.issueTokenPair(
-      tenantId, client.clientId, stored.userId, scopes, accessTtl, refreshTtl, ctx,
-    );
+    const { response, auditEvents } = await this.dataSource.transaction(async (manager) => {
+      // 기존 토큰 폐기
+      stored.revoked = true;
+      await manager.save(RefreshToken, stored);
 
-    // 같은 family로 새 refresh token 저장
-    const newToken = await this.refreshTokenRepo.findOne({
-      where: { tenantId, tokenHash: CryptoUtil.sha256Hex(result.refresh_token!) },
+      const result = await this.issueTokenPairInTx(
+        manager, tenantId, client.clientId, stored.userId, scopes, accessTtl, refreshTtl,
+      );
+
+      // 새 refresh token을 같은 family로 연결
+      if (result.response.refresh_token) {
+        const newTokenHash = CryptoUtil.sha256Hex(result.response.refresh_token);
+        const newToken = await manager.findOne(RefreshToken, { where: { tenantId, tokenHash: newTokenHash } });
+        if (newToken) {
+          newToken.familyId = stored.familyId;
+          await manager.save(RefreshToken, newToken);
+        }
+      }
+
+      result.auditEvents.push({
+        action: AuditAction.TOKEN_REFRESHED,
+        actorId: stored.userId,
+        actorType: 'user',
+        targetId: stored.familyId,
+        targetType: 'refresh_token',
+        metadata: { familyId: stored.familyId, scopes },
+      });
+
+      return result;
     });
-    if (newToken) {
-      newToken.familyId = stored.familyId;
-      await this.refreshTokenRepo.save(newToken);
-    }
 
-    await this.auditService.record({
-      tenantId,
-      action: AuditAction.TOKEN_REFRESHED,
-      actorId: stored.userId,
-      actorType: 'user',
-      targetId: stored.familyId,
-      targetType: 'refresh_token',
-      metadata: { familyId: stored.familyId, scopes },
-      ...ctx,
-    });
-
-    return result;
+    await this.flushAuditEvents(tenantId, auditEvents, ctx);
+    return response;
   }
 
   private async handleClientCredentials(
@@ -200,18 +225,23 @@ export class TokenService {
       ? req.scope.split(' ').filter((s) => client.allowedScopes.includes(s))
       : client.allowedScopes;
 
-    return this.issueTokenPair(tenantId, client.clientId, null, scopes, accessTtl, null, ctx);
+    const { response, auditEvents } = await this.dataSource.transaction(async (manager) => {
+      return this.issueTokenPairInTx(manager, tenantId, client.clientId, null, scopes, accessTtl, null);
+    });
+
+    await this.flushAuditEvents(tenantId, auditEvents, ctx);
+    return response;
   }
 
-  private async issueTokenPair(
+  private async issueTokenPairInTx(
+    manager: EntityManager,
     tenantId: string,
     clientId: string,
     userId: string | null,
     scopes: string[],
     accessTtl: number,
     refreshTtl: number | null,
-    ctx?: AuditContext,
-  ): Promise<TokenResponse> {
+  ): Promise<IssueResult> {
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     const activeKey = await this.keysService.getActiveKey(null);
     const defaultIssuer = this.configService.get<string>('app.issuer') ?? 'https://auth.example.com';
@@ -238,26 +268,22 @@ export class TokenService {
 
     const grantType = refreshTtl === null ? 'client_credentials' : 'authorization_code';
     const expiresAt = new Date(Date.now() + accessTtl * 1000);
-    await this.accessTokenRepo.save(
-      this.accessTokenRepo.create({
-        tenantId,
-        clientId,
-        userId,
-        jti,
-        scopes,
-        expiresAt,
-      }),
+
+    await manager.save(
+      AccessToken,
+      manager.create(AccessToken, { tenantId, clientId, userId, jti, scopes, expiresAt }),
     );
-    await this.auditService.record({
-      tenantId,
-      action: AuditAction.TOKEN_ISSUED,
-      actorId: userId ?? clientId,
-      actorType: userId ? 'user' : 'client',
-      targetId: jti,
-      targetType: 'access_token',
-      metadata: { grantType, scopes, jti },
-      ...ctx,
-    });
+
+    const auditEvents: AuditEvent[] = [
+      {
+        action: AuditAction.TOKEN_ISSUED,
+        actorId: userId ?? clientId,
+        actorType: userId ? 'user' : 'client',
+        targetId: jti,
+        targetType: 'access_token',
+        metadata: { grantType, scopes, jti },
+      },
+    ];
 
     const response: TokenResponse = {
       access_token: accessTokenJwt,
@@ -272,31 +298,35 @@ export class TokenService {
       const familyId = randomUUID();
       const refreshExpiresAt = new Date(Date.now() + refreshTtl * 1000);
 
-      await this.refreshTokenRepo.save(
-        this.refreshTokenRepo.create({
-          tenantId,
-          clientId,
-          userId,
-          tokenHash,
-          familyId,
-          scopes,
-          expiresAt: refreshExpiresAt,
+      await manager.save(
+        RefreshToken,
+        manager.create(RefreshToken, {
+          tenantId, clientId, userId, tokenHash, familyId, scopes, expiresAt: refreshExpiresAt,
         }),
       );
-      await this.auditService.record({
-        tenantId,
+
+      auditEvents.push({
         action: AuditAction.TOKEN_ISSUED,
-        actorId: userId ?? clientId,
-        actorType: userId ? 'user' : 'client',
+        actorId: userId,
+        actorType: 'user',
         targetId: familyId,
         targetType: 'refresh_token',
-        metadata: { plainRefresh, familyId, scopes },
-        ...ctx,
+        metadata: { familyId, scopes },
       });
 
       response.refresh_token = plainRefresh;
     }
 
-    return response;
+    return { response, auditEvents };
+  }
+
+  private async flushAuditEvents(
+    tenantId: string,
+    events: AuditEvent[],
+    ctx?: AuditContext,
+  ): Promise<void> {
+    for (const event of events) {
+      await this.auditService.record({ tenantId, ...event, ...ctx });
+    }
   }
 }

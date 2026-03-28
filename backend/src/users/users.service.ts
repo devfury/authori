@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AuditAction, User, UserProfile, UserStatus } from '../database/entities';
 import { CryptoUtil } from '../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../common/audit/audit.service';
@@ -15,6 +15,8 @@ export class UsersService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserProfile)
     private readonly profileRepo: Repository<UserProfile>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly profileSchemaService: ProfileSchemaService,
     private readonly auditService: AuditService,
   ) {}
@@ -88,10 +90,14 @@ export class UsersService {
       const activeSchema = await this.profileSchemaService.findActive(tenantId);
       user.profile.profileJsonb = merged;
       user.profile.schemaVersionId = activeSchema?.id ?? null;
-      await this.profileRepo.save(user.profile);
     }
 
-    return this.userRepo.save(user);
+    return this.dataSource.transaction(async (manager) => {
+      if (dto.profile) {
+        await manager.save(UserProfile, user.profile);
+      }
+      return manager.save(User, user);
+    });
   }
 
   async deactivate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {

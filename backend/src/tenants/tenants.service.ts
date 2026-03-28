@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AuditAction, Tenant, TenantSettings, TenantStatus } from '../database/entities';
 import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
@@ -13,6 +13,8 @@ export class TenantsService {
     private readonly tenantRepo: Repository<Tenant>,
     @InjectRepository(TenantSettings)
     private readonly settingsRepo: Repository<TenantSettings>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
   ) {}
 
@@ -59,12 +61,13 @@ export class TenantsService {
     if (dto.issuer !== undefined) tenant.issuer = dto.issuer;
     if (dto.status) tenant.status = dto.status;
 
-    if (dto.settings) {
-      Object.assign(tenant.settings, dto.settings);
-      await this.settingsRepo.save(tenant.settings);
-    }
-
-    return this.tenantRepo.save(tenant);
+    return this.dataSource.transaction(async (manager) => {
+      if (dto.settings) {
+        Object.assign(tenant.settings, dto.settings);
+        await manager.save(TenantSettings, tenant.settings);
+      }
+      return manager.save(Tenant, tenant);
+    });
   }
 
   async deactivate(id: string): Promise<Tenant> {

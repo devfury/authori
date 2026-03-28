@@ -3,8 +3,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import {
   AuditAction,
@@ -44,6 +44,8 @@ export class AuthorizeService {
     private readonly consentRepo: Repository<Consent>,
     @InjectRepository(TenantSettings)
     private readonly settingsRepo: Repository<TenantSettings>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
   ) {}
 
@@ -98,7 +100,7 @@ export class AuthorizeService {
       where: { tenantId, email: dto.email },
     });
 
-    // 계정 잠금 확인
+    // 계정 잠금 확인 — 단순 조회 후 감사만 기록, 트랜잭션 불필요
     if (user?.lockedUntil && user.lockedUntil > new Date()) {
       await this.auditService.record({
         tenantId,
@@ -131,6 +133,7 @@ export class AuthorizeService {
 
     const passwordValid = await CryptoUtil.verify(dto.password, user.passwordHash);
     if (!passwordValid) {
+      // 실패 횟수 증가 — 단일 쓰기이므로 트랜잭션 불필요
       user.failedLoginAttempts += 1;
 
       if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
@@ -165,12 +168,11 @@ export class AuthorizeService {
       throw new UnauthorizedException('invalid_credentials');
     }
 
-    // 로그인 성공 — 잠금 해제 및 카운터 초기화
+    // 로그인 성공 — user 상태 초기화 + consent + authCode 발급을 트랜잭션으로 묶음
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
     user.lastLoginAt = new Date();
     if ((user.status as string) === UserStatus.LOCKED) user.status = UserStatus.ACTIVE;
-    await this.userRepo.save(user);
 
     const grantedScopes = dto.grantedScopes ?? pending.scopes;
 
@@ -187,7 +189,6 @@ export class AuthorizeService {
         grantedScopes,
       });
     }
-    await this.consentRepo.save(consent);
 
     const code = randomBytes(32).toString('base64url');
     const authCode = this.codeRepo.create({
@@ -201,7 +202,13 @@ export class AuthorizeService {
       codeChallengeMethod: (pending.codeChallengeMethod as CodeChallengeMethod) ?? null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
-    await this.codeRepo.save(authCode);
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(User, user);
+      await manager.save(Consent, consent!);
+      await manager.save(AuthorizationCode, authCode);
+    });
+
     this.pendingStore.delete(dto.requestId);
 
     await this.auditService.record({

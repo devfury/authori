@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { AuditAction, ClientStatus, ClientType, OAuthClient, OAuthClientRedirectUri } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
@@ -21,6 +21,8 @@ export class ClientsService {
     private readonly clientRepo: Repository<OAuthClient>,
     @InjectRepository(OAuthClientRedirectUri)
     private readonly redirectUriRepo: Repository<OAuthClientRedirectUri>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
   ) {}
 
@@ -44,22 +46,27 @@ export class ClientsService {
       allowedScopes: dto.allowedScopes ?? ['openid'],
       allowedGrants: dto.allowedGrants ?? ['authorization_code', 'refresh_token'],
     });
-    await this.clientRepo.save(client);
 
     const uris = dto.redirectUris.map((uri) =>
       this.redirectUriRepo.create({ clientId: client.clientId, uri }),
     );
-    await this.redirectUriRepo.save(uris);
+
+    const savedClient = await this.dataSource.transaction(async (manager) => {
+      const saved = await manager.save(OAuthClient, client);
+      await manager.save(OAuthClientRedirectUri, uris);
+      return saved;
+    });
 
     await this.auditService.record({
       tenantId,
       action: AuditAction.CLIENT_CREATED,
       targetType: 'oauth_client',
-      targetId: client.clientId,
-      metadata: { name: client.name, type: client.type },
+      targetId: savedClient.clientId,
+      metadata: { name: savedClient.name, type: savedClient.type },
       ...ctx,
     });
-    return { client, plainSecret };
+
+    return { client: savedClient, plainSecret };
   }
 
   async findAll(tenantId: string): Promise<OAuthClient[]> {
@@ -88,14 +95,18 @@ export class ClientsService {
     if (dto.allowedGrants) client.allowedGrants = dto.allowedGrants;
 
     if (dto.redirectUris) {
-      await this.redirectUriRepo.delete({ clientId: client.clientId });
-      const uris = dto.redirectUris.map((uri) =>
-        this.redirectUriRepo.create({ clientId: client.clientId, uri }),
-      );
-      client.redirectUris = await this.redirectUriRepo.save(uris);
+      await this.dataSource.transaction(async (manager) => {
+        await manager.delete(OAuthClientRedirectUri, { clientId: client.clientId });
+        const uris = dto.redirectUris!.map((uri) =>
+          this.redirectUriRepo.create({ clientId: client.clientId, uri }),
+        );
+        client.redirectUris = await manager.save(OAuthClientRedirectUri, uris);
+        await manager.save(OAuthClient, client);
+      });
+    } else {
+      await this.clientRepo.save(client);
     }
 
-    await this.clientRepo.save(client);
     return this.findOne(tenantId, clientId);
   }
 
