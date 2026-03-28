@@ -768,6 +768,7 @@ input:focus {
 .status-stack {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .status {
@@ -775,6 +776,10 @@ input:focus {
   padding: 0.95rem 1rem;
   border-radius: 18px;
   border: 1px solid transparent;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .status.success {
