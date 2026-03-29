@@ -1,42 +1,64 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { adminsApi } from '@/api/admins'
+import { ref, watch } from 'vue'
+import { adminsApi, type AdminUser } from '@/api/admins'
 import { tenantsApi, type Tenant } from '@/api/tenants'
 import { AdminRole, TenantStatus } from '@/api/enums'
-import PageHeader from '@/components/shared/PageHeader.vue'
 
-const router = useRouter()
+const props = defineProps<{
+  open: boolean
+  admin: AdminUser | null
+}>()
+
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'updated'): void
+}>()
 
 const email = ref('')
 const name = ref('')
 const password = ref('')
-const role = ref<typeof AdminRole[keyof typeof AdminRole]>(AdminRole.TENANT_ADMIN)
+const role = ref<AdminRole>(AdminRole.TENANT_ADMIN)
 const tenantId = ref('')
 const tenants = ref<Tenant[]>([])
 const error = ref('')
 const loading = ref(false)
 
-onMounted(async () => {
-  const { data } = await tenantsApi.findAll({ limit: 1000 })
-  tenants.value = data.items.filter((t) => t.status === TenantStatus.ACTIVE)
-})
+watch(
+  () => props.open,
+  async (newOpen) => {
+    if (newOpen && props.admin) {
+      email.value = props.admin.email
+      name.value = props.admin.name || ''
+      password.value = ''
+      role.value = props.admin.role
+      tenantId.value = props.admin.tenantId || ''
+      error.value = ''
+
+      if (tenants.value.length === 0) {
+        const { data } = await tenantsApi.findAll({ limit: 1000 })
+        tenants.value = data.items.filter((t) => t.status === TenantStatus.ACTIVE)
+      }
+    }
+  },
+)
 
 async function submit() {
+  if (!props.admin) return
   error.value = ''
   loading.value = true
   try {
-    await adminsApi.create({
+    await adminsApi.update(props.admin.id, {
       email: email.value,
       name: name.value || undefined,
-      password: password.value,
+      password: password.value || undefined,
       role: role.value,
       tenantId: role.value === AdminRole.TENANT_ADMIN ? tenantId.value : undefined,
     })
-    router.push('/admin/admins')
+    emit('updated')
+    emit('close')
   } catch (e: unknown) {
     const axiosError = e as { response?: { data?: { message?: string } } }
-    error.value = axiosError.response?.data?.message ?? '생성 중 오류가 발생했습니다.'
+    error.value = axiosError.response?.data?.message ?? '수정 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
   }
@@ -44,11 +66,25 @@ async function submit() {
 </script>
 
 <template>
-  <div class="max-w-lg">
-    <PageHeader title="관리자 생성" />
+  <div
+    v-if="open"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+    @click.self="emit('close')"
+  >
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">관리자 정보 수정</h3>
+        <button
+          @click="emit('close')"
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
-    <div class="bg-white rounded-xl border border-gray-200 p-6">
-      <form class="space-y-4" @submit.prevent="submit">
+      <form @submit.prevent="submit" class="p-6 space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
           <input
@@ -69,12 +105,11 @@ async function submit() {
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            비밀번호 <span class="text-xs text-gray-400">(10자 이상)</span>
+            비밀번호 <span class="text-xs text-gray-400">(변경 시에만 입력, 10자 이상)</span>
           </label>
           <input
             v-model="password"
             type="password"
-            required
             minlength="10"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
@@ -101,9 +136,6 @@ async function submit() {
               {{ t.name }} ({{ t.slug }})
             </option>
           </select>
-          <p v-if="tenants.length === 0" class="text-xs text-gray-400 mt-1">
-            등록된 활성 테넌트가 없습니다.
-          </p>
         </div>
 
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
@@ -112,7 +144,7 @@ async function submit() {
           <button
             type="button"
             class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            @click="router.back()"
+            @click="emit('close')"
           >
             취소
           </button>
@@ -121,7 +153,7 @@ async function submit() {
             :disabled="loading"
             class="px-4 py-2 text-sm bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
-            {{ loading ? '생성 중...' : '생성' }}
+            {{ loading ? '저장 중...' : '저장' }}
           </button>
         </div>
       </form>

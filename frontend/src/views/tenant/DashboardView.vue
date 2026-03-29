@@ -17,13 +17,13 @@ const loading = ref(true)
 onMounted(async () => {
   try {
     const [clients, users, logs] = await Promise.all([
-      clientsApi.findAll(tenantId),
+      clientsApi.findAll(tenantId, { limit: 1 }),
       usersApi.findAll(tenantId),
       auditApi.findAll(tenantId, { limit: 5 }),
     ])
-    clientCount.value = clients.data.length
-    userCount.value = users.data.length
-    recentLogs.value = logs.data
+    clientCount.value = clients.data.total
+    userCount.value = users.data.total
+    recentLogs.value = logs.data.items
   } finally {
     loading.value = false
   }

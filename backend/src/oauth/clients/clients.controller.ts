@@ -8,15 +8,17 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { TenantAdminGuard } from '../../admin/guards/tenant-admin.guard';
+import { ClientStatus } from '../../database/entities';
 
 @ApiTags('Admin / OAuth Clients')
 @ApiBearerAuth()
@@ -39,8 +41,23 @@ export class ClientsController {
 
   @Get()
   @ApiOperation({ summary: '클라이언트 목록 조회' })
-  findAll(@Param('tenantId') tenantId: string) {
-    return this.clientsService.findAll(tenantId);
+  @ApiQuery({ name: 'page', required: false, type: Number, description: '페이지 번호 (1-based, 기본값: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: '페이지당 건수 (기본값: 20, 최대: 100)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: '이름 또는 clientId 부분 검색' })
+  @ApiQuery({ name: 'status', required: false, enum: ClientStatus, description: '상태 필터' })
+  findAll(
+    @Param('tenantId') tenantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: ClientStatus,
+  ) {
+    return this.clientsService.findAll(tenantId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search: search || undefined,
+      status: status || undefined,
+    });
   }
 
   @Get(':clientId')

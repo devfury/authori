@@ -1,5 +1,5 @@
 import http from './http'
-import { type UserStatus, UserStatus as UserStatusEnum } from './enums'
+import { type UserStatus } from './enums'
 
 export interface User {
   id: string
@@ -27,9 +27,23 @@ export interface UpdateUserPayload {
   profile?: Record<string, unknown>
 }
 
+export interface UserListQuery {
+  page?: number
+  limit?: number
+  search?: string
+  status?: UserStatus
+}
+
+export interface UserPage {
+  items: User[]
+  total: number
+  page: number
+  limit: number
+}
+
 export const usersApi = {
-  findAll(tenantId: string) {
-    return http.get<User[]>(`/admin/tenants/${tenantId}/users`)
+  findAll(tenantId: string, query?: UserListQuery) {
+    return http.get<UserPage>(`/admin/tenants/${tenantId}/users`, { params: query })
   },
   findOne(tenantId: string, userId: string) {
     return http.get<User>(`/admin/tenants/${tenantId}/users/${userId}`)

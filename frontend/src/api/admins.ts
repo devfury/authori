@@ -19,12 +19,39 @@ export interface CreateAdminPayload {
   tenantId?: string
 }
 
+export interface UpdateAdminPayload {
+  email?: string
+  name?: string
+  password?: string
+  role?: AdminRole
+  tenantId?: string
+  status?: AdminStatus
+}
+
+export interface AdminListQuery {
+  page?: number
+  limit?: number
+  search?: string
+  status?: AdminStatus
+  role?: AdminRole
+}
+
+export interface AdminPage {
+  items: AdminUser[]
+  total: number
+  page: number
+  limit: number
+}
+
 export const adminsApi = {
-  findAll() {
-    return http.get<AdminUser[]>('/admin/auth/admins')
+  findAll(query?: AdminListQuery) {
+    return http.get<AdminPage>('/admin/auth/admins', { params: query })
   },
   create(payload: CreateAdminPayload) {
     return http.post<AdminUser>('/admin/auth/admins', payload)
+  },
+  update(id: string, payload: UpdateAdminPayload) {
+    return http.patch<AdminUser>(`/admin/auth/admins/${id}`, payload)
   },
   deactivate(id: string) {
     return http.delete(`/admin/auth/admins/${id}`)

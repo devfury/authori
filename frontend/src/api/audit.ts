@@ -15,8 +15,25 @@ export interface AuditLog {
   createdAt: string
 }
 
+export interface AuditLogQuery {
+  page?: number
+  limit?: number
+  action?: string
+  success?: boolean
+  actorType?: string
+  from?: string // 'YYYY-MM-DD'
+  to?: string // 'YYYY-MM-DD'
+}
+
+export interface AuditLogPage {
+  items: AuditLog[]
+  total: number
+  page: number
+  limit: number
+}
+
 export const auditApi = {
-  findAll(tenantId: string, params?: { limit?: number; offset?: number }) {
-    return http.get<AuditLog[]>(`/admin/tenants/${tenantId}/audit`, { params })
+  findAll(tenantId: string, query?: AuditLogQuery) {
+    return http.get<AuditLogPage>(`/admin/tenants/${tenantId}/audit`, { params: query })
   },
 }

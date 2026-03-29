@@ -101,7 +101,7 @@ onMounted(async () => {
       schemas.value = schemasResult.value.data
     }
     if (adminsResult.status === 'fulfilled') {
-      adminMap.value = indexById(adminsResult.value.data, (admin) => admin.id)
+      adminMap.value = indexById(adminsResult.value.data?.items || [], (admin) => admin.id)
     }
   } finally {
     loading.value = false

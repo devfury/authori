@@ -14,6 +14,20 @@ export interface CreatedClientResult {
   plainSecret: string | null;
 }
 
+export interface ClientListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: ClientStatus;
+}
+
+export interface ClientPage {
+  items: OAuthClient[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 @Injectable()
 export class ClientsService {
   constructor(
@@ -69,12 +83,31 @@ export class ClientsService {
     return { client: savedClient, plainSecret };
   }
 
-  async findAll(tenantId: string): Promise<OAuthClient[]> {
-    return this.clientRepo.find({
-      where: { tenantId },
-      relations: ['redirectUris'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(tenantId: string, query: ClientListQuery = {}): Promise<ClientPage> {
+    const { page = 1, limit: rawLimit = 20, search, status } = query;
+    const limit = Math.min(rawLimit, 100);
+    const offset = (page - 1) * limit;
+
+    const qb = this.clientRepo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.redirectUris', 'redirectUris')
+      .where('c.tenantId = :tenantId', { tenantId })
+      .orderBy('c.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset);
+
+    if (search) {
+      qb.andWhere('(c.name ILIKE :search OR c.clientId ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+
+    if (status) {
+      qb.andWhere('c.status = :status', { status });
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, page, limit };
   }
 
   async findOne(tenantId: string, clientId: string): Promise<OAuthClient> {

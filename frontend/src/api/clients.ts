@@ -41,9 +41,23 @@ export interface ClientCreatedResponse extends OAuthClient {
   plainSecret?: string
 }
 
+export interface ClientListQuery {
+  page?: number
+  limit?: number
+  search?: string
+  status?: ClientStatus
+}
+
+export interface ClientPage {
+  items: OAuthClient[]
+  total: number
+  page: number
+  limit: number
+}
+
 export const clientsApi = {
-  findAll(tenantId: string) {
-    return http.get<OAuthClient[]>(`/admin/tenants/${tenantId}/clients`)
+  findAll(tenantId: string, query?: ClientListQuery) {
+    return http.get<ClientPage>(`/admin/tenants/${tenantId}/clients`, { params: query })
   },
   findOne(tenantId: string, clientId: string) {
     return http.get<OAuthClient>(`/admin/tenants/${tenantId}/clients/${clientId}`)

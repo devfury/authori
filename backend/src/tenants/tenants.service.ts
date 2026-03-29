@@ -6,6 +6,20 @@ import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
+export interface TenantListQuery {
+  page?: number; // 1-based, 기본값 1
+  limit?: number; // 기본값 20, 최대 100
+  search?: string; // name 또는 slug 부분 검색
+  status?: TenantStatus;
+}
+
+export interface TenantPage {
+  items: Tenant[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 @Injectable()
 export class TenantsService {
   constructor(
@@ -44,8 +58,30 @@ export class TenantsService {
     return saved;
   }
 
-  async findAll(): Promise<Tenant[]> {
-    return this.tenantRepo.find({ relations: ['settings'], order: { createdAt: 'DESC' } });
+  async findAll(query: TenantListQuery = {}): Promise<TenantPage> {
+    const { page = 1, limit: rawLimit = 20, search, status } = query;
+    const limit = Math.min(rawLimit, 100);
+    const offset = (page - 1) * limit;
+
+    const qb = this.tenantRepo
+      .createQueryBuilder('t')
+      .leftJoinAndSelect('t.settings', 'settings')
+      .orderBy('t.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset);
+
+    if (search) {
+      qb.andWhere('(t.name ILIKE :search OR t.slug ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+
+    if (status) {
+      qb.andWhere('t.status = :status', { status });
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, page, limit };
   }
 
   async findOne(id: string): Promise<Tenant> {

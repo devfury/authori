@@ -8,6 +8,20 @@ import { ProfileSchemaService } from '../profile-schema/profile-schema.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+export interface UserListQuery {
+  page?: number; // 1-based, 기본값 1
+  limit?: number; // 기본값 20, 최대 100
+  search?: string; // email 또는 name 부분 검색
+  status?: UserStatus; // 'ACTIVE' | 'INACTIVE' | 'LOCKED'
+}
+
+export interface UserPage {
+  items: User[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -59,12 +73,31 @@ export class UsersService {
     return saved;
   }
 
-  async findAll(tenantId: string): Promise<User[]> {
-    return this.userRepo.find({
-      where: { tenantId },
-      relations: ['profile'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(tenantId: string, query: UserListQuery = {}): Promise<UserPage> {
+    const { page = 1, limit: rawLimit = 20, search, status } = query;
+    const limit = Math.min(rawLimit, 100);
+    const offset = (page - 1) * limit;
+
+    const qb = this.userRepo
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.profile', 'profile')
+      .where('u.tenantId = :tenantId', { tenantId })
+      .orderBy('u.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset);
+
+    if (search) {
+      qb.andWhere('(u.email ILIKE :search OR u.name ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+
+    if (status) {
+      qb.andWhere('u.status = :status', { status });
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, page, limit };
   }
 
   async findOne(tenantId: string, id: string): Promise<User> {

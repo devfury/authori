@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { usersApi, type User } from '@/api/users'
+import { usersApi } from '@/api/users'
 import { schemasApi, type ProfileSchemaVersion } from '@/api/schemas'
 import { SchemaStatus } from '@/api/enums'
 import PageHeader from '@/components/shared/PageHeader.vue'

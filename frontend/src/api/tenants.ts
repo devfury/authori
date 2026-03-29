@@ -42,9 +42,23 @@ export interface UpdateTenantPayload {
   }
 }
 
+export interface TenantListQuery {
+  page?: number
+  limit?: number
+  search?: string
+  status?: TenantStatus
+}
+
+export interface TenantPage {
+  items: Tenant[]
+  total: number
+  page: number
+  limit: number
+}
+
 export const tenantsApi = {
-  findAll() {
-    return http.get<Tenant[]>('/admin/tenants')
+  findAll(query?: TenantListQuery) {
+    return http.get<TenantPage>('/admin/tenants', { params: query })
   },
   findOne(id: string) {
     return http.get<Tenant>(`/admin/tenants/${id}`)

@@ -114,7 +114,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const [clientsRes] = await Promise.all([clientsApi.findAll(tenantId)])
-    clients.value = clientsRes.data
+    clients.value = clientsRes.data.items
     if (isEdit.value) {
       const { data } = await externalAuthApi.findOne(tenantId, id!)
       fillForm(data)

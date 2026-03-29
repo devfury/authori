@@ -8,15 +8,17 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { TenantAdminGuard } from '../admin/guards/tenant-admin.guard';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserStatus } from '../database/entities';
 
 @ApiTags('Admin / Users')
 @ApiBearerAuth()
@@ -39,8 +41,23 @@ export class UsersController {
 
   @Get()
   @ApiOperation({ summary: '사용자 목록 조회' })
-  findAll(@Param('tenantId') tenantId: string) {
-    return this.usersService.findAll(tenantId);
+  @ApiQuery({ name: 'page', required: false, type: Number, description: '페이지 번호 (1-based, 기본값: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: '페이지당 건수 (기본값: 20, 최대: 100)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: '이메일 또는 이름 부분 검색' })
+  @ApiQuery({ name: 'status', required: false, enum: UserStatus, description: '상태 필터' })
+  findAll(
+    @Param('tenantId') tenantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: UserStatus,
+  ) {
+    return this.usersService.findAll(tenantId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search: search || undefined,
+      status: status || undefined,
+    });
   }
 
   @Get(':id')
