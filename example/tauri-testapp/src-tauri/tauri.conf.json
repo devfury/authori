@@ -21,6 +21,19 @@
       "csp": null
     }
   },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        {
+          "scheme": ["authori"],
+          "appLink": false
+        }
+      ],
+      "desktop": {
+        "schemes": ["authori"]
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

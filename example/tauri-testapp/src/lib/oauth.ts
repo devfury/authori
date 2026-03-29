@@ -32,11 +32,13 @@ export type TokenResponse = {
   token_type: string
 }
 
+export const APP_DEEP_LINK_CALLBACK_URL = 'authori://oauth/callback'
+
 export const DEFAULT_OAUTH_SETTINGS: OAuthSettings = {
   authServerBaseUrl: 'http://localhost:3000',
   tenantSlug: 'test',
   clientId: '',
-  redirectUri: 'http://localhost:1420/callback',
+  redirectUri: 'http://localhost:5174/oauth/callback',
   scope: 'openid profile email',
 }
 

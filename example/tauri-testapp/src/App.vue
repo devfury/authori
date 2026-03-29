@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from "vue";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   buildOAuthEndpoint,
   createPkcePair,
@@ -28,6 +38,12 @@ type TokenSession = {
   receivedAt: number
 }
 
+type PendingOAuthSession = {
+  settings: OAuthSettings
+  codeVerifier: string
+  state: string
+}
+
 const settings = reactive<OAuthSettings>(readOAuthSettings())
 const credentials = reactive({
   email: '',
@@ -36,11 +52,13 @@ const credentials = reactive({
 
 const authorizeResponse = ref<AuthorizeInitiationResponse | null>(null)
 const tokenSession = ref<TokenSession | null>(null)
+const pendingSession = ref<PendingOAuthSession | null>(null)
 const latestAuthorizationCode = ref('')
 const successMessage = ref('')
 const errorMessage = ref('')
 const settingsMessage = ref('')
 const busyAction = ref<BusyAction>(null)
+let detachDeepLinkListener: (() => void) | null = null
 
 watch(
   settings,
@@ -62,6 +80,7 @@ function setBusy(action: BusyAction) {
 function clearAuthState() {
   authorizeResponse.value = null
   tokenSession.value = null
+  pendingSession.value = null
   latestAuthorizationCode.value = ''
   credentials.password = ''
 }
@@ -170,38 +189,132 @@ async function submitLogin() {
       grantedScopes: request.requestedScopes,
     })
 
-    const redirect = parseAuthorizeRedirect(url)
-
-    if (redirect.error) {
-      throw new Error(redirect.errorDescription ?? redirect.error)
-    }
-
-    if (!redirect.code) {
-      throw new Error('인가 코드가 반환되지 않았습니다.')
-    }
-
-    if (redirect.state !== state) {
-      throw new Error('state 검증에 실패했습니다. 다시 로그인해 주세요.')
-    }
-
-    const tokenResponse = await exchangeCodeForToken(nextSettings, redirect.code, codeVerifier)
-
-    updateSettings(nextSettings)
-    authorizeResponse.value = request
-    latestAuthorizationCode.value = redirect.code
-    tokenSession.value = {
+    updateSettings(nextSettings);
+    authorizeResponse.value = request;
+    tokenSession.value = null;
+    latestAuthorizationCode.value = "";
+    pendingSession.value = {
       settings: nextSettings,
-      response: tokenResponse,
-      receivedAt: Date.now(),
-    }
-    credentials.password = ''
-    successMessage.value = '로그인과 토큰 교환에 성공했습니다.'
+      codeVerifier,
+      state,
+    };
+
+    await openUrl(url);
+
+    credentials.password = "";
+    successMessage.value =
+      "브라우저에서 인증을 완료하면 custom scheme deep link로 앱에 다시 돌아옵니다.";
   } catch (error) {
-    errorMessage.value = translateError(error, '로그인 제출에 실패했습니다.')
+    errorMessage.value = translateError(error, "로그인 제출에 실패했습니다.");
   } finally {
-    setBusy(null)
+    setBusy(null);
   }
 }
+
+function isAppDeepLinkCallback(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    return (
+      parsedUrl.protocol === "authori:" &&
+      parsedUrl.hostname === "oauth" &&
+      parsedUrl.pathname === "/callback"
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function processAuthorizeCallback(url: string) {
+  if (!isAppDeepLinkCallback(url)) {
+    return;
+  }
+
+  const session = pendingSession.value;
+
+  if (!session) {
+    errorMessage.value =
+      "진행 중인 인증 세션이 없어 deep link callback을 처리할 수 없습니다.";
+    successMessage.value = "";
+    return;
+  }
+
+  resetFeedback();
+
+  const redirect = parseAuthorizeRedirect(url);
+
+  if (redirect.error) {
+    errorMessage.value = translateError(
+      new Error(redirect.errorDescription ?? redirect.error),
+      "deep link callback 처리에 실패했습니다.",
+    );
+    return;
+  }
+
+  if (!redirect.code) {
+    errorMessage.value = "deep link callback에 authorization code가 없습니다.";
+    return;
+  }
+
+  if (redirect.state !== session.state) {
+    errorMessage.value = "state 검증에 실패했습니다. 다시 로그인해 주세요.";
+    return;
+  }
+
+  try {
+    setBusy("login");
+
+    const appWindow = getCurrentWindow();
+    await appWindow.show().catch(() => undefined);
+    await appWindow.unminimize().catch(() => undefined);
+    await appWindow.setFocus().catch(() => undefined);
+
+    const tokenResponse = await exchangeCodeForToken(
+      session.settings,
+      redirect.code,
+      session.codeVerifier,
+    );
+
+    updateSettings(session.settings);
+    latestAuthorizationCode.value = redirect.code;
+    tokenSession.value = {
+      settings: session.settings,
+      response: tokenResponse,
+      receivedAt: Date.now(),
+    };
+    pendingSession.value = null;
+    successMessage.value =
+      "deep link callback 처리와 토큰 교환에 성공했습니다.";
+  } catch (error) {
+    errorMessage.value = translateError(
+      error,
+      "deep link callback 처리에 실패했습니다.",
+    );
+  } finally {
+    setBusy(null);
+  }
+}
+
+async function initializeDeepLinks() {
+  const startUrls = (await getCurrent()) ?? [];
+
+  for (const url of startUrls) {
+    await processAuthorizeCallback(url);
+  }
+
+  detachDeepLinkListener = await onOpenUrl(async (urls) => {
+    for (const url of urls) {
+      await processAuthorizeCallback(url);
+    }
+  });
+}
+
+onMounted(() => {
+  void initializeDeepLinks();
+});
+
+onBeforeUnmount(() => {
+  detachDeepLinkListener?.();
+});
 
 async function refreshToken() {
   resetFeedback()
@@ -379,7 +492,8 @@ const requestedScopes = computed(() => authorizeResponse.value?.requestedScopes 
 
       <p class="panel-description">
         로그인 시 `code_verifier`, `code_challenge`, `state` 생성부터 `GET /authorize`, 로그인 제출,
-        코드/토큰 교환까지 한 번에 진행합니다.
+        브라우저 callback bridge(`http://localhost:5174/oauth/callback`)와 custom scheme(
+        `authori://oauth/callback`) 복귀를 거쳐 토큰 교환까지 진행합니다.
       </p>
 
       <div class="status-stack">
@@ -430,7 +544,8 @@ const requestedScopes = computed(() => authorizeResponse.value?.requestedScopes 
         </form>
 
         <p class="panel-description">
-          앱을 열면 바로 로그인할 수 있으며, PKCE 준비와 인증 요청 생성은 제출 시 내부적으로 처리됩니다.
+          로그인 제출 후 기본 브라우저가 열리고, localhost bridge가
+          `authori://oauth/callback` deep link로 앱에 다시 전달합니다.
         </p>
       </article>
 
