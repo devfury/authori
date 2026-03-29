@@ -55,8 +55,28 @@ export class UsersController {
     @Param('tenantId') tenantId: string,
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
+    @Req() req: Request,
   ) {
-    return this.usersService.update(tenantId, id, dto);
+    return this.usersService.update(tenantId, id, dto, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
+  }
+
+  @Post(':id/activate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '사용자 활성화' })
+  activate(@Param('tenantId') tenantId: string, @Param('id') id: string, @Req() req: Request) {
+    return this.usersService.activate(tenantId, id, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
   }
 
   @Delete(':id')

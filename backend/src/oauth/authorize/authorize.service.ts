@@ -133,23 +133,17 @@ export class AuthorizeService {
       relations: ['profile'],
     });
 
-    // 잠금 / 비활성 확인
+    // 잠금 확인
     if (user?.lockedUntil && user.lockedUntil > new Date()) {
       await this.recordAuditLoginFailure(tenantId, pending.clientId, user.id, 'account_locked', ctx);
       throw new UnauthorizedException('account_locked');
-    }
-    if (user && user.status !== UserStatus.ACTIVE) {
-      await this.recordAuditLoginFailure(tenantId, pending.clientId, user.id, 'user_inactive', ctx);
-      throw new UnauthorizedException('invalid_credentials');
     }
 
     const provider = await this.externalAuthService.findActive(tenantId, pending.clientId);
 
     if (provider) {
       // ── 외부 인증 우선 경로 ──────────────────────────
-      const result = await this.externalAuthService.callProvider(
-        provider, dto.email, dto.password, tenantId, pending.clientId,
-      );
+      const result = await this.externalAuthService.callProvider(provider, dto.email, dto.password);
 
       if (result.error) {
         // 연동 장애 → 로컬 폴백 시도
@@ -209,6 +203,7 @@ export class AuthorizeService {
 
       // 기존 사용자 — 로컬 비밀번호 동기화
       user.passwordHash = await CryptoUtil.hash(dto.password);
+      user.status = UserStatus.ACTIVE;
 
       if (provider.syncOnLogin && result.user) {
         const mapped = this.externalAuthService.applyFieldMapping(result.user, provider.fieldMapping);
@@ -223,6 +218,12 @@ export class AuthorizeService {
       return this.issueAuthCode(user, profileDirty, dto, pending, tenantId, ctx, {
         source: 'external_auth', providerId: provider.id,
       });
+    }
+
+    // 비활성 확인
+    if (user && user.status !== UserStatus.ACTIVE) {
+      await this.recordAuditLoginFailure(tenantId, pending.clientId, user.id, 'user_inactive', ctx);
+      throw new UnauthorizedException('invalid_credentials');
     }
 
     // ── 로컬 전용 경로 ──────────────────────────────────

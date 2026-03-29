@@ -76,7 +76,7 @@ export class UsersService {
     return user;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateUserDto): Promise<User> {
+  async update(tenantId: string, id: string, dto: UpdateUserDto, ctx?: AuditContext): Promise<User> {
     const user = await this.findOne(tenantId, id);
 
     if (dto.status) user.status = dto.status;
@@ -92,11 +92,35 @@ export class UsersService {
       user.profile.schemaVersionId = activeSchema?.id ?? null;
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       if (dto.profile) {
         await manager.save(UserProfile, user.profile);
       }
       return manager.save(User, user);
+    });
+
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_UPDATED,
+      targetType: 'user',
+      targetId: id,
+      metadata: { dto },
+      ...ctx,
+    });
+
+    return saved;
+  }
+
+  async activate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {
+    const user = await this.findOne(tenantId, id);
+    user.status = UserStatus.ACTIVE;
+    await this.userRepo.save(user);
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_ACTIVATED,
+      targetType: 'user',
+      targetId: id,
+      ...ctx,
     });
   }
 

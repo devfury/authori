@@ -19,7 +19,7 @@ const providerUrl = ref('')
 const credentialHeader = ref('')
 const credentialValue = ref('')
 const jitProvision = ref(true)
-const syncOnLogin = ref(false)
+const syncOnLogin = ref(true)
 
 // 필드 매핑
 const mappingEmail = ref('')
@@ -31,6 +31,7 @@ const profileMappingRows = ref<{ ext: string; local: string }[]>([])
 const clients = ref<OAuthClient[]>([])
 
 const loading = ref(false)
+const guideOpen = ref(false)
 const saving = ref(false)
 const error = ref('')
 
@@ -131,6 +132,102 @@ onMounted(async () => {
     <div v-if="loading" class="text-sm text-gray-400">불러오는 중...</div>
 
     <form v-else class="space-y-4 max-w-2xl" @submit.prevent="save">
+      <!-- API 구현 가이드 -->
+      <div class="bg-blue-50 border border-blue-200 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          class="w-full flex items-center justify-between px-5 py-3 text-left"
+          @click="guideOpen = !guideOpen"
+        >
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="text-sm font-medium text-blue-800">외부 인증 프로바이더 API 구현 가이드</span>
+          </div>
+          <svg
+            class="w-4 h-4 text-blue-500 transition-transform"
+            :class="guideOpen ? 'rotate-180' : ''"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        <div v-if="guideOpen" class="px-5 pb-5 space-y-4 border-t border-blue-200">
+          <p class="text-xs text-blue-700 pt-3">
+            Authori는 사용자 로그인 시 아래 규격으로 외부 인증 서버에 요청합니다. 외부 서버는 이 스펙에 맞게 API를 구현해야 합니다.
+          </p>
+
+          <!-- 요청 규격 -->
+          <div>
+            <p class="text-xs font-semibold text-blue-800 mb-1.5">요청 (Request)</p>
+            <div class="bg-white rounded-lg border border-blue-100 p-3 font-mono text-xs text-gray-700 space-y-0.5">
+              <p class="text-gray-400">// POST {프로바이더 URL}</p>
+              <p class="text-gray-400">// Content-Type: application/json</p>
+              <p class="text-gray-400">// {인증 헤더 이름}: {인증 헤더 값}  ← 설정된 경우</p>
+              <p class="mt-1">{</p>
+              <p class="pl-4">"email": "user@example.com",</p>
+              <p class="pl-4">"password": "사용자가 입력한 비밀번호"</p>
+              <p>}</p>
+            </div>
+          </div>
+
+          <!-- 응답 규격 -->
+          <div>
+            <p class="text-xs font-semibold text-blue-800 mb-1.5">응답 (Response)</p>
+            <div class="space-y-2">
+              <!-- 성공 -->
+              <div>
+                <p class="text-xs text-green-700 font-medium mb-1">✓ 인증 성공 (HTTP 200)</p>
+                <div class="bg-white rounded-lg border border-green-100 p-3 font-mono text-xs text-gray-700 space-y-0.5">
+                  <p>{</p>
+                  <p class="pl-4">"authenticated": true,</p>
+                  <p class="pl-4">"user": {</p>
+                  <p class="pl-8">"email": "user@example.com",  <span class="text-gray-400">// 필수</span></p>
+                  <p class="pl-8">"name": "홍길동",             <span class="text-gray-400">// 선택</span></p>
+                  <p class="pl-8">"loginId": "gildong",         <span class="text-gray-400">// 선택</span></p>
+                  <p class="pl-8">"profile": { ... }            <span class="text-gray-400">// 선택</span></p>
+                  <p class="pl-4">}</p>
+                  <p>}</p>
+                </div>
+              </div>
+
+              <!-- 명시적 거부 -->
+              <div>
+                <p class="text-xs text-red-700 font-medium mb-1">✗ 인증 거부 (HTTP 200, 로컬 폴백 없음)</p>
+                <div class="bg-white rounded-lg border border-red-100 p-3 font-mono text-xs text-gray-700 space-y-0.5">
+                  <p>{</p>
+                  <p class="pl-4">"authenticated": false,</p>
+                  <p class="pl-4">"reason": "invalid_password"  <span class="text-gray-400">// 선택</span></p>
+                  <p>}</p>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">외부 서버가 명시적으로 거부한 경우. 로컬 비밀번호 폴백 없이 로그인이 차단됩니다.</p>
+              </div>
+
+              <!-- 장애 -->
+              <div>
+                <p class="text-xs text-orange-700 font-medium mb-1">⚠ 연동 장애 (HTTP 500, 로컬 폴백 허용)</p>
+                <div class="bg-white rounded-lg border border-orange-100 p-3 font-mono text-xs text-gray-700">
+                  <p class="text-gray-400">// HTTP 500 응답 또는 타임아웃(5초 초과)</p>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">외부 서버 장애 시 Authori는 로컬 비밀번호로 폴백합니다. 5xx 응답이나 응답 없음으로 장애를 표현하세요.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 주의사항 -->
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p class="text-xs font-semibold text-amber-800 mb-1">주의사항</p>
+            <ul class="text-xs text-amber-700 space-y-1 list-disc list-inside">
+              <li>4xx 응답(401, 403 등)은 명시적 거부로 처리됩니다. 장애 표현에는 5xx를 사용하세요.</li>
+              <li>Authori는 타임아웃을 <strong>5초</strong>로 설정합니다. 응답이 5초를 초과하면 로컬 폴백이 시도됩니다.</li>
+              <li>JIT 프로비저닝이 활성화된 경우 성공 응답의 <code class="bg-amber-100 px-1 rounded">user</code> 필드가 없으면 신규 사용자 생성에 실패합니다.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <!-- 기본 설정 -->
       <div class="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
         <h2 class="text-sm font-semibold text-gray-900">기본 설정</h2>
@@ -171,9 +268,14 @@ onMounted(async () => {
             v-model="providerUrl"
             type="url"
             required
-            placeholder="https://legacy-auth.example.com/validate"
+            placeholder="https://your-auth-server.com/auth"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
+          <p class="mt-1.5 text-xs text-gray-500">
+            Authori가 이 URL로 <code class="bg-gray-100 px-1 py-0.5 rounded font-mono">POST</code> 요청을 전송합니다.
+            베이스 URL이 아닌 <strong>인증 엔드포인트 전체 경로</strong>를 입력하세요.
+            예: <code class="bg-gray-100 px-1 py-0.5 rounded font-mono">https://your-auth-server.com/auth</code>
+          </p>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -196,6 +298,9 @@ onMounted(async () => {
             />
           </div>
         </div>
+        <p class="text-xs text-gray-500 mt-1">
+          설정 시 Authori가 요청 헤더에 지정한 값을 포함해 전송합니다. 외부 서버에서 해당 헤더를 검증합니다. 설정하지 않으면 헤더 없이 요청합니다.
+        </p>
       </div>
 
       <!-- 프로비저닝 설정 -->

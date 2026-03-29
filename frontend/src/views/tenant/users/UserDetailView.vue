@@ -14,16 +14,23 @@ const userId = route.params.userId as string
 const user = ref<User | null>(null)
 const loading = ref(true)
 const showDeactivate = ref(false)
+const showActivate = ref(false)
 
 async function load() {
-  const { data } = await usersApi.findAll(tenantId)
-  user.value = data.find((u) => u.id === userId) ?? null
+  const { data } = await usersApi.findOne(tenantId, userId)
+  user.value = data
   loading.value = false
 }
 
 async function deactivate() {
   await usersApi.deactivate(tenantId, userId)
   showDeactivate.value = false
+  await load()
+}
+
+async function activate() {
+  await usersApi.activate(tenantId, userId)
+  showActivate.value = false
   await load()
 }
 
@@ -36,7 +43,15 @@ onMounted(load)
     <template v-else-if="user">
       <PageHeader :title="user.email">
         <template #actions>
-          <StatusBadge :status="user.status" />
+          <div class="flex items-center gap-3">
+            <router-link
+              :to="{ name: 'user-edit', params: { tenantId, userId } }"
+              class="px-3 py-1.5 text-xs border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              수정
+            </router-link>
+            <StatusBadge :status="user.status" />
+          </div>
         </template>
       </PageHeader>
 
@@ -70,13 +85,20 @@ onMounted(load)
           </div>
         </dl>
 
-        <div class="mt-5 pt-4 border-t border-gray-100">
+        <div class="mt-5 pt-4 border-t border-gray-100 flex gap-3">
           <button
             v-if="user.status === UserStatus.ACTIVE"
             class="px-4 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
             @click="showDeactivate = true"
           >
             사용자 비활성화
+          </button>
+          <button
+            v-else
+            class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            @click="showActivate = true"
+          >
+            사용자 활성화
           </button>
         </div>
       </div>
@@ -90,6 +112,15 @@ onMounted(load)
       danger
       @confirm="deactivate"
       @cancel="showDeactivate = false"
+    />
+
+    <ConfirmDialog
+      :open="showActivate"
+      title="사용자 활성화"
+      :message="`'${user?.email}' 사용자를 활성화하시겠습니까?`"
+      confirm-label="활성화"
+      @confirm="activate"
+      @cancel="showActivate = false"
     />
   </div>
 </template>

@@ -51,7 +51,7 @@ export class ExternalAuthProvider {
    * 매 로그인마다 외부 서비스에서 프로필 동기화 여부.
    * true이면 매 로그인 시 외부 API 재호출.
    */
-  @Column({ name: 'sync_on_login', default: false })
+  @Column({ name: 'sync_on_login', default: true })
   syncOnLogin: boolean;
 
   @Column({ name: 'field_mapping', type: 'jsonb', nullable: true })

@@ -122,8 +122,6 @@ export class ExternalAuthService {
     provider: ExternalAuthProvider,
     email: string,
     password: string,
-    tenantId: string,
-    clientId: string,
   ): Promise<ExternalAuthResult> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (provider.credentialHeader && provider.credentialValue) {
@@ -137,7 +135,7 @@ export class ExternalAuthService {
       const response = await fetch(provider.providerUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ email, password, tenantId, clientId }),
+        body: JSON.stringify({ email, password }),
         signal: controller.signal,
       });
 

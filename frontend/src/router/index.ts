@@ -111,6 +111,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin/tenants/:tenantId/users/:userId/edit',
+      name: 'user-edit',
+      component: () => import('@/views/tenant/users/UserEditView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin/tenants/:tenantId/schemas',
       name: 'schema-list',
       component: () => import('@/views/tenant/schemas/SchemaListView.vue'),
