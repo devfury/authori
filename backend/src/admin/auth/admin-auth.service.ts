@@ -91,34 +91,28 @@ export class AdminAuthService {
     const limit = Math.min(rawLimit, 100);
     const offset = (page - 1) * limit;
 
-    // Fallback to findAndCount to see if QueryBuilder was the issue
-    const [items, total] = await this.adminRepo.findAndCount({
-      where: {
-        status: status || undefined,
-        role: role || undefined,
-      },
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: offset,
-    });
-
-    // Simple search filtering if QueryBuilder ILIKE was the issue
-    let filteredItems = items;
-    let filteredTotal = total;
+    const qb = this.adminRepo
+      .createQueryBuilder('admin')
+      .orderBy('admin.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset);
 
     if (search) {
-      const lowerSearch = search.toLowerCase();
-      filteredItems = items.filter(
-        (u) =>
-          u.email.toLowerCase().includes(lowerSearch) ||
-          (u.name && u.name.toLowerCase().includes(lowerSearch)),
-      );
-      // Note: This total is inaccurate for search when using findAndCount pagination, 
-      // but it helps debugging.
-      filteredTotal = filteredItems.length; 
+      qb.andWhere('(admin.email ILIKE :search OR admin.name ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
 
-    return { items: filteredItems, total: filteredTotal, page, limit };
+    if (status) {
+      qb.andWhere('admin.status = :status', { status });
+    }
+
+    if (role) {
+      qb.andWhere('admin.role = :role', { role });
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, page, limit };
   }
 
   async updateAdmin(id: string, dto: UpdateAdminDto): Promise<AdminUser> {

@@ -32,6 +32,14 @@ const searchQuery = ref('')
 const statusFilter = ref<string>('')
 const roleFilter = ref<string>('')
 
+function normalizeStatusFilter(value: unknown): string {
+  return Object.values(AdminStatus).includes(value as AdminStatus) ? String(value) : ''
+}
+
+function normalizeRoleFilter(value: unknown): string {
+  return Object.values(AdminRole).includes(value as AdminRole) ? String(value) : ''
+}
+
 const visiblePages = computed(() => {
   const pages: (number | '...')[] = []
   const delta = 2
@@ -134,8 +142,8 @@ onMounted(() => {
   pageLimit.value = Number(route.query.limit ?? 20)
   searchQuery.value = String(route.query.search ?? '')
   searchInput.value = searchQuery.value
-  statusFilter.value = String(route.query.status ?? '')
-  roleFilter.value = String(route.query.role ?? '')
+  statusFilter.value = normalizeStatusFilter(route.query.status)
+  roleFilter.value = normalizeRoleFilter(route.query.role)
   loadPage()
 })
 </script>

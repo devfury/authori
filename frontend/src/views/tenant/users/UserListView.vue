@@ -27,6 +27,10 @@ const searchInput = ref('')
 const searchQuery = ref('')
 const statusFilter = ref<string>('')
 
+function normalizeStatusFilter(value: unknown): string {
+  return Object.values(UserStatus).includes(value as UserStatus) ? String(value) : ''
+}
+
 const visiblePages = computed(() => {
   const pages: (number | '...')[] = []
   const delta = 2
@@ -118,7 +122,7 @@ onMounted(() => {
   pageLimit.value = Number(route.query.limit ?? 20)
   searchQuery.value = String(route.query.search ?? '')
   searchInput.value = searchQuery.value
-  statusFilter.value = String(route.query.status ?? '')
+  statusFilter.value = normalizeStatusFilter(route.query.status)
   loadPage()
 })
 </script>
