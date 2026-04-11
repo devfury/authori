@@ -3,7 +3,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
-function parseCorsOrigins(raw: string): string[] {
+function parseCorsOrigins(raw: string): string[] | true {
+  if (raw.trim() === '*') return true;
   return raw
     .split(',')
     .map((s) => s.trim())
@@ -15,7 +16,7 @@ async function bootstrap() {
   const corsOrigins = parseCorsOrigins(process.env.CORS_ORIGINS ?? '');
 
   app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : '*',
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
