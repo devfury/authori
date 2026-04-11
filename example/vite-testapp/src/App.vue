@@ -15,12 +15,12 @@ import {
   type TokenResponse,
 } from './lib/oauth'
 
-const tenantSlug = 'test'
 const redirectUri = `${window.location.origin}${window.location.pathname}`
 const integrationSettingsStorageKey = 'authori-vite-testapp-integration-settings'
 
 const form = reactive({
   authServerBaseUrl: 'http://localhost:3000',
+  tenantSlug: 'test',
   clientId: 'vite-testapp',
   scope: 'openid profile email',
 })
@@ -42,6 +42,7 @@ function persistIntegrationSettings() {
     integrationSettingsStorageKey,
     JSON.stringify({
       authServerBaseUrl: form.authServerBaseUrl,
+      tenantSlug: form.tenantSlug,
       clientId: form.clientId,
       scope: form.scope,
     }),
@@ -55,6 +56,7 @@ function readStoredIntegrationSettings() {
   try {
     const saved = JSON.parse(raw) as Partial<typeof form>
     form.authServerBaseUrl = saved.authServerBaseUrl ?? form.authServerBaseUrl
+    form.tenantSlug = saved.tenantSlug ?? form.tenantSlug
     form.clientId = saved.clientId ?? form.clientId
     form.scope = saved.scope ?? form.scope
   } catch {
@@ -62,17 +64,17 @@ function readStoredIntegrationSettings() {
   }
 }
 
-const authorizationEndpoint = computed(() => `${form.authServerBaseUrl}/t/${tenantSlug}/oauth/authorize`)
-const tokenEndpoint = computed(() => `${form.authServerBaseUrl}/t/${tenantSlug}/oauth/token`)
-const userInfoEndpoint = computed(() => `${form.authServerBaseUrl}/t/${tenantSlug}/oauth/userinfo`)
+const authorizationEndpoint = computed(() => `${form.authServerBaseUrl}/t/${form.tenantSlug}/oauth/authorize`)
+const tokenEndpoint = computed(() => `${form.authServerBaseUrl}/t/${form.tenantSlug}/oauth/token`)
+const userInfoEndpoint = computed(() => `${form.authServerBaseUrl}/t/${form.tenantSlug}/oauth/userinfo`)
 
 function currentOAuthConfig() {
   return {
     authServerBaseUrl: form.authServerBaseUrl,
+    tenantSlug: form.tenantSlug,
     clientId: form.clientId,
     redirectUri,
     scope: form.scope,
-    tenantSlug,
   }
 }
 
@@ -248,10 +250,10 @@ async function loadUserInfo() {
     userInfo.value = await fetchUserInfo(
       {
         authServerBaseUrl: form.authServerBaseUrl,
+        tenantSlug: form.tenantSlug,
         clientId: form.clientId,
-        redirectUri,
         scope: form.scope,
-        tenantSlug,
+        redirectUri,
       },
       tokenResponse.value.access_token,
     )
@@ -287,7 +289,7 @@ watch(form, () => {
       </div>
       <div class="hero-meta">
         <span class="meta-label">Tenant Slug</span>
-        <strong>{{ tenantSlug }}</strong>
+        <strong>{{ form.tenantSlug }}</strong>
       </div>
     </section>
 
@@ -297,6 +299,10 @@ watch(form, () => {
         <label>
           <span>Auth Server Base URL</span>
           <input v-model="form.authServerBaseUrl" type="url" placeholder="http://localhost:3000" />
+        </label>
+        <label>
+          <span>Tenant Slug</span>
+          <input v-model="form.tenantSlug" type="text" placeholder="인증 서버에서 생성된 Tenant Slug 값을 입력하세요" />
         </label>
         <label>
           <span>Client ID</span>
