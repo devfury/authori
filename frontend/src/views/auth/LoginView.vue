@@ -40,44 +40,44 @@ async function submit() {
 
 <template>
   <div>
-    <h2 class="text-lg font-semibold text-gray-900 mb-6">관리자 로그인</h2>
+    <h2 class="text-xl font-bold text-authori-blue mb-6">관리자 로그인</h2>
 
     <form class="space-y-4" @submit.prevent="submit">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">이메일</label>
         <input
           v-model="email"
           type="email"
           required
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-authori-blue focus:border-transparent transition-all"
           placeholder="admin@example.com"
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">비밀번호</label>
         <input
           v-model="password"
           type="password"
           required
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-authori-blue focus:border-transparent transition-all"
           placeholder="••••••••••"
         />
       </div>
 
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+      <p v-if="error" class="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">{{ error }}</p>
 
       <button
         type="submit"
         :disabled="loading"
-        class="w-full py-2 px-4 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        class="w-full py-2.5 px-4 bg-authori-blue text-white text-sm font-bold rounded-xl hover:bg-slate-700 active:transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
       >
         {{ loading ? '로그인 중...' : '로그인' }}
       </button>
     </form>
 
-    <p v-if="bootstrapNeeded" class="mt-4 text-center text-xs text-gray-400">
+    <p v-if="bootstrapNeeded" class="mt-6 text-center text-xs text-gray-500">
       처음 설정하시나요?
-      <RouterLink to="/admin/bootstrap" class="text-indigo-600 hover:underline">
+      <RouterLink to="/admin/bootstrap" class="text-authori-blue font-bold hover:underline decoration-2 underline-offset-4">
         플랫폼 관리자 생성
       </RouterLink>
     </p>
