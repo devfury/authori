@@ -1,18 +1,5 @@
 @import "tailwindcss";
 
-:root {
-  --authori-blue: #2c3e50; /* Deep Blue from IMG_9350 */
-  --authori-gold: #f1c40f; /* Gold Yellow from IMG_9350 */
-  --authori-light-blue: #eef6fc;
-  --authori-white: #ffffff;
-}
-
-@theme {
-  --color-authori-blue: var(--authori-blue);
-  --color-authori-gold: var(--authori-gold);
-  --color-authori-light-blue: var(--authori-light-blue);
-}
-
 * {
   box-sizing: border-box;
 }
