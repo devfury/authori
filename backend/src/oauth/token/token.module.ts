@@ -11,6 +11,7 @@ import {
 } from '../../database/entities';
 import { KeysModule } from '../keys/keys.module';
 import { AuditModule } from '../../common/audit/audit.module';
+import { RbacModule } from '../../rbac/rbac.module';
 import { TokenService } from './token.service';
 import { TokenController } from './token.controller';
 
@@ -27,6 +28,7 @@ import { TokenController } from './token.controller';
     ]),
     KeysModule,
     AuditModule,
+    RbacModule,
   ],
   controllers: [TokenController],
   providers: [TokenService],

@@ -22,6 +22,7 @@ import { DiscoveryModule } from './oauth/discovery/discovery.module';
 import { AdminAuthModule } from './admin/auth/admin-auth.module';
 // Phase 5
 import { ExternalAuthModule } from './external-auth/external-auth.module';
+import { RbacModule } from './rbac/rbac.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ExternalAuthModule } from './external-auth/external-auth.module';
     AdminAuthModule,
     // Phase 5
     ExternalAuthModule,
+    RbacModule,
   ],
 })
 export class AppModule implements NestModule {

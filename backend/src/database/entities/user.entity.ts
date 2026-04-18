@@ -5,12 +5,14 @@ import {
   Index,
   ManyToOne,
   JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Tenant } from './tenant.entity';
 import { UserProfile } from './user-profile.entity';
+import { UserRole } from './user-role.entity';
 
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
@@ -64,4 +66,7 @@ export class User {
 
   @OneToOne(() => UserProfile, (p) => p.user, { cascade: true })
   profile: UserProfile;
+
+  @OneToMany(() => UserRole, (userRole) => userRole.user)
+  userRoles: UserRole[];
 }

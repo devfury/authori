@@ -117,6 +117,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin/tenants/:tenantId/roles',
+      name: 'role-list',
+      component: () => import('@/views/tenant/rbac/RoleListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/tenants/:tenantId/permissions',
+      name: 'permission-list',
+      component: () => import('@/views/tenant/rbac/PermissionListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin/tenants/:tenantId/schemas',
       name: 'schema-list',
       component: () => import('@/views/tenant/schemas/SchemaListView.vue'),

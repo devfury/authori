@@ -24,6 +24,7 @@ import {
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { KeysService } from '../keys/keys.service';
+import { RbacService } from '../../rbac/rbac.service';
 import { TokenRequestDto } from './dto/token-request.dto';
 
 export interface TokenResponse {
@@ -70,6 +71,7 @@ export class TokenService {
     private readonly keysService: KeysService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
+    private readonly rbacService: RbacService,
   ) {}
 
   async issue(tenantId: string, req: TokenRequestDto, basicAuth: { id?: string; secret?: string }, ctx?: AuditContext): Promise<TokenResponse> {
@@ -247,6 +249,12 @@ export class TokenService {
     const defaultIssuer = this.configService.get<string>('app.issuer') ?? 'https://auth.example.com';
     const issuer = tenant?.issuer ?? defaultIssuer;
     const jti = randomUUID();
+    const [roles, permissions] = userId
+      ? await Promise.all([
+          this.rbacService.getUserRoleNames(tenantId, userId),
+          this.rbacService.getUserPermissionNames(tenantId, userId),
+        ])
+      : [undefined, undefined];
 
     const accessTokenJwt = sign(
       {
@@ -255,6 +263,7 @@ export class TokenService {
         client_id: clientId,
         scope: scopes.join(' '),
         jti,
+        ...(userId ? { roles, permissions } : {}),
       },
       activeKey.privateKeyPem,
       {

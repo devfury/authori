@@ -12,6 +12,8 @@ import {
   UserCog,
   Link2,
   Key,
+  Shield,
+  Lock,
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -37,6 +39,8 @@ const tenantLinks = computed(() => {
     { name: 'tenant-dashboard', label: '대시보드', icon: LayoutDashboard, params: { tenantId: props.tenantId } },
     { name: 'client-list', label: 'OAuth 클라이언트', icon: AppWindow, params: { tenantId: props.tenantId } },
     { name: 'scope-list', label: 'OAuth2 스코프', icon: Key, params: { tenantId: props.tenantId } },
+    { name: 'role-list', label: '역할 관리', icon: Shield, params: { tenantId: props.tenantId } },
+    { name: 'permission-list', label: '권한 관리', icon: Lock, params: { tenantId: props.tenantId } },
     { name: 'user-list', label: '사용자', icon: Users, params: { tenantId: props.tenantId } },
     { name: 'schema-list', label: '프로필 스키마', icon: FileJson, params: { tenantId: props.tenantId } },
     { name: 'audit-log', label: '감사 로그', icon: ClipboardList, params: { tenantId: props.tenantId } },

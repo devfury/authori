@@ -1,6 +1,10 @@
 export { Tenant, TenantStatus } from './tenant.entity';
 export { TenantSettings } from './tenant-settings.entity';
 export { TenantScope } from './tenant-scope.entity';
+export { TenantRole } from './tenant-role.entity';
+export { TenantPermission } from './tenant-permission.entity';
+export { RolePermission } from './role-permission.entity';
+export { UserRole } from './user-role.entity';
 export { User, UserStatus } from './user.entity';
 export { UserProfile } from './user-profile.entity';
 export {

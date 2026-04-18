@@ -14,6 +14,8 @@ import { ProfileSchemaVersion } from './profile-schema-version.entity';
 import { AuditLog } from './audit-log.entity';
 import { SigningKey } from './signing-key.entity';
 import { TenantScope } from './tenant-scope.entity';
+import { TenantRole } from './tenant-role.entity';
+import { TenantPermission } from './tenant-permission.entity';
 
 export enum TenantStatus {
   ACTIVE = 'ACTIVE',
@@ -64,4 +66,10 @@ export class Tenant {
 
   @OneToMany(() => TenantScope, (s) => s.tenant)
   scopes: TenantScope[];
+
+  @OneToMany(() => TenantRole, (r) => r.tenant)
+  roles: TenantRole[];
+
+  @OneToMany(() => TenantPermission, (p) => p.tenant)
+  permissions: TenantPermission[];
 }
