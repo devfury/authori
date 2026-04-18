@@ -2,9 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { AuditAction, ClientStatus, ClientType, OAuthClient, OAuthClientRedirectUri } from '../../database/entities';
+import {
+  AuditAction,
+  ClientStatus,
+  ClientType,
+  OAuthClient,
+  OAuthClientRedirectUri,
+} from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
+import { ScopesService } from '../scopes/scopes.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 
@@ -38,11 +45,19 @@ export class ClientsService {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly scopesService: ScopesService,
   ) {}
 
-  async create(tenantId: string, dto: CreateClientDto, ctx?: AuditContext): Promise<CreatedClientResult> {
+  async create(
+    tenantId: string,
+    dto: CreateClientDto,
+    ctx?: AuditContext,
+  ): Promise<CreatedClientResult> {
     const clientId = randomUUID();
-    const isConfidential = (dto.type ?? ClientType.CONFIDENTIAL) === ClientType.CONFIDENTIAL;
+    const isConfidential =
+      (dto.type ?? ClientType.CONFIDENTIAL) === ClientType.CONFIDENTIAL;
+    const allowedScopes = dto.allowedScopes ?? ['openid'];
+    await this.scopesService.assertScopesExist(tenantId, allowedScopes);
 
     let plainSecret: string | null = null;
     let secretHash: string | null = null;
@@ -57,8 +72,11 @@ export class ClientsService {
       name: dto.name,
       type: dto.type ?? ClientType.CONFIDENTIAL,
       clientSecretHash: secretHash,
-      allowedScopes: dto.allowedScopes ?? ['openid'],
-      allowedGrants: dto.allowedGrants ?? ['authorization_code', 'refresh_token'],
+      allowedScopes,
+      allowedGrants: dto.allowedGrants ?? [
+        'authorization_code',
+        'refresh_token',
+      ],
     });
 
     const uris = dto.redirectUris.map((uri) =>
@@ -83,7 +101,10 @@ export class ClientsService {
     return { client: savedClient, plainSecret };
   }
 
-  async findAll(tenantId: string, query: ClientListQuery = {}): Promise<ClientPage> {
+  async findAll(
+    tenantId: string,
+    query: ClientListQuery = {},
+  ): Promise<ClientPage> {
     const { page = 1, limit: rawLimit = 20, search, status } = query;
     const limit = Math.min(rawLimit, 100);
     const offset = (page - 1) * limit;
@@ -119,18 +140,27 @@ export class ClientsService {
     return client;
   }
 
-  async update(tenantId: string, clientId: string, dto: UpdateClientDto): Promise<OAuthClient> {
+  async update(
+    tenantId: string,
+    clientId: string,
+    dto: UpdateClientDto,
+  ): Promise<OAuthClient> {
     const client = await this.findOne(tenantId, clientId);
 
     if (dto.name) client.name = dto.name;
     if (dto.status) client.status = dto.status;
-    if (dto.allowedScopes) client.allowedScopes = dto.allowedScopes;
+    if (dto.allowedScopes) {
+      await this.scopesService.assertScopesExist(tenantId, dto.allowedScopes);
+      client.allowedScopes = dto.allowedScopes;
+    }
     if (dto.allowedGrants) client.allowedGrants = dto.allowedGrants;
     if (dto.branding !== undefined) client.branding = dto.branding ?? null;
 
     if (dto.redirectUris) {
       await this.dataSource.transaction(async (manager) => {
-        await manager.delete(OAuthClientRedirectUri, { clientId: client.clientId });
+        await manager.delete(OAuthClientRedirectUri, {
+          clientId: client.clientId,
+        });
         const uris = dto.redirectUris!.map((uri) =>
           this.redirectUriRepo.create({ clientId: client.clientId, uri }),
         );
@@ -144,7 +174,11 @@ export class ClientsService {
     return this.findOne(tenantId, clientId);
   }
 
-  async rotateSecret(tenantId: string, clientId: string, ctx?: AuditContext): Promise<{ plainSecret: string }> {
+  async rotateSecret(
+    tenantId: string,
+    clientId: string,
+    ctx?: AuditContext,
+  ): Promise<{ plainSecret: string }> {
     const client = await this.findOne(tenantId, clientId);
     const plainSecret = CryptoUtil.generateToken(32);
     client.clientSecretHash = await CryptoUtil.hash(plainSecret);

@@ -14,6 +14,7 @@ import {
   RefreshToken,
   SigningKey,
   Tenant,
+  TenantScope,
   TenantSettings,
   User,
   UserProfile,
@@ -35,6 +36,7 @@ export const AppDataSource = new DataSource({
   entities: [
     Tenant,
     TenantSettings,
+    TenantScope,
     User,
     UserProfile,
     ProfileSchemaVersion,

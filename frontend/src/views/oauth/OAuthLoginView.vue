@@ -31,6 +31,7 @@ const error = ref('')
 
 const branding = ref<LoginBranding>({})
 const clientName = ref('')
+const scopeMetadata = ref<Record<string, { displayName: string; description: string | null }>>({})
 
 function applyBranding(b: LoginBranding) {
   const root = document.documentElement
@@ -59,12 +60,22 @@ onMounted(async () => {
   }
 
   try {
-    const { data } = await oauthHttp.get<{ clientName: string; branding: LoginBranding | null }>(
+    const { data } = await oauthHttp.get<{
+      clientName: string;
+      branding: LoginBranding | null;
+      scopes?: Array<{ name: string; displayName: string; description: string | null }>;
+    }>(
       `/t/${tenantSlug}/oauth/login-config`,
       { params: { client_id: clientId } },
     )
     clientName.value = data.clientName
     branding.value = data.branding ?? {}
+    if (data.scopes) {
+      scopeMetadata.value = data.scopes.reduce((acc, s) => {
+        acc[s.name] = { displayName: s.displayName, description: s.description }
+        return acc
+      }, {} as Record<string, { displayName: string; description: string | null }>)
+    }
     applyBranding(branding.value)
   } catch {
     // 브랜딩 로딩 실패 시 기본값 유지
@@ -118,15 +129,26 @@ async function submit() {
         </span>
         {{ branding.title ? '' : '앱이 로그인을 요청합니다.' }}
       </p>
-      <div v-if="requestedScopes.length > 0" class="flex flex-wrap justify-center gap-1.5 mt-2">
-        <span
-          v-for="scope in requestedScopes"
-          :key="scope"
-          class="px-2 py-0.5 text-xs rounded-full font-mono"
-          :style="branding.primaryColor
-            ? { backgroundColor: `${branding.primaryColor}20`, color: branding.primaryColor }
-            : { backgroundColor: '#eef2ff', color: '#4f46e5' }"
-        >{{ scope }}</span>
+
+      <!-- 스코프 목록 -->
+      <div v-if="requestedScopes.length > 0" class="mt-4 text-left border-t border-gray-100 pt-4">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">허용할 권한</p>
+        <div class="space-y-3 px-1">
+          <div v-for="scope in requestedScopes" :key="scope" class="flex items-start gap-2.5">
+            <div
+              class="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
+              :style="{ backgroundColor: branding.primaryColor || '#4f46e5' }"
+            />
+            <div>
+              <p class="text-sm font-medium text-gray-800">
+                {{ scopeMetadata[scope]?.displayName || scope }}
+              </p>
+              <p v-if="scopeMetadata[scope]?.description" class="text-xs text-gray-500 leading-normal">
+                {{ scopeMetadata[scope].description }}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

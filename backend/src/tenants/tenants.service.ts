@@ -1,8 +1,18 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { AuditAction, Tenant, TenantSettings, TenantStatus } from '../database/entities';
+import {
+  AuditAction,
+  Tenant,
+  TenantSettings,
+  TenantStatus,
+} from '../database/entities';
 import { AuditService, AuditContext } from '../common/audit/audit.service';
+import { ScopesService } from '../oauth/scopes/scopes.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
@@ -30,6 +40,7 @@ export class TenantsService {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly scopesService: ScopesService,
   ) {}
 
   async create(dto: CreateTenantDto, ctx?: AuditContext): Promise<Tenant> {
@@ -47,6 +58,7 @@ export class TenantsService {
     });
 
     const saved = await this.tenantRepo.save(tenant);
+    await this.scopesService.seedDefaults(saved.id);
     await this.auditService.record({
       tenantId: saved.id,
       action: AuditAction.TENANT_CREATED,
@@ -85,7 +97,10 @@ export class TenantsService {
   }
 
   async findOne(id: string): Promise<Tenant> {
-    const tenant = await this.tenantRepo.findOne({ where: { id }, relations: ['settings'] });
+    const tenant = await this.tenantRepo.findOne({
+      where: { id },
+      relations: ['settings'],
+    });
     if (!tenant) throw new NotFoundException(`Tenant ${id} not found`);
     return tenant;
   }

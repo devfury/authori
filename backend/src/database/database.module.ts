@@ -14,6 +14,7 @@ import {
   RefreshToken,
   SigningKey,
   Tenant,
+  TenantScope,
   TenantSettings,
   User,
   UserProfile,
@@ -33,6 +34,7 @@ import {
         entities: [
           Tenant,
           TenantSettings,
+          TenantScope,
           User,
           UserProfile,
           ProfileSchemaVersion,
