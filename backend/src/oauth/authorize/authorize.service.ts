@@ -25,6 +25,7 @@ import {
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { ExternalAuthService } from '../../external-auth/external-auth.service';
+import { ScopesService } from '../scopes/scopes.service';
 import { PendingRequestStore } from './pending-request.store';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
@@ -60,11 +61,20 @@ export class AuthorizeService {
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
     private readonly externalAuthService: ExternalAuthService,
+    private readonly scopesService: ScopesService,
   ) {}
 
-  async initiateAuthorize(tenantId: string, tenantSlug: string, query: AuthorizeQueryDto) {
+  async initiateAuthorize(
+    tenantId: string,
+    tenantSlug: string,
+    query: AuthorizeQueryDto,
+  ) {
     const client = await this.clientRepo.findOne({
-      where: { tenantId, clientId: query.client_id, status: ClientStatus.ACTIVE },
+      where: {
+        tenantId,
+        clientId: query.client_id,
+        status: ClientStatus.ACTIVE,
+      },
     });
     if (!client) throw new BadRequestException('invalid_client');
 
@@ -80,11 +90,22 @@ export class AuthorizeService {
       throw new BadRequestException('code_challenge_required');
     }
 
-    const requestedScopes = (query.scope ?? 'openid').split(' ').filter(Boolean);
-    const invalidScopes = requestedScopes.filter((s) => !client.allowedScopes.includes(s));
+    const requestedScopes = (query.scope ?? 'openid')
+      .split(' ')
+      .filter(Boolean);
+    await this.scopesService.assertScopesExist(tenantId, requestedScopes);
+    const invalidScopes = requestedScopes.filter(
+      (s) => !client.allowedScopes.includes(s),
+    );
     if (invalidScopes.length > 0) {
-      throw new BadRequestException(`invalid_scope: ${invalidScopes.join(', ')}`);
+      throw new BadRequestException(
+        `invalid_scope: ${invalidScopes.join(', ')}`,
+      );
     }
+    const scopeDetails = await this.scopesService.getScopeDetails(
+      tenantId,
+      requestedScopes,
+    );
 
     const requestId = this.pendingStore.save({
       tenantId,
@@ -101,6 +122,11 @@ export class AuthorizeService {
       requestId,
       client: { name: client.name, clientId: client.clientId },
       requestedScopes,
+      scopes: scopeDetails.map((scope) => ({
+        name: scope.name,
+        displayName: scope.displayName,
+        description: scope.description,
+      })),
       tenantSlug,
       branding: client.branding ?? null,
     };
@@ -124,9 +150,14 @@ export class AuthorizeService {
     };
   }
 
-  async loginAndAuthorize(tenantId: string, dto: LoginAuthorizeDto, ctx: AuditContext = {}) {
+  async loginAndAuthorize(
+    tenantId: string,
+    dto: LoginAuthorizeDto,
+    ctx: AuditContext = {},
+  ) {
     const pending = this.pendingStore.get(dto.requestId);
-    if (!pending) throw new BadRequestException('invalid_request: expired or not found');
+    if (!pending)
+      throw new BadRequestException('invalid_request: expired or not found');
 
     let user = await this.userRepo.findOne({
       where: { tenantId, email: dto.email },
@@ -135,53 +166,92 @@ export class AuthorizeService {
 
     // 잠금 확인
     if (user?.lockedUntil && user.lockedUntil > new Date()) {
-      await this.recordAuditLoginFailure(tenantId, pending.clientId, user.id, 'account_locked', ctx);
+      await this.recordAuditLoginFailure(
+        tenantId,
+        pending.clientId,
+        user.id,
+        'account_locked',
+        ctx,
+      );
       throw new UnauthorizedException('account_locked');
     }
 
-    const provider = await this.externalAuthService.findActive(tenantId, pending.clientId);
+    const provider = await this.externalAuthService.findActive(
+      tenantId,
+      pending.clientId,
+    );
 
     if (provider) {
       // ── 외부 인증 우선 경로 ──────────────────────────
-      const result = await this.externalAuthService.callProvider(provider, dto.email, dto.password);
+      const result = await this.externalAuthService.callProvider(
+        provider,
+        dto.email,
+        dto.password,
+      );
 
       if (result.error) {
         // 연동 장애 → 로컬 폴백 시도
-        this.logger.warn(`Provider ${provider.id} error=${result.error}, attempting local fallback`);
+        this.logger.warn(
+          `Provider ${provider.id} error=${result.error}, attempting local fallback`,
+        );
         await this.auditService.record({
-          tenantId, action: AuditAction.EXTERNAL_AUTH_ERROR,
-          actorType: 'user', actorId: user?.id ?? null,
-          targetType: 'external_auth_provider', targetId: provider.id,
+          tenantId,
+          action: AuditAction.EXTERNAL_AUTH_ERROR,
+          actorType: 'user',
+          actorId: user?.id ?? null,
+          targetType: 'external_auth_provider',
+          targetId: provider.id,
           success: false,
-          metadata: { providerId: provider.id, error: result.error, fallback: true },
+          metadata: {
+            providerId: provider.id,
+            error: result.error,
+            fallback: true,
+          },
           ...ctx,
         });
 
         if (!user) {
-          await this.recordAuditLoginFailure(tenantId, pending.clientId, null,
-            'external_auth_error_local_fallback_failed', ctx, { email: dto.email });
+          await this.recordAuditLoginFailure(
+            tenantId,
+            pending.clientId,
+            null,
+            'external_auth_error_local_fallback_failed',
+            ctx,
+            { email: dto.email },
+          );
           throw new UnauthorizedException('invalid_credentials');
         }
 
-        const localValid = await CryptoUtil.verify(dto.password, user.passwordHash);
+        const localValid = await CryptoUtil.verify(
+          dto.password,
+          user.passwordHash,
+        );
         if (!localValid) {
           await this.recordFailedAttempt(user, tenantId, pending.clientId, ctx);
           throw new UnauthorizedException('invalid_credentials');
         }
 
         return this.issueAuthCode(user, false, dto, pending, tenantId, ctx, {
-          source: 'local_fallback', providerId: provider.id,
+          source: 'local_fallback',
+          providerId: provider.id,
         });
       }
 
       if (!result.authenticated) {
         // 외부 명시적 거부 — 로컬 폴백 없음
         await this.auditService.record({
-          tenantId, action: AuditAction.LOGIN_FAILURE,
-          actorType: 'user', actorId: user?.id ?? null,
-          targetType: 'oauth_client', targetId: pending.clientId,
+          tenantId,
+          action: AuditAction.LOGIN_FAILURE,
+          actorType: 'user',
+          actorId: user?.id ?? null,
+          targetType: 'oauth_client',
+          targetId: pending.clientId,
           success: false,
-          metadata: { reason: 'external_auth_rejected', providerId: provider.id, externalReason: result.reason },
+          metadata: {
+            reason: 'external_auth_rejected',
+            providerId: provider.id,
+            externalReason: result.reason,
+          },
           ...ctx,
         });
         throw new UnauthorizedException('invalid_credentials');
@@ -195,9 +265,17 @@ export class AuthorizeService {
         if (!provider.jitProvision || !result.user) {
           throw new UnauthorizedException('invalid_credentials');
         }
-        user = await this.jitProvisionUser(tenantId, dto.email, dto.password, result.user, provider, ctx);
+        user = await this.jitProvisionUser(
+          tenantId,
+          dto.email,
+          dto.password,
+          result.user,
+          provider,
+          ctx,
+        );
         return this.issueAuthCode(user, false, dto, pending, tenantId, ctx, {
-          source: 'external_auth', providerId: provider.id,
+          source: 'external_auth',
+          providerId: provider.id,
         });
       }
 
@@ -206,34 +284,64 @@ export class AuthorizeService {
       user.status = UserStatus.ACTIVE;
 
       if (provider.syncOnLogin && result.user) {
-        const mapped = this.externalAuthService.applyFieldMapping(result.user, provider.fieldMapping);
+        const mapped = this.externalAuthService.applyFieldMapping(
+          result.user,
+          provider.fieldMapping,
+        );
         if (mapped.name !== undefined) user.name = mapped.name ?? null;
         if (mapped.loginId !== undefined) user.loginId = mapped.loginId ?? null;
         if (user.profile && Object.keys(mapped.profile).length > 0) {
-          user.profile.profileJsonb = { ...user.profile.profileJsonb, ...mapped.profile };
+          user.profile.profileJsonb = {
+            ...user.profile.profileJsonb,
+            ...mapped.profile,
+          };
           profileDirty = true;
         }
       }
 
-      return this.issueAuthCode(user, profileDirty, dto, pending, tenantId, ctx, {
-        source: 'external_auth', providerId: provider.id,
-      });
+      return this.issueAuthCode(
+        user,
+        profileDirty,
+        dto,
+        pending,
+        tenantId,
+        ctx,
+        {
+          source: 'external_auth',
+          providerId: provider.id,
+        },
+      );
     }
 
     // 비활성 확인
     if (user && user.status !== UserStatus.ACTIVE) {
-      await this.recordAuditLoginFailure(tenantId, pending.clientId, user.id, 'user_inactive', ctx);
+      await this.recordAuditLoginFailure(
+        tenantId,
+        pending.clientId,
+        user.id,
+        'user_inactive',
+        ctx,
+      );
       throw new UnauthorizedException('invalid_credentials');
     }
 
     // ── 로컬 전용 경로 ──────────────────────────────────
     if (!user) {
-      await this.recordAuditLoginFailure(tenantId, pending.clientId, null,
-        'user_not_found', ctx, { email: dto.email });
+      await this.recordAuditLoginFailure(
+        tenantId,
+        pending.clientId,
+        null,
+        'user_not_found',
+        ctx,
+        { email: dto.email },
+      );
       throw new UnauthorizedException('invalid_credentials');
     }
 
-    const passwordValid = await CryptoUtil.verify(dto.password, user.passwordHash);
+    const passwordValid = await CryptoUtil.verify(
+      dto.password,
+      user.passwordHash,
+    );
     if (!passwordValid) {
       await this.recordFailedAttempt(user, tenantId, pending.clientId, ctx);
       throw new UnauthorizedException('invalid_credentials');
@@ -248,11 +356,21 @@ export class AuthorizeService {
     tenantId: string,
     email: string,
     password: string,
-    externalUser: { email: string; name?: string; loginId?: string; profile?: Record<string, unknown> },
-    provider: NonNullable<Awaited<ReturnType<ExternalAuthService['findActive']>>>,
+    externalUser: {
+      email: string;
+      name?: string;
+      loginId?: string;
+      profile?: Record<string, unknown>;
+    },
+    provider: NonNullable<
+      Awaited<ReturnType<ExternalAuthService['findActive']>>
+    >,
     ctx: AuditContext,
   ): Promise<User> {
-    const mapped = this.externalAuthService.applyFieldMapping(externalUser, provider.fieldMapping);
+    const mapped = this.externalAuthService.applyFieldMapping(
+      externalUser,
+      provider.fieldMapping,
+    );
     const passwordHash = await CryptoUtil.hash(password);
 
     const activeSchema = await this.schemaRepo.findOne({
@@ -302,15 +420,31 @@ export class AuthorizeService {
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
     user.lastLoginAt = new Date();
-    if ((user.status as string) === UserStatus.LOCKED) user.status = UserStatus.ACTIVE;
+    if ((user.status as string) === UserStatus.LOCKED)
+      user.status = UserStatus.ACTIVE;
 
-    const grantedScopes = dto.grantedScopes ?? pending.scopes;
+    if (dto.grantedScopes) {
+      const overGranted = dto.grantedScopes.filter(
+        (scope) => !pending.scopes.includes(scope),
+      );
+      if (overGranted.length > 0) {
+        throw new BadRequestException(
+          `invalid_scope: ${overGranted.join(', ')}`,
+        );
+      }
+    }
+
+    const grantedScopes = Array.from(
+      new Set(dto.grantedScopes ?? pending.scopes),
+    );
 
     let consent = await this.consentRepo.findOne({
       where: { tenantId, userId: user.id, clientId: pending.clientId },
     });
     if (consent) {
-      consent.grantedScopes = Array.from(new Set([...consent.grantedScopes, ...grantedScopes]));
+      consent.grantedScopes = Array.from(
+        new Set([...consent.grantedScopes, ...grantedScopes]),
+      );
     } else {
       consent = this.consentRepo.create({
         tenantId,
@@ -329,7 +463,8 @@ export class AuthorizeService {
       redirectUri: pending.redirectUri,
       scopes: grantedScopes,
       codeChallenge: pending.codeChallenge ?? null,
-      codeChallengeMethod: (pending.codeChallengeMethod as CodeChallengeMethod) ?? null,
+      codeChallengeMethod:
+        (pending.codeChallengeMethod as CodeChallengeMethod) ?? null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
@@ -351,7 +486,11 @@ export class AuthorizeService {
       actorType: 'user',
       targetId: pending.clientId,
       targetType: 'oauth_client',
-      metadata: { clientId: pending.clientId, scopes: grantedScopes, ...loginMeta },
+      metadata: {
+        clientId: pending.clientId,
+        scopes: grantedScopes,
+        ...loginMeta,
+      },
       ...ctx,
     });
 
@@ -372,7 +511,12 @@ export class AuthorizeService {
     return { url: redirectUrl.toString() };
   }
 
-  private async recordFailedAttempt(user: User, tenantId: string, clientId: string, ctx: AuditContext) {
+  private async recordFailedAttempt(
+    user: User,
+    tenantId: string,
+    clientId: string,
+    ctx: AuditContext,
+  ) {
     user.failedLoginAttempts += 1;
 
     if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
@@ -380,9 +524,15 @@ export class AuthorizeService {
       user.status = UserStatus.LOCKED;
       await this.userRepo.save(user);
       await this.auditService.record({
-        tenantId, action: AuditAction.USER_LOCKED,
-        actorType: 'system', targetType: 'user', targetId: user.id,
-        metadata: { reason: 'max_failed_attempts', attempts: user.failedLoginAttempts },
+        tenantId,
+        action: AuditAction.USER_LOCKED,
+        actorType: 'system',
+        targetType: 'user',
+        targetId: user.id,
+        metadata: {
+          reason: 'max_failed_attempts',
+          attempts: user.failedLoginAttempts,
+        },
         ...ctx,
       });
     } else {
@@ -390,9 +540,12 @@ export class AuthorizeService {
     }
 
     await this.auditService.record({
-      tenantId, action: AuditAction.LOGIN_FAILURE,
-      actorType: 'user', actorId: user.id,
-      targetType: 'oauth_client', targetId: clientId,
+      tenantId,
+      action: AuditAction.LOGIN_FAILURE,
+      actorType: 'user',
+      actorId: user.id,
+      targetType: 'oauth_client',
+      targetId: clientId,
       success: false,
       metadata: { failedAttempts: user.failedLoginAttempts },
       ...ctx,
@@ -408,9 +561,12 @@ export class AuthorizeService {
     extra?: Record<string, unknown>,
   ) {
     await this.auditService.record({
-      tenantId, action: AuditAction.LOGIN_FAILURE,
-      actorType: 'user', actorId: userId,
-      targetType: 'oauth_client', targetId: clientId,
+      tenantId,
+      action: AuditAction.LOGIN_FAILURE,
+      actorType: 'user',
+      actorId: userId,
+      targetType: 'oauth_client',
+      targetId: clientId,
       success: false,
       metadata: { reason, ...extra },
       ...ctx,

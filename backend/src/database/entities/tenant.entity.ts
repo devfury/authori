@@ -13,6 +13,7 @@ import { OAuthClient } from './oauth-client.entity';
 import { ProfileSchemaVersion } from './profile-schema-version.entity';
 import { AuditLog } from './audit-log.entity';
 import { SigningKey } from './signing-key.entity';
+import { TenantScope } from './tenant-scope.entity';
 
 export enum TenantStatus {
   ACTIVE = 'ACTIVE',
@@ -60,4 +61,7 @@ export class Tenant {
 
   @OneToMany(() => SigningKey, (k) => k.tenant)
   signingKeys: SigningKey[];
+
+  @OneToMany(() => TenantScope, (s) => s.tenant)
+  scopes: TenantScope[];
 }

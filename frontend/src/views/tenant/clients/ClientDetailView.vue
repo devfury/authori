@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { clientsApi, type OAuthClient, type LoginBranding } from '@/api/clients'
+import { scopesApi, type TenantScope } from '@/api/scopes'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import CopyableField from '@/components/shared/CopyableField.vue'
@@ -17,10 +18,12 @@ const newSecret = ref<string | null>(null)
 const showRotateConfirm = ref(false)
 const rotating = ref(false)
 
+const availableScopes = ref<TenantScope[]>([])
+
 // ── 수정 모드 ───────────────────────────────────────────
 const editing = ref(false)
 const editName = ref('')
-const editScopes = ref('')
+const editScopes = ref<string[]>([])
 const editGrants = ref<string[]>([])
 const editRedirectUris = ref('')
 const editBranding = ref<LoginBranding>({})
@@ -36,7 +39,7 @@ const GRANT_OPTIONS = [
 function startEdit() {
   if (!client.value) return
   editName.value = client.value.name
-  editScopes.value = client.value.allowedScopes.join(' ')
+  editScopes.value = [...client.value.allowedScopes]
   editGrants.value = [...client.value.allowedGrants]
   editRedirectUris.value = client.value.redirectUris.map((r) => r.uri).join('\n')
   editBranding.value = client.value.branding ? { ...client.value.branding } : {}
@@ -58,7 +61,7 @@ async function saveEdit() {
   try {
     const { data } = await clientsApi.update(tenantId, clientId, {
       name: editName.value,
-      allowedScopes: editScopes.value.split(/\s+/).filter(Boolean),
+      allowedScopes: editScopes.value,
       allowedGrants: editGrants.value,
       redirectUris: editRedirectUris.value.split('\n').map((s) => s.trim()).filter(Boolean),
       branding: Object.keys(editBranding.value).length > 0 ? editBranding.value : null,
@@ -75,9 +78,20 @@ async function saveEdit() {
 }
 
 async function load() {
-  const { data } = await clientsApi.findOne(tenantId, clientId)
-  client.value = data
-  loading.value = false
+  try {
+    const [clientRes, scopesRes] = await Promise.all([
+      clientsApi.findOne(tenantId, clientId),
+      scopesApi.findAll(tenantId),
+    ])
+    client.value = clientRes.data
+    availableScopes.value = scopesRes.data || []
+  } catch (e) {
+    // Fallback if scopes API fails
+    const { data } = await clientsApi.findOne(tenantId, clientId)
+    client.value = data
+  } finally {
+    loading.value = false
+  }
 }
 
 async function rotateSecret() {
@@ -204,12 +218,35 @@ onMounted(load)
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">허용 스코프 <span class="text-xs font-normal text-gray-400">(공백 구분)</span></label>
-                <input
-                  v-model="editScopes"
-                  type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
+                <label class="block text-sm font-medium text-gray-700 mb-2">허용 스코프</label>
+                <div v-if="availableScopes.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label
+                    v-for="scope in availableScopes"
+                    :key="scope.id"
+                    class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <input
+                      v-model="editScopes"
+                      type="checkbox"
+                      :value="scope.name"
+                      class="w-4 h-4 accent-indigo-600 cursor-pointer"
+                    />
+                    <div>
+                      <div class="text-sm font-medium text-gray-800">{{ scope.name }}</div>
+                      <div class="text-xs text-gray-500">{{ scope.displayName }}</div>
+                    </div>
+                  </label>
+                </div>
+                <div v-else>
+                  <input
+                    type="text"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    :value="editScopes.join(' ')"
+                    placeholder="openid profile email"
+                    @input="(e) => editScopes = (e.target as HTMLInputElement).value.split(/\s+/).filter(Boolean)"
+                  />
+                  <p class="mt-1 text-xs text-gray-400">공백으로 구분하여 입력하세요.</p>
+                </div>
               </div>
 
               <div>

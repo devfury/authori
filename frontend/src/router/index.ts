@@ -129,6 +129,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/admin/tenants/:tenantId/scopes',
+      name: 'scope-list',
+      component: () => import('@/views/tenant/scopes/ScopeListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/admin/tenants/:tenantId/audit',
       name: 'audit-log',
       component: () => import('@/views/tenant/audit/AuditLogView.vue'),

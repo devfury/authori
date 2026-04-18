@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { clientsApi } from '@/api/clients'
+import { scopesApi, type TenantScope } from '@/api/scopes'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import CopyableField from '@/components/shared/CopyableField.vue'
 
@@ -11,7 +12,8 @@ const tenantId = route.params.tenantId as string
 
 const name = ref('')
 const type = ref<'PUBLIC' | 'CONFIDENTIAL'>('PUBLIC')
-const scopeInput = ref('openid profile email')
+const availableScopes = ref<TenantScope[]>([])
+const selectedScopes = ref<string[]>([])
 const redirectUrisInput = ref('http://localhost:8080/callback')
 
 const GRANT_OPTIONS = [
@@ -26,6 +28,22 @@ const error = ref('')
 const loading = ref(false)
 const plainSecret = ref<string | null>(null)
 
+onMounted(async () => {
+  try {
+    const { data } = await scopesApi.findAll(tenantId)
+    availableScopes.value = data || []
+    if (availableScopes.value.length > 0) {
+      selectedScopes.value = availableScopes.value
+        .filter((s) => s.isDefault)
+        .map((s) => s.name)
+    } else {
+      selectedScopes.value = ['openid', 'profile', 'email']
+    }
+  } catch {
+    selectedScopes.value = ['openid', 'profile', 'email']
+  }
+})
+
 const grantsError = computed(() => selectedGrants.value.length === 0 ? '하나 이상의 Grant Type을 선택하세요.' : '')
 
 async function submit() {
@@ -36,7 +54,7 @@ async function submit() {
     const { data } = await clientsApi.create(tenantId, {
       name: name.value,
       type: type.value as 'PUBLIC' | 'CONFIDENTIAL',
-      allowedScopes: scopeInput.value.split(/\s+/).filter(Boolean),
+      allowedScopes: selectedScopes.value,
       allowedGrants: selectedGrants.value,
       redirectUris: redirectUrisInput.value.split('\n').map((s) => s.trim()).filter(Boolean),
     })
@@ -122,12 +140,35 @@ async function submit() {
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">허용 스코프 <span class="text-xs font-normal text-gray-400">(공백 구분)</span></label>
-          <input
-            v-model="scopeInput"
-            type="text"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
+          <label class="block text-sm font-medium text-gray-700 mb-2">허용 스코프</label>
+          <div v-if="availableScopes.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label
+              v-for="scope in availableScopes"
+              :key="scope.id"
+              class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+            >
+              <input
+                v-model="selectedScopes"
+                type="checkbox"
+                :value="scope.name"
+                class="w-4 h-4 accent-indigo-600 cursor-pointer"
+              />
+              <div>
+                <div class="text-sm font-medium text-gray-800">{{ scope.name }}</div>
+                <div class="text-xs text-gray-500">{{ scope.displayName }}</div>
+              </div>
+            </label>
+          </div>
+          <div v-else>
+            <input
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              :value="selectedScopes.join(' ')"
+              placeholder="openid profile email"
+              @input="(e) => selectedScopes = (e.target as HTMLInputElement).value.split(/\s+/).filter(Boolean)"
+            />
+            <p class="mt-1 text-xs text-gray-400">공백으로 구분하여 입력하세요.</p>
+          </div>
         </div>
 
         <div>

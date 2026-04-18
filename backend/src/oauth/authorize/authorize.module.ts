@@ -12,6 +12,7 @@ import {
 } from '../../database/entities';
 import { AuditModule } from '../../common/audit/audit.module';
 import { ExternalAuthModule } from '../../external-auth/external-auth.module';
+import { ScopesModule } from '../scopes/scopes.module';
 import { AuthorizeService } from './authorize.service';
 import { AuthorizeController } from './authorize.controller';
 
@@ -29,6 +30,7 @@ import { AuthorizeController } from './authorize.controller';
     ]),
     AuditModule,
     ExternalAuthModule,
+    ScopesModule,
   ],
   controllers: [AuthorizeController],
   providers: [AuthorizeService],

@@ -5,8 +5,14 @@ import { Repository } from 'typeorm';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { verify } from 'jsonwebtoken';
 import { createPublicKey } from 'crypto';
-import { AccessToken, Tenant, User, UserProfile } from '../../database/entities';
+import {
+  AccessToken,
+  Tenant,
+  User,
+  UserProfile,
+} from '../../database/entities';
 import { KeysService } from '../keys/keys.service';
+import { ScopesService } from '../scopes/scopes.service';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
 import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import type { TenantContext } from '../../common/tenant/tenant-context';
@@ -28,15 +34,21 @@ export class DiscoveryController {
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserProfile)
     private readonly profileRepo: Repository<UserProfile>,
+    private readonly scopesService: ScopesService,
   ) {}
 
   @Get('.well-known/openid-configuration')
   @UseGuards(RequireTenantGuard)
   @ApiOperation({ summary: 'OpenID Connect Discovery 문서' })
   async discovery(@CurrentTenant() tenant: TenantContext) {
-    const tenantEntity = await this.tenantRepo.findOne({ where: { id: tenant.tenantId } });
-    const defaultIssuer = this.configService.get<string>('app.issuer') ?? 'https://auth.example.com';
-    const issuer = tenantEntity?.issuer ?? `${defaultIssuer}/t/${tenant.tenantSlug}`;
+    const tenantEntity = await this.tenantRepo.findOne({
+      where: { id: tenant.tenantId },
+    });
+    const defaultIssuer =
+      this.configService.get<string>('app.issuer') ??
+      'https://auth.example.com';
+    const issuer =
+      tenantEntity?.issuer ?? `${defaultIssuer}/t/${tenant.tenantSlug}`;
     const base = `${issuer}`;
 
     return {
@@ -47,11 +59,20 @@ export class DiscoveryController {
       userinfo_endpoint: `${base}/oauth/userinfo`,
       jwks_uri: `${base}/.well-known/jwks.json`,
       response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code', 'refresh_token', 'client_credentials'],
+      grant_types_supported: [
+        'authorization_code',
+        'refresh_token',
+        'client_credentials',
+      ],
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256'],
-      scopes_supported: ['openid', 'profile', 'email'],
-      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post'],
+      scopes_supported: await this.scopesService.getSupportedScopes(
+        tenant.tenantId,
+      ),
+      token_endpoint_auth_methods_supported: [
+        'client_secret_basic',
+        'client_secret_post',
+      ],
       code_challenge_methods_supported: ['S256', 'plain'],
     };
   }
@@ -80,7 +101,9 @@ export class DiscoveryController {
     let payload: { sub: string; jti: string; scope: string };
     try {
       const publicKey = createPublicKey(activeKey.publicKeyPem);
-      payload = verify(rawToken, publicKey, { algorithms: ['RS256'] }) as typeof payload;
+      payload = verify(rawToken, publicKey, {
+        algorithms: ['RS256'],
+      }) as typeof payload;
     } catch {
       throw new UnauthorizedException('invalid_token');
     }
@@ -98,7 +121,9 @@ export class DiscoveryController {
     });
     if (!user) throw new UnauthorizedException('user_not_found');
 
-    const profile = await this.profileRepo.findOne({ where: { userId: user.id } });
+    const profile = await this.profileRepo.findOne({
+      where: { userId: user.id },
+    });
     const scopes = payload.scope.split(' ');
 
     const claims: Record<string, unknown> = { sub: user.id };
