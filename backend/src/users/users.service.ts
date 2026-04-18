@@ -1,7 +1,16 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { AuditAction, User, UserProfile, UserStatus } from '../database/entities';
+import {
+  AuditAction,
+  User,
+  UserProfile,
+  UserStatus,
+} from '../database/entities';
 import { CryptoUtil } from '../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { ProfileSchemaService } from '../profile-schema/profile-schema.service';
@@ -35,9 +44,16 @@ export class UsersService {
     private readonly auditService: AuditService,
   ) {}
 
-  async create(tenantId: string, dto: CreateUserDto, ctx?: AuditContext): Promise<User> {
-    const exists = await this.userRepo.findOne({ where: { tenantId, email: dto.email } });
-    if (exists) throw new ConflictException(`Email '${dto.email}' already exists`);
+  async create(
+    tenantId: string,
+    dto: CreateUserDto,
+    ctx?: AuditContext,
+  ): Promise<User> {
+    const exists = await this.userRepo.findOne({
+      where: { tenantId, email: dto.email },
+    });
+    if (exists)
+      throw new ConflictException(`Email '${dto.email}' already exists`);
 
     const profileData = dto.profile ?? {};
     await this.profileSchemaService.validate(tenantId, profileData);
@@ -58,6 +74,7 @@ export class UsersService {
       name: dto.name ?? null,
       loginId: dto.loginId ?? null,
       passwordHash,
+      status: dto.initialStatus ?? UserStatus.ACTIVE,
       profile,
     });
 
@@ -73,7 +90,10 @@ export class UsersService {
     return saved;
   }
 
-  async findAll(tenantId: string, query: UserListQuery = {}): Promise<UserPage> {
+  async findAll(
+    tenantId: string,
+    query: UserListQuery = {},
+  ): Promise<UserPage> {
     const { page = 1, limit: rawLimit = 20, search, status } = query;
     const limit = Math.min(rawLimit, 100);
     const offset = (page - 1) * limit;
@@ -109,7 +129,12 @@ export class UsersService {
     return user;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateUserDto, ctx?: AuditContext): Promise<User> {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateUserDto,
+    ctx?: AuditContext,
+  ): Promise<User> {
     const user = await this.findOne(tenantId, id);
 
     if (dto.status) user.status = dto.status;
@@ -144,7 +169,11 @@ export class UsersService {
     return saved;
   }
 
-  async activate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {
+  async activate(
+    tenantId: string,
+    id: string,
+    ctx?: AuditContext,
+  ): Promise<void> {
     const user = await this.findOne(tenantId, id);
     user.status = UserStatus.ACTIVE;
     await this.userRepo.save(user);
@@ -157,7 +186,11 @@ export class UsersService {
     });
   }
 
-  async deactivate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {
+  async deactivate(
+    tenantId: string,
+    id: string,
+    ctx?: AuditContext,
+  ): Promise<void> {
     const user = await this.findOne(tenantId, id);
     user.status = UserStatus.INACTIVE;
     await this.userRepo.save(user);

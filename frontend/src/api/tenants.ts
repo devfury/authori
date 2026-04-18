@@ -11,6 +11,7 @@ export interface TenantSettings {
   allowedGrants: string[]
   refreshTokenRotation: boolean
   passwordMinLength: number
+  allowRegistration: boolean
 }
 
 export interface Tenant {
@@ -39,6 +40,7 @@ export interface UpdateTenantPayload {
     allowedGrants?: string[]
     refreshTokenRotation?: boolean
     passwordMinLength?: number
+    allowRegistration?: boolean
   }
 }
 

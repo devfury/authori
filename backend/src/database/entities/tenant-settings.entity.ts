@@ -33,7 +33,12 @@ export class TenantSettings {
   requirePkce: boolean;
 
   /** 허용 grant types */
-  @Column({ name: 'allowed_grants', type: 'text', array: true, default: ['authorization_code', 'refresh_token'] })
+  @Column({
+    name: 'allowed_grants',
+    type: 'text',
+    array: true,
+    default: ['authorization_code', 'refresh_token'],
+  })
   allowedGrants: string[];
 
   /** refresh token rotation 사용 여부 */
@@ -43,6 +48,10 @@ export class TenantSettings {
   /** 비밀번호 최소 길이 */
   @Column({ name: 'password_min_length', default: 8 })
   passwordMinLength: number;
+
+  /** OAuth 로그인 페이지에서 공개 회원가입 허용 여부 */
+  @Column({ name: 'allow_registration', default: false })
+  allowRegistration: boolean;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;

@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -25,10 +27,12 @@ import {
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { ExternalAuthService } from '../../external-auth/external-auth.service';
+import { UsersService } from '../../users/users.service';
 import { ScopesService } from '../scopes/scopes.service';
 import { PendingRequestStore } from './pending-request.store';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
+import { RegisterDto } from './dto/register.dto';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
@@ -61,6 +65,7 @@ export class AuthorizeService {
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
     private readonly externalAuthService: ExternalAuthService,
+    private readonly usersService: UsersService,
     private readonly scopesService: ScopesService,
   ) {}
 
@@ -144,10 +149,63 @@ export class AuthorizeService {
       throw new BadRequestException('invalid_client');
     }
 
+    const [settings, activeSchema] = await Promise.all([
+      this.settingsRepo.findOne({ where: { tenantId } }),
+      this.schemaRepo.findOne({
+        where: { tenantId, status: SchemaStatus.PUBLISHED },
+        order: { version: 'DESC' },
+      }),
+    ]);
+
     return {
       clientName: client.name,
       branding: client.branding ?? null,
+      allowRegistration: settings?.allowRegistration ?? false,
+      activeSchema: activeSchema
+        ? {
+            schemaJsonb: activeSchema.schemaJsonb,
+          }
+        : null,
     };
+  }
+
+  async register(
+    tenantId: string,
+    dto: RegisterDto,
+    ctx: AuditContext = {},
+  ): Promise<{ message: 'registered' }> {
+    const settings = await this.settingsRepo.findOne({ where: { tenantId } });
+    if (!settings?.allowRegistration) {
+      throw new ForbiddenException('registration_disabled');
+    }
+
+    if (dto.password.length < settings.passwordMinLength) {
+      throw new BadRequestException('password_too_short');
+    }
+
+    try {
+      await this.usersService.create(
+        tenantId,
+        {
+          email: dto.email,
+          password: dto.password,
+          name: dto.name,
+          profile: dto.profile,
+          initialStatus: UserStatus.INACTIVE,
+        },
+        {
+          actorType: 'user',
+          ...ctx,
+        },
+      );
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw new ConflictException('email_already_exists');
+      }
+      throw error;
+    }
+
+    return { message: 'registered' };
   }
 
   async loginAndAuthorize(
@@ -174,6 +232,17 @@ export class AuthorizeService {
         ctx,
       );
       throw new UnauthorizedException('account_locked');
+    }
+
+    if (user?.status === UserStatus.INACTIVE) {
+      await this.recordAuditLoginFailure(
+        tenantId,
+        pending.clientId,
+        user.id,
+        'user_inactive',
+        ctx,
+      );
+      throw new ForbiddenException('user_inactive');
     }
 
     const provider = await this.externalAuthService.findActive(
@@ -311,18 +380,6 @@ export class AuthorizeService {
           providerId: provider.id,
         },
       );
-    }
-
-    // 비활성 확인
-    if (user && user.status !== UserStatus.ACTIVE) {
-      await this.recordAuditLoginFailure(
-        tenantId,
-        pending.clientId,
-        user.id,
-        'user_inactive',
-        ctx,
-      );
-      throw new UnauthorizedException('invalid_credentials');
     }
 
     // ── 로컬 전용 경로 ──────────────────────────────────

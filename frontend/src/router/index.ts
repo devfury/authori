@@ -18,6 +18,12 @@ const router = createRouter({
       component: () => import('@/views/oauth/OAuthLoginView.vue'),
       meta: { layout: 'auth', public: true },
     },
+    {
+      path: '/register',
+      name: 'oauth-register',
+      component: () => import('@/views/oauth/OAuthRegisterView.vue'),
+      meta: { layout: 'auth', public: true },
+    },
     // ── 인증 ──────────────────────────────────────────
     {
       path: '/admin/login',

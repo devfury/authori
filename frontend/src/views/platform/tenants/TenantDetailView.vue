@@ -37,6 +37,7 @@ async function saveSettings() {
         requirePkce: tenant.value.settings.requirePkce,
         passwordMinLength: tenant.value.settings.passwordMinLength,
         refreshTokenRotation: tenant.value.settings.refreshTokenRotation,
+        allowRegistration: tenant.value.settings.allowRegistration,
       },
     })
     tenant.value = data
@@ -114,6 +115,10 @@ onMounted(load)
             <label class="flex items-center gap-2 cursor-pointer">
               <input v-model="tenant.settings.refreshTokenRotation" type="checkbox" class="rounded" />
               <span class="text-sm text-gray-700">Refresh Token Rotation</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input v-model="tenant.settings.allowRegistration" type="checkbox" class="rounded" />
+              <span class="text-sm text-gray-700">회원가입 허용</span>
             </label>
           </div>
 

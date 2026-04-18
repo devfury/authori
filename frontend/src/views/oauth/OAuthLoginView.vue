@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, type LocationQueryValue } from 'vue-router'
-import axios from 'axios'
 import type { LoginBranding } from '@/api/clients'
-
-const oauthHttp = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
-  headers: { 'Content-Type': 'application/json' },
-})
+import { oauthApi } from '@/api/oauth'
 
 const route = useRoute()
 
@@ -32,6 +27,12 @@ const error = ref('')
 const branding = ref<LoginBranding>({})
 const clientName = ref('')
 const scopeMetadata = ref<Record<string, { displayName: string; description: string | null }>>({})
+const allowRegistration = ref(false)
+
+const registerRoute = computed(() => ({
+  name: 'oauth-register',
+  query: route.query,
+}))
 
 function applyBranding(b: LoginBranding) {
   const root = document.documentElement
@@ -60,16 +61,10 @@ onMounted(async () => {
   }
 
   try {
-    const { data } = await oauthHttp.get<{
-      clientName: string;
-      branding: LoginBranding | null;
-      scopes?: Array<{ name: string; displayName: string; description: string | null }>;
-    }>(
-      `/t/${tenantSlug}/oauth/login-config`,
-      { params: { client_id: clientId } },
-    )
+    const { data } = await oauthApi.getLoginConfig(tenantSlug, clientId)
     clientName.value = data.clientName
     branding.value = data.branding ?? {}
+    allowRegistration.value = data.allowRegistration
     if (data.scopes) {
       scopeMetadata.value = data.scopes.reduce((acc, s) => {
         acc[s.name] = { displayName: s.displayName, description: s.description }
@@ -83,18 +78,16 @@ onMounted(async () => {
 })
 
 async function submit() {
+  if (!tenantSlug || !requestId) return
   error.value = ''
   loading.value = true
   try {
-    const { data } = await oauthHttp.post<{ url: string }>(
-      `/t/${tenantSlug}/oauth/authorize`,
-      {
-        requestId,
-        email: email.value,
-        password: password.value,
-        grantedScopes: requestedScopes.value,
-      },
-    )
+    const { data } = await oauthApi.authorize(tenantSlug, {
+      requestId,
+      email: email.value,
+      password: password.value,
+      grantedScopes: requestedScopes.value,
+    })
     window.location.href = data.url
   } catch (e: unknown) {
     const axiosError = e as { response?: { data?: { message?: string } } }
@@ -194,6 +187,17 @@ async function submit() {
       >
         {{ loading ? '로그인 중...' : '로그인' }}
       </button>
+
+      <p v-if="allowRegistration" class="text-center text-sm text-gray-500 mt-4">
+        계정이 없으신가요?
+        <RouterLink
+          :to="registerRoute"
+          class="font-medium hover:underline"
+          style="color: var(--auth-primary-color, #4f46e5)"
+        >
+          회원가입
+        </RouterLink>
+      </p>
     </form>
   </div>
 </template>

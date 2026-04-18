@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
+import { UserStatus } from '../../database/entities';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -16,7 +24,10 @@ export class CreateUserDto {
   @MinLength(8)
   password: string;
 
-  @ApiPropertyOptional({ description: '로그인 ID (미입력 시 email 사용)', example: 'john.doe' })
+  @ApiPropertyOptional({
+    description: '로그인 ID (미입력 시 email 사용)',
+    example: 'john.doe',
+  })
   @IsOptional()
   @IsString()
   loginId?: string;
@@ -28,4 +39,12 @@ export class CreateUserDto {
   @IsOptional()
   @IsObject()
   profile?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    enum: UserStatus,
+    description: '생성 시 초기 사용자 상태. 미지정 시 ACTIVE',
+  })
+  @IsOptional()
+  @IsEnum(UserStatus)
+  initialStatus?: UserStatus;
 }
