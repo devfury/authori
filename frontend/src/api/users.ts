@@ -10,6 +10,18 @@ export interface UserProfile {
   updatedAt: string
 }
 
+export interface UserRoleSummary {
+  id: string
+  name: string
+  displayName: string
+}
+
+export interface UserRoleEntry {
+  userId: string
+  roleId: string
+  role: UserRoleSummary
+}
+
 export interface User {
   id: string
   tenantId: string
@@ -20,6 +32,7 @@ export interface User {
   lastLoginAt: string | null
   createdAt: string
   profile?: UserProfile
+  userRoles?: UserRoleEntry[]
 }
 
 export interface CreateUserPayload {
