@@ -188,6 +188,7 @@ onMounted(() => {
             <tr>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이메일</th>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
+              <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">역할</th>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">로그인 실패 횟수</th>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">마지막 로그인</th>
@@ -206,6 +207,11 @@ onMounted(() => {
               </td>
               <td class="px-4 py-3 text-gray-500">
                 {{ (user.profile?.profileJsonb?.['name'] as string) ?? '—' }}
+              </td>
+              <td class="px-4 py-3 text-gray-500 text-xs">
+                {{ user.userRoles?.length
+                    ? user.userRoles.map(ur => ur.role.displayName).join(', ')
+                    : '—' }}
               </td>
               <td class="px-4 py-3"><StatusBadge :status="user.status" /></td>
               <td class="px-4 py-3 text-gray-500">{{ user.failedLoginAttempts }}</td>
