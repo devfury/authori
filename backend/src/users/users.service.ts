@@ -20,7 +20,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export interface UserListQuery {
   page?: number; // 1-based, 기본값 1
   limit?: number; // 기본값 20, 최대 100
-  search?: string; // email 또는 name 부분 검색
+  search?: string; // email 부분 검색
   status?: UserStatus; // 'ACTIVE' | 'INACTIVE' | 'LOCKED'
 }
 
@@ -71,7 +71,6 @@ export class UsersService {
     const user = this.userRepo.create({
       tenantId,
       email: dto.email,
-      name: dto.name ?? null,
       loginId: dto.loginId ?? null,
       passwordHash,
       status: dto.initialStatus ?? UserStatus.ACTIVE,
@@ -107,7 +106,7 @@ export class UsersService {
       .skip(offset);
 
     if (search) {
-      qb.andWhere('(u.email ILIKE :search OR u.name ILIKE :search)', {
+      qb.andWhere('u.email ILIKE :search', {
         search: `%${search}%`,
       });
     }
@@ -138,7 +137,6 @@ export class UsersService {
     const user = await this.findOne(tenantId, id);
 
     if (dto.status) user.status = dto.status;
-    if (dto.name !== undefined) user.name = dto.name ?? null;
     if (dto.loginId !== undefined) user.loginId = dto.loginId;
 
     if (dto.profile) {

@@ -7,6 +7,7 @@ import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { CreateSchemaDto } from './dto/create-schema.dto';
 
 const ajv = new Ajv();
+ajv.addKeyword('x-order');
 
 @Injectable()
 export class ProfileSchemaService {

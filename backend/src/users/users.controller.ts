@@ -43,7 +43,7 @@ export class UsersController {
   @ApiOperation({ summary: '사용자 목록 조회' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: '페이지 번호 (1-based, 기본값: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: '페이지당 건수 (기본값: 20, 최대: 100)' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: '이메일 또는 이름 부분 검색' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: '이메일 부분 검색' })
   @ApiQuery({ name: 'status', required: false, enum: UserStatus, description: '상태 필터' })
   findAll(
     @Param('tenantId') tenantId: string,

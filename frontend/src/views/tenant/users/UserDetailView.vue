@@ -74,10 +74,6 @@ onMounted(load)
             <h3 class="text-sm font-semibold text-gray-900 mb-4">기본 정보</h3>
             <dl class="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <dt class="text-xs text-gray-400 mb-0.5">이름</dt>
-                <dd class="text-gray-800">{{ user.name ?? '—' }}</dd>
-              </div>
-              <div>
                 <dt class="text-xs text-gray-400 mb-0.5">ID</dt>
                 <dd class="font-mono text-xs text-gray-800">{{ user.id }}</dd>
               </div>

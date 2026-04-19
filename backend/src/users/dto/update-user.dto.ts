@@ -8,11 +8,6 @@ export class UpdateUserDto {
   @IsEnum(UserStatus)
   status?: UserStatus;
 
-  @ApiPropertyOptional({ example: '홍길동' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

@@ -15,11 +15,6 @@ export class FieldMappingDto {
   @IsString()
   email?: string;
 
-  @ApiPropertyOptional({ example: 'name' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @ApiPropertyOptional({ example: 'username' })
   @IsOptional()
   @IsString()

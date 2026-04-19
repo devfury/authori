@@ -14,11 +14,6 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
-  @ApiPropertyOptional({ example: '홍길동' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @ApiProperty({ example: 'securePassword123' })
   @IsString()
   @MinLength(8)

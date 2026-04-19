@@ -192,16 +192,12 @@ async function changeLimit(newLimit: number) {
 
 function formatActor(log: AuditLog): string {
   if (log.actorType === 'admin') {
-    const name = log.actorId
-      ? adminMap.value[log.actorId]?.name ?? adminMap.value[log.actorId]?.email ?? log.actorId
-      : ''
+    const name = log.actorId ? adminMap.value[log.actorId]?.email ?? log.actorId : ''
     return `관리자${name && ` (${name})`}`
   }
 
   if (log.actorType === 'user') {
-    const name = log.actorId
-      ? userMap.value[log.actorId]?.name ?? userMap.value[log.actorId]?.email ?? log.actorId
-      : ''
+    const name = log.actorId ? userMap.value[log.actorId]?.email ?? log.actorId : ''
     return `사용자${name && ` (${name})`}`
   }
 
@@ -221,16 +217,12 @@ function formatTarget(log: AuditLog): string {
   if (!log.targetType && !log.targetId) return '—'
 
   if (log.targetType === 'admin') {
-    const name = log.targetId
-      ? adminMap.value[log.targetId]?.name ?? adminMap.value[log.targetId]?.email ?? log.targetId
-      : ''
+    const name = log.targetId ? adminMap.value[log.targetId]?.email ?? log.targetId : ''
     return `관리자${name && ` (${name})`}`
   }
 
   if (log.targetType === 'user') {
-    const name = log.targetId
-      ? userMap.value[log.targetId]?.name ?? userMap.value[log.targetId]?.email ?? log.targetId
-      : ''
+    const name = log.targetId ? userMap.value[log.targetId]?.email ?? log.targetId : ''
     return `사용자${name && ` (${name})`}`
   }
 

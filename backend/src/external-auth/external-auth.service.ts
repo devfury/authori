@@ -19,7 +19,6 @@ export interface ExternalAuthResult {
   error?: 'timeout' | 'network' | 'server_error';
   user?: {
     email: string;
-    name?: string;
     loginId?: string;
     profile?: Record<string, unknown>;
   };
@@ -186,15 +185,11 @@ export class ExternalAuthService {
   applyFieldMapping(
     externalUser: NonNullable<ExternalAuthResult['user']>,
     mapping: ExternalAuthProvider['fieldMapping'],
-  ): { name?: string; loginId?: string; profile: Record<string, unknown> } {
+  ): { loginId?: string; profile: Record<string, unknown> } {
     const get = (obj: Record<string, unknown>, path: string): unknown =>
       path.split('.').reduce((cur: unknown, key) => (cur as Record<string, unknown>)?.[key], obj);
 
     const src = externalUser as unknown as Record<string, unknown>;
-
-    const name = mapping?.name
-      ? (get(src, mapping.name) as string | undefined)
-      : externalUser.name;
 
     const loginId = mapping?.loginId
       ? (get(src, mapping.loginId) as string | undefined)
@@ -212,6 +207,6 @@ export class ExternalAuthService {
       }
     }
 
-    return { name, loginId, profile };
+    return { loginId, profile };
   }
 }

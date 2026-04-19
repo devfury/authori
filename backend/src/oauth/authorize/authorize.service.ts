@@ -189,7 +189,6 @@ export class AuthorizeService {
         {
           email: dto.email,
           password: dto.password,
-          name: dto.name,
           profile: dto.profile,
           initialStatus: UserStatus.INACTIVE,
         },
@@ -357,7 +356,6 @@ export class AuthorizeService {
           result.user,
           provider.fieldMapping,
         );
-        if (mapped.name !== undefined) user.name = mapped.name ?? null;
         if (mapped.loginId !== undefined) user.loginId = mapped.loginId ?? null;
         if (user.profile && Object.keys(mapped.profile).length > 0) {
           user.profile.profileJsonb = {
@@ -415,7 +413,6 @@ export class AuthorizeService {
     password: string,
     externalUser: {
       email: string;
-      name?: string;
       loginId?: string;
       profile?: Record<string, unknown>;
     },
@@ -444,7 +441,6 @@ export class AuthorizeService {
     const user = this.userRepo.create({
       tenantId,
       email,
-      name: mapped.name ?? null,
       loginId: mapped.loginId ?? null,
       passwordHash,
       profile,

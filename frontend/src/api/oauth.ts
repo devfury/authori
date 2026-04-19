@@ -19,7 +19,6 @@ export interface LoginConfigResponse {
 export interface RegisterPayload {
   email: string
   password: string
-  name?: string
   profile?: Record<string, any>
   requestId?: string
   clientId?: string

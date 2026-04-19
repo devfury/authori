@@ -149,7 +149,7 @@ onMounted(() => {
         <input
           v-model="searchInput"
           type="text"
-          placeholder="이메일 또는 이름으로 검색"
+          placeholder="이메일로 검색"
           class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
           @input="onSearchInput"
         />
@@ -186,7 +186,6 @@ onMounted(() => {
           <table class="w-full text-sm min-w-[800px]">
             <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">이메일</th>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
               <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">로그인 실패 횟수</th>
@@ -196,7 +195,6 @@ onMounted(() => {
           </thead>
           <tbody class="divide-y divide-gray-100" :class="{ 'opacity-50': loading }">
             <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50 transition-colors">
-              <td class="px-4 py-3 text-gray-500">{{ user.name ?? '—' }}</td>
               <td class="px-4 py-3 text-gray-900">
                 <RouterLink
                   :to="{ name: 'user-detail', params: { tenantId, userId: user.id } }"

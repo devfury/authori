@@ -185,7 +185,6 @@ onMounted(async () => {
                   <p class="pl-4">"authenticated": true,</p>
                   <p class="pl-4">"user": {</p>
                   <p class="pl-8">"email": "user@example.com",  <span class="text-gray-400">// 필수</span></p>
-                  <p class="pl-8">"name": "홍길동",             <span class="text-gray-400">// 선택</span></p>
                   <p class="pl-8">"loginId": "gildong",         <span class="text-gray-400">// 선택</span></p>
                   <p class="pl-8">"profile": { ... }            <span class="text-gray-400">// 선택</span></p>
                   <p class="pl-4">}</p>

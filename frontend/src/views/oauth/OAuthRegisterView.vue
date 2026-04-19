@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter, type LocationQueryValue } from 'vue-router'
+import { useRoute, type LocationQueryValue } from 'vue-router'
 import type { LoginBranding } from '@/api/clients'
 import { oauthApi } from '@/api/oauth'
 
 const route = useRoute()
-const router = useRouter()
 
 function getQueryValue(value: LocationQueryValue | LocationQueryValue[] | undefined): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
@@ -16,7 +15,6 @@ const tenantSlug = getQueryValue(route.query.tenantSlug)
 const clientId = getQueryValue(route.query.clientId)
 
 const email = ref('')
-const name = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -49,7 +47,20 @@ const fieldErrors = ref<Record<string, string>>({})
 function parseJsonSchema(schema: Record<string, any>): FieldDef[] {
   const props = (schema.properties as Record<string, Record<string, any>>) ?? {}
   const req = (schema.required as string[]) ?? []
-  return Object.entries(props).map(([key, def]) => {
+  const order = (schema['x-order'] as string[]) ?? []
+
+  const entries = Object.entries(props)
+  if (order.length > 0) {
+    entries.sort(([a], [b]) => {
+      const ai = order.indexOf(a)
+      const bi = order.indexOf(b)
+      const an = ai === -1 ? Infinity : ai
+      const bn = bi === -1 ? Infinity : bi
+      return an - bn
+    })
+  }
+
+  return entries.map(([key, def]) => {
     const field: FieldDef = {
       key,
       label: (def.title as string) ?? key,
@@ -178,7 +189,6 @@ async function submit() {
     await oauthApi.register(tenantSlug, {
       email: email.value,
       password: password.value,
-      name: name.value || undefined,
       profile,
       requestId,
       clientId,
@@ -261,17 +271,6 @@ const loginRoute = computed(() => ({
             type="password"
             required
             placeholder="••••••••"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent"
-            :style="branding.primaryColor ? { '--tw-ring-color': branding.primaryColor } : {}"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
-          <input
-            v-model="name"
-            type="text"
-            placeholder="홍길동"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent"
             :style="branding.primaryColor ? { '--tw-ring-color': branding.primaryColor } : {}"
           />

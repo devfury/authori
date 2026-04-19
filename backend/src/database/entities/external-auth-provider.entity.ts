@@ -10,7 +10,6 @@ import {
 
 export interface ExternalAuthFieldMapping {
   email?: string;
-  name?: string;
   loginId?: string;
   profile?: Record<string, string>;
 }

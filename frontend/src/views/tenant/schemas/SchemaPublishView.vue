@@ -1,102 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-vue-next'
+import { GripVertical, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-vue-next'
 import { schemasApi } from '@/api/schemas'
+import { type FieldDef, newField, parseJsonSchema, buildJsonSchema } from '@/utils/schema'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const router = useRouter()
 const route = useRoute()
 const tenantId = route.params.tenantId as string
 
-// ── 타입 정의 ──────────────────────────────────────────
-
-type FieldType = 'string' | 'number' | 'integer' | 'boolean' | 'enum'
-
-interface FieldDef {
-  _id: string
-  label: string
-  key: string
-  type: FieldType
-  required: boolean
-  minLength?: number | null
-  maxLength?: number | null
-  pattern?: string
-  minimum?: number | null
-  maximum?: number | null
-  enumValues: string  // 쉼표 구분 문자열
-}
-
 // ── 유틸 함수 ──────────────────────────────────────────
-
-function newField(): FieldDef {
-  return {
-    _id: Math.random().toString(36).slice(2),
-    label: '',
-    key: '',
-    type: 'string',
-    required: false,
-    enumValues: '',
-  }
-}
-
-function buildJsonSchema(fields: FieldDef[]): Record<string, unknown> {
-  const properties: Record<string, unknown> = {}
-  const required: string[] = []
-
-  for (const f of fields) {
-    if (!f.key) continue
-    if (f.type === 'enum') {
-      const values = f.enumValues.split(',').map((v) => v.trim()).filter(Boolean)
-      const prop: Record<string, unknown> = { enum: values }
-      if (f.label) prop.title = f.label
-      properties[f.key] = prop
-    } else {
-      const prop: Record<string, unknown> = { type: f.type }
-      if (f.label) prop.title = f.label
-      if (f.type === 'string') {
-        if (f.minLength != null) prop.minLength = f.minLength
-        if (f.maxLength != null) prop.maxLength = f.maxLength
-        if (f.pattern) prop.pattern = f.pattern
-      }
-      if (f.type === 'number' || f.type === 'integer') {
-        if (f.minimum != null) prop.minimum = f.minimum
-        if (f.maximum != null) prop.maximum = f.maximum
-      }
-      properties[f.key] = prop
-    }
-    if (f.required) required.push(f.key)
-  }
-
-  return {
-    type: 'object',
-    properties,
-    ...(required.length > 0 ? { required } : {}),
-  }
-}
-
-function parseJsonSchema(schema: Record<string, unknown>): FieldDef[] {
-  const props = (schema.properties as Record<string, Record<string, unknown>>) ?? {}
-  const req = (schema.required as string[]) ?? []
-  return Object.entries(props).map(([key, def]) => {
-    const f = newField()
-    f.key = key
-    f.label = (def.title as string) ?? key
-    f.required = req.includes(key)
-    if ('enum' in def) {
-      f.type = 'enum'
-      f.enumValues = (def.enum as unknown[]).join(', ')
-    } else {
-      f.type = (def.type as FieldType) ?? 'string'
-      if (def.minLength != null) f.minLength = def.minLength as number
-      if (def.maxLength != null) f.maxLength = def.maxLength as number
-      if (def.pattern) f.pattern = def.pattern as string
-      if (def.minimum != null) f.minimum = def.minimum as number
-      if (def.maximum != null) f.maximum = def.maximum as number
-    }
-    return f
-  })
-}
 
 function checkWarnings(
   prev: Record<string, unknown> | null,
@@ -143,6 +57,10 @@ const prevSchema = ref<Record<string, unknown> | null>(null)
 const loading = ref(false)
 const error = ref('')
 
+const draggedIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
+const dropPosition = ref<'top' | 'bottom' | null>(null)
+
 const jsonSchema = computed(() => buildJsonSchema(fields.value))
 const jsonPreview = computed(() => JSON.stringify(jsonSchema.value, null, 2))
 const warnings = computed(() => checkWarnings(prevSchema.value, jsonSchema.value))
@@ -164,6 +82,52 @@ onMounted(async () => {
 function addField() {
   const f = newField()
   fields.value.push(f)
+}
+
+function handleDragStart(index: number, event: DragEvent) {
+  draggedIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function handleDragOver(index: number, event: DragEvent) {
+  if (draggedIndex.value === null || draggedIndex.value === index) return
+
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const offset = event.clientY - rect.top
+  const newPos = offset < rect.height / 2 ? 'top' : 'bottom'
+
+  if (dragOverIndex.value !== index || dropPosition.value !== newPos) {
+    dragOverIndex.value = index
+    dropPosition.value = newPos
+  }
+}
+
+function handleDragEnd() {
+  draggedIndex.value = null
+  dragOverIndex.value = null
+  dropPosition.value = null
+}
+
+function handleDrop(index: number) {
+  if (draggedIndex.value !== null) {
+    let targetIndex = index
+    if (dropPosition.value === 'bottom') {
+      targetIndex++
+    }
+
+    // 드래그된 아이템을 먼저 제거하고 새 위치에 삽입할 때 인덱스 보정
+    const adjustedTarget = draggedIndex.value < targetIndex ? targetIndex - 1 : targetIndex
+
+    if (draggedIndex.value !== adjustedTarget) {
+      const arr = [...fields.value]
+      const [removed] = arr.splice(draggedIndex.value, 1)
+      arr.splice(adjustedTarget, 0, removed)
+      fields.value = arr
+    }
+  }
+  handleDragEnd()
 }
 
 function removeField(id: string) {
@@ -266,7 +230,8 @@ async function submit() {
       <!-- 필드 목록 -->
       <template v-else>
         <!-- 헤더 -->
-        <div class="grid grid-cols-[1fr_1fr_110px_52px_28px] gap-2 px-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
+        <div class="grid grid-cols-[28px_1fr_1fr_110px_52px_28px] gap-2 px-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
+          <span></span>
           <span>표시명</span>
           <span>키</span>
           <span>타입</span>
@@ -276,150 +241,177 @@ async function submit() {
 
         <!-- 필드 행 -->
         <div
-          v-for="field in fields"
+          v-for="(field, index) in fields"
           :key="field._id"
-          class="rounded-lg border border-gray-200"
+          class="relative transition-all duration-200"
+          :class="{ 
+            'opacity-40 grayscale-[0.5]': draggedIndex === index,
+          }"
+          draggable="true"
+          @dragstart="handleDragStart(index, $event)"
+          @dragover.prevent="handleDragOver(index, $event)"
+          @drop="handleDrop(index)"
+          @dragend="handleDragEnd"
         >
-          <!-- 기본 행 -->
-          <div class="grid grid-cols-[1fr_1fr_110px_52px_28px] gap-2 items-center p-2">
-            <input
-              v-model="field.label"
-              type="text"
-              placeholder="예: 닉네임"
-              class="px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-            />
-            <input
-              v-model="field.key"
-              type="text"
-              placeholder="예: nickname"
-              class="px-2 py-1.5 text-sm font-mono border rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-              :class="!field.key ? 'border-red-300 bg-red-50' : 'border-gray-200'"
-            />
-            <select
-              v-model="field.type"
-              class="px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
-              @change="onTypeChange(field)"
-            >
-              <option value="string">문자열</option>
-              <option value="number">숫자</option>
-              <option value="integer">정수</option>
-              <option value="boolean">참/거짓</option>
-              <option value="enum">선택지</option>
-            </select>
-            <div class="flex justify-center">
+          <!-- 드롭 가이드라인 (위) -->
+          <div 
+            v-if="dragOverIndex === index && dropPosition === 'top'"
+            class="absolute -top-1.5 left-0 right-0 h-0.5 bg-indigo-500 rounded-full z-10 shadow-[0_0_8px_rgba(79,70,229,0.4)]"
+          ></div>
+
+          <div class="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm">
+            <!-- 기본 행 -->
+            <div class="grid grid-cols-[28px_1fr_1fr_110px_52px_28px] gap-2 items-center p-2">
+              <!-- reorder 드래그 핸들 -->
+              <div class="flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
+                <GripVertical class="w-4 h-4" />
+              </div>
               <input
-                v-model="field.required"
-                type="checkbox"
-                class="w-4 h-4 accent-indigo-600 cursor-pointer"
+                v-model="field.label"
+                type="text"
+                placeholder="예: 닉네임"
+                class="min-w-0 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 transition-shadow"
               />
+              <input
+                v-model="field.key"
+                type="text"
+                placeholder="예: nickname"
+                class="min-w-0 px-2 py-1.5 text-sm font-mono border rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 transition-shadow"
+                :class="!field.key ? 'border-red-300 bg-red-50' : 'border-gray-200'"
+              />
+              <select
+                v-model="field.type"
+                class="px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white transition-shadow"
+                @change="onTypeChange(field)"
+              >
+                <option value="string">문자열</option>
+                <option value="number">숫자</option>
+                <option value="integer">정수</option>
+                <option value="boolean">참/거짓</option>
+                <option value="enum">선택지</option>
+              </select>
+              <div class="flex justify-center">
+                <input
+                  v-model="field.required"
+                  type="checkbox"
+                  class="w-4 h-4 accent-indigo-600 cursor-pointer"
+                />
+              </div>
+              <button
+                type="button"
+                aria-label="필드 삭제"
+                class="flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
+                @click="removeField(field._id)"
+              >
+                <Trash2 class="w-4 h-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              class="flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
-              @click="removeField(field._id)"
-            >
-              <Trash2 class="w-4 h-4" />
-            </button>
-          </div>
 
-          <!-- 고급 옵션 (boolean 제외) -->
-          <div v-if="field.type !== 'boolean'" class="px-3 pb-2">
-            <button
-              type="button"
-              class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-              @click="toggleExpand(field._id)"
-            >
-              <ChevronDown v-if="expandedField !== field._id" class="w-3 h-3" />
-              <ChevronUp v-else class="w-3 h-3" />
-              고급 옵션
-            </button>
+            <!-- 고급 옵션 (boolean 제외) -->
+            <div v-if="field.type !== 'boolean'" class="px-3 pb-2 border-t border-gray-50 bg-gray-50/30">
+              <button
+                type="button"
+                class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                @click="toggleExpand(field._id)"
+              >
+                <ChevronDown v-if="expandedField !== field._id" class="w-3 h-3" />
+                <ChevronUp v-else class="w-3 h-3" />
+                고급 옵션
+              </button>
 
-            <div v-if="expandedField === field._id" class="mt-2">
-              <!-- string 옵션 -->
-              <template v-if="field.type === 'string'">
-                <div class="grid grid-cols-3 gap-2">
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">최소 길이</label>
-                    <input
-                      v-model.number="field.minLength"
-                      type="number"
-                      min="0"
-                      placeholder="—"
-                      class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                    />
+              <div v-if="expandedField === field._id" class="mt-2">
+                <!-- string 옵션 -->
+                <template v-if="field.type === 'string'">
+                  <div class="grid grid-cols-3 gap-2">
+                    <div>
+                      <label class="block text-xs text-gray-500 mb-1">최소 길이</label>
+                      <input
+                        v-model.number="field.minLength"
+                        type="number"
+                        min="0"
+                        placeholder="—"
+                        class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-gray-500 mb-1">최대 길이</label>
+                      <input
+                        v-model.number="field.maxLength"
+                        type="number"
+                        min="0"
+                        placeholder="—"
+                        class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-gray-500 mb-1">패턴 (정규식)</label>
+                      <input
+                        v-model="field.pattern"
+                        type="text"
+                        placeholder="^[a-z]+$"
+                        class="w-full px-2 py-1 text-sm font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">최대 길이</label>
-                    <input
-                      v-model.number="field.maxLength"
-                      type="number"
-                      min="0"
-                      placeholder="—"
-                      class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                    />
+                </template>
+
+                <!-- number / integer 옵션 -->
+                <template v-if="field.type === 'number' || field.type === 'integer'">
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs text-gray-500 mb-1">최솟값</label>
+                      <input
+                        v-model.number="field.minimum"
+                        type="number"
+                        placeholder="—"
+                        class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-gray-500 mb-1">최댓값</label>
+                      <input
+                        v-model.number="field.maximum"
+                        type="number"
+                        placeholder="—"
+                        class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                    </div>
                   </div>
+                </template>
+
+                <!-- enum 옵션 -->
+                <template v-if="field.type === 'enum'">
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">패턴 (정규식)</label>
+                    <label class="block text-xs text-gray-500 mb-1">
+                      선택지 <span class="text-gray-400">(쉼표로 구분)</span>
+                    </label>
                     <input
-                      v-model="field.pattern"
+                      v-model="field.enumValues"
                       type="text"
-                      placeholder="^[a-z]+$"
-                      class="w-full px-2 py-1 text-sm font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                    />
-                  </div>
-                </div>
-              </template>
-
-              <!-- number / integer 옵션 -->
-              <template v-if="field.type === 'number' || field.type === 'integer'">
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">최솟값</label>
-                    <input
-                      v-model.number="field.minimum"
-                      type="number"
-                      placeholder="—"
+                      placeholder="남성, 여성, 기타"
                       class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
                     />
+                    <!-- 선택지 미리보기 -->
+                    <div v-if="field.enumValues" class="flex flex-wrap gap-1 mt-1.5">
+                      <span
+                        v-for="v in field.enumValues.split(',').map(s => s.trim()).filter(Boolean)"
+                        :key="v"
+                        class="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded"
+                      >
+                        {{ v }}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">최댓값</label>
-                    <input
-                      v-model.number="field.maximum"
-                      type="number"
-                      placeholder="—"
-                      class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                    />
-                  </div>
-                </div>
-              </template>
-
-              <!-- enum 옵션 -->
-              <template v-if="field.type === 'enum'">
-                <div>
-                  <label class="block text-xs text-gray-500 mb-1">
-                    선택지 <span class="text-gray-400">(쉼표로 구분)</span>
-                  </label>
-                  <input
-                    v-model="field.enumValues"
-                    type="text"
-                    placeholder="남성, 여성, 기타"
-                    class="w-full px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                  />
-                  <!-- 선택지 미리보기 -->
-                  <div v-if="field.enumValues" class="flex flex-wrap gap-1 mt-1.5">
-                    <span
-                      v-for="v in field.enumValues.split(',').map(s => s.trim()).filter(Boolean)"
-                      :key="v"
-                      class="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded"
-                    >
-                      {{ v }}
-                    </span>
-                  </div>
-                </div>
-              </template>
+                </template>
+              </div>
             </div>
           </div>
+
+          <!-- 드롭 가이드라인 (아래) -->
+          <div 
+            v-if="dragOverIndex === index && dropPosition === 'bottom'"
+            class="absolute -bottom-1.5 left-0 right-0 h-0.5 bg-indigo-500 rounded-full z-10 shadow-[0_0_8px_rgba(79,70,229,0.4)]"
+          ></div>
         </div>
       </template>
 

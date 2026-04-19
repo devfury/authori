@@ -13,7 +13,6 @@ const userId = route.params.userId as string
 
 // ── 기본 필드 ─────────────────────────────────────────
 const email = ref('')
-const name = ref('')
 const loginId = ref('')
 const error = ref('')
 const loading = ref(false)
@@ -48,7 +47,20 @@ const jsonError = ref('')
 function parseJsonSchema(schema: Record<string, unknown>): FieldDef[] {
   const props = (schema.properties as Record<string, Record<string, unknown>>) ?? {}
   const req = (schema.required as string[]) ?? []
-  return Object.entries(props).map(([key, def]) => {
+  const order = (schema['x-order'] as string[]) ?? []
+
+  const entries = Object.entries(props)
+  if (order.length > 0) {
+    entries.sort(([a], [b]) => {
+      const ai = order.indexOf(a)
+      const bi = order.indexOf(b)
+      const an = ai === -1 ? Infinity : ai
+      const bn = bi === -1 ? Infinity : bi
+      return an - bn
+    })
+  }
+
+  return entries.map(([key, def]) => {
     const field: FieldDef = {
       key,
       label: (def.title as string) ?? key,
@@ -98,7 +110,6 @@ onMounted(async () => {
     }
 
     email.value = user.email
-    name.value = user.name ?? ''
     loginId.value = user.loginId ?? ''
     
     // 2. 스키마 조회
@@ -214,7 +225,6 @@ async function submit() {
     }
 
     await usersApi.update(tenantId, userId, {
-      name: name.value === '' ? null : name.value,
       loginId: loginId.value === '' ? null : loginId.value,
       profile,
     })
@@ -243,15 +253,6 @@ async function submit() {
             type="email"
             disabled
             class="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-500 cursor-not-allowed"
-          />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
-          <input
-            v-model="name"
-            type="text"
-            placeholder="홍길동"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
         <div>

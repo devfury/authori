@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { adminsApi, type AdminUser } from '@/api/admins'
 import { schemasApi, type ProfileSchemaVersion } from '@/api/schemas'
+import { parseJsonSchema } from '@/utils/schema'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
@@ -32,47 +33,6 @@ function formatPublisher(publishedBy: string | null): string {
   if (admin) return admin.name || admin.email || `관리자 (${publishedBy})`
 
   return `관리자 (${publishedBy})`
-}
-
-type FieldType = 'string' | 'number' | 'integer' | 'boolean' | 'enum'
-
-interface FieldDef {
-  key: string
-  label: string
-  type: FieldType | string
-  required: boolean
-  minLength?: number | null
-  maxLength?: number | null
-  pattern?: string
-  minimum?: number | null
-  maximum?: number | null
-  enumValues: string[]
-}
-
-function parseJsonSchema(schema: Record<string, unknown>): FieldDef[] {
-  const props = (schema.properties as Record<string, Record<string, unknown>>) ?? {}
-  const req = (schema.required as string[]) ?? []
-  return Object.entries(props).map(([key, def]) => {
-    const field: FieldDef = {
-      key,
-      label: (def.title as string) ?? key,
-      type: 'string',
-      required: req.includes(key),
-      enumValues: [],
-    }
-    if ('enum' in def) {
-      field.type = 'enum'
-      field.enumValues = (def.enum as unknown[]).map(String)
-    } else {
-      field.type = (def.type as string) ?? 'string'
-      if (def.minLength != null) field.minLength = def.minLength as number
-      if (def.maxLength != null) field.maxLength = def.maxLength as number
-      if (def.pattern) field.pattern = def.pattern as string
-      if (def.minimum != null) field.minimum = def.minimum as number
-      if (def.maximum != null) field.maximum = def.maximum as number
-    }
-    return field
-  })
 }
 
 function typeLabel(type: string): string {
@@ -189,7 +149,7 @@ onMounted(async () => {
                         <template v-if="field.type === 'enum'">
                           <div class="flex flex-wrap gap-1">
                             <span
-                              v-for="v in field.enumValues"
+                              v-for="v in field.enumValues.split(',').map(s => s.trim()).filter(Boolean)"
                               :key="v"
                               class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded"
                             >{{ v }}</span>

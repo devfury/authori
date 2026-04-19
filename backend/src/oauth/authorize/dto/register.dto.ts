@@ -10,11 +10,6 @@ export class RegisterDto {
   @IsString()
   password: string;
 
-  @ApiPropertyOptional({ example: '홍길동' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @ApiPropertyOptional({
     description: '커스텀 프로필 필드 (테넌트 schema에 따라 검증됨)',
     example: { nickname: 'John', birthYear: 1990 },

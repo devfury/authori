@@ -12,7 +12,6 @@ const tenantId = route.params.tenantId as string
 
 // ── 기본 필드 ─────────────────────────────────────────
 const email = ref('')
-const name = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
@@ -46,7 +45,20 @@ const jsonError = ref('')
 function parseJsonSchema(schema: Record<string, unknown>): FieldDef[] {
   const props = (schema.properties as Record<string, Record<string, unknown>>) ?? {}
   const req = (schema.required as string[]) ?? []
-  return Object.entries(props).map(([key, def]) => {
+  const order = (schema['x-order'] as string[]) ?? []
+
+  const entries = Object.entries(props)
+  if (order.length > 0) {
+    entries.sort(([a], [b]) => {
+      const ai = order.indexOf(a)
+      const bi = order.indexOf(b)
+      const an = ai === -1 ? Infinity : ai
+      const bn = bi === -1 ? Infinity : bi
+      return an - bn
+    })
+  }
+
+  return entries.map(([key, def]) => {
     const field: FieldDef = {
       key,
       label: (def.title as string) ?? key,
@@ -185,7 +197,6 @@ async function submit() {
 
     await usersApi.create(tenantId, {
       email: email.value,
-      name: name.value || undefined,
       password: password.value,
       profile,
     })
@@ -206,15 +217,6 @@ async function submit() {
     <div class="bg-white rounded-xl border border-gray-200 p-6">
       <form class="space-y-4" @submit.prevent="submit">
         <!-- 기본 정보 -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
-          <input
-            v-model="name"
-            type="text"
-            placeholder="홍길동"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">이메일 <span class="text-red-500">*</span></label>
           <input
