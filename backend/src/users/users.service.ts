@@ -100,6 +100,8 @@ export class UsersService {
     const qb = this.userRepo
       .createQueryBuilder('u')
       .leftJoinAndSelect('u.profile', 'profile')
+      .leftJoinAndSelect('u.userRoles', 'userRole')
+      .leftJoinAndSelect('userRole.role', 'role')
       .where('u.tenantId = :tenantId', { tenantId })
       .orderBy('u.createdAt', 'DESC')
       .take(limit)
