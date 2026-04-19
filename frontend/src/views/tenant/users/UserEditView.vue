@@ -118,8 +118,7 @@ onMounted(async () => {
     const schema = published ?? schemas[0] ?? null
     
     // 3. 프로필 데이터 로드
-    const userWithProfile = user as any
-    const existingProfile = userWithProfile.profile?.profileJsonb ?? {}
+    const existingProfile = user.profile?.profileJsonb ?? {}
 
     if (schema) {
       activeSchema.value = schema
