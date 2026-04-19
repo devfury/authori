@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ShieldCheck, Plus } from 'lucide-vue-next'
 import { usersApi, type User } from '@/api/users'
 import { rbacApi, type Role } from '@/api/rbac'
+import { schemasApi, type ProfileSchemaVersion } from '@/api/schemas'
 import { UserStatus } from '@/api/enums'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
@@ -16,6 +17,7 @@ const userId = route.params.userId as string
 
 const user = ref<User | null>(null)
 const roles = ref<Role[]>([])
+const activeSchema = ref<ProfileSchemaVersion | null>(null)
 const loading = ref(true)
 const showDeactivate = ref(false)
 const showActivate = ref(false)
@@ -24,16 +26,42 @@ const showRoleDialog = ref(false)
 async function load() {
   loading.value = true
   try {
-    const [userRes, rolesRes] = await Promise.all([
+    const [userRes, rolesRes, schemaRes] = await Promise.all([
       usersApi.findOne(tenantId, userId),
       rbacApi.getUserRoles(tenantId, userId),
+      schemasApi.findActive(tenantId).catch(() => ({ data: null })),
     ])
     user.value = userRes.data
     roles.value = rolesRes.data || []
+    activeSchema.value = schemaRes.data
   } finally {
     loading.value = false
   }
 }
+
+const profileFields = computed<{ key: string; label: string; value: unknown }[]>(() => {
+  if (!activeSchema.value || !user.value?.profile) return []
+  const schema = activeSchema.value.schemaJsonb
+  const props = (schema.properties as Record<string, Record<string, unknown>>) ?? {}
+  const order = (schema['x-order'] as string[]) ?? []
+  const profileData = user.value.profile.profileJsonb
+
+  const entries = Object.entries(props)
+  if (order.length > 0) {
+    entries.sort(([a], [b]) => {
+      const ai = order.indexOf(a)
+      const bi = order.indexOf(b)
+      const an = ai === -1 ? Infinity : ai
+      const bn = bi === -1 ? Infinity : bi
+      return an - bn
+    })
+  }
+  return entries.map(([key, def]) => ({
+    key,
+    label: (def.title as string) || key,
+    value: profileData[key] ?? null,
+  }))
+})
 
 async function deactivate() {
   await usersApi.deactivate(tenantId, userId)
@@ -113,6 +141,31 @@ onMounted(load)
                 사용자 활성화
               </button>
             </div>
+          </div>
+
+          <!-- 프로필 카드 (스키마가 있고 프로필 데이터가 있을 때) -->
+          <div
+            v-if="profileFields.length > 0"
+            class="bg-white rounded-xl border border-gray-200 p-5"
+          >
+            <h3 class="text-sm font-semibold text-gray-900 mb-4">프로필</h3>
+            <dl class="grid grid-cols-2 gap-4 text-sm">
+              <div v-for="field in profileFields" :key="field.key">
+                <dt class="text-xs text-gray-400 mb-0.5">{{ field.label }}</dt>
+                <dd class="text-gray-800">
+                  {{ field.value !== null && field.value !== undefined ? field.value : '—' }}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- 스키마는 있지만 프로필 데이터가 없을 때 -->
+          <div
+            v-else-if="activeSchema"
+            class="bg-white rounded-xl border border-gray-200 p-5"
+          >
+            <h3 class="text-sm font-semibold text-gray-900 mb-2">프로필</h3>
+            <p class="text-xs text-gray-400">등록된 프로필 정보가 없습니다.</p>
           </div>
         </div>
 
