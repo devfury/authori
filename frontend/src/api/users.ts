@@ -1,6 +1,15 @@
 import http from './http'
 import { type UserStatus } from './enums'
 
+export interface UserProfile {
+  id: string
+  userId: string
+  tenantId: string
+  schemaVersionId: string | null
+  profileJsonb: Record<string, unknown>
+  updatedAt: string
+}
+
 export interface User {
   id: string
   tenantId: string
@@ -10,6 +19,7 @@ export interface User {
   failedLoginAttempts: number
   lastLoginAt: string | null
   createdAt: string
+  profile?: UserProfile
 }
 
 export interface CreateUserPayload {
