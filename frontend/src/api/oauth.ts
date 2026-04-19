@@ -24,6 +24,18 @@ export interface RegisterPayload {
   clientId?: string
 }
 
+export interface UserinfoResponse {
+  sub: string
+  email?: string
+  loginId?: string
+  profile?: Record<string, any>
+}
+
+export interface UpdateUserinfoPayload {
+  loginId?: string
+  profile?: Record<string, any>
+}
+
 export const oauthApi = {
   getLoginConfig(tenantSlug: string, clientId?: string) {
     return oauthHttp.get<LoginConfigResponse>(`/t/${tenantSlug}/oauth/login-config`, {
@@ -40,5 +52,15 @@ export const oauthApi = {
     grantedScopes: string[]
   }) {
     return oauthHttp.post<{ url: string }>(`/t/${tenantSlug}/oauth/authorize`, payload)
+  },
+  userinfo(tenantSlug: string, token: string) {
+    return oauthHttp.get<UserinfoResponse>(`/t/${tenantSlug}/oauth/userinfo`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+  updateUserinfo(tenantSlug: string, token: string, payload: UpdateUserinfoPayload) {
+    return oauthHttp.patch<UserinfoResponse>(`/t/${tenantSlug}/oauth/userinfo`, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
   }
 }

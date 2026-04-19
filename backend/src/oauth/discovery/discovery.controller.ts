@@ -1,10 +1,22 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Headers,
+  Ip,
+  Patch,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { verify } from 'jsonwebtoken';
 import { createPublicKey } from 'crypto';
+import type { Request } from 'express';
 import {
   AccessToken,
   Tenant,
@@ -13,11 +25,11 @@ import {
 } from '../../database/entities';
 import { KeysService } from '../keys/keys.service';
 import { ScopesService } from '../scopes/scopes.service';
+import { UsersService } from '../../users/users.service';
+import { SelfUpdateUserDto } from '../../users/dto/self-update-user.dto';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
 import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import type { TenantContext } from '../../common/tenant/tenant-context';
-import { Headers } from '@nestjs/common';
-import { UnauthorizedException } from '@nestjs/common';
 
 @ApiTags('OAuth2 Discovery')
 @ApiParam({ name: 'tenantSlug', description: '테넌트 슬러그' })
@@ -35,6 +47,7 @@ export class DiscoveryController {
     @InjectRepository(UserProfile)
     private readonly profileRepo: Repository<UserProfile>,
     private readonly scopesService: ScopesService,
+    private readonly usersService: UsersService,
   ) {}
 
   @Get('.well-known/openid-configuration')
@@ -91,12 +104,82 @@ export class DiscoveryController {
     @CurrentTenant() tenant: TenantContext,
     @Headers('authorization') authHeader?: string,
   ) {
+    const { sub, scopes } = await this.verifyAccessToken(
+      tenant.tenantId,
+      authHeader,
+    );
+
+    const user = await this.userRepo.findOne({
+      where: { id: sub, tenantId: tenant.tenantId },
+    });
+    if (!user) throw new UnauthorizedException('user_not_found');
+
+    const profile = await this.profileRepo.findOne({
+      where: { userId: user.id },
+    });
+
+    const claims: Record<string, unknown> = { sub: user.id };
+    if (scopes.has('email')) claims['email'] = user.email;
+    if (scopes.has('profile') && profile) {
+      claims['profile'] = profile.profileJsonb;
+    }
+
+    return claims;
+  }
+
+  @Patch('oauth/userinfo')
+  @UseGuards(RequireTenantGuard)
+  @ApiOperation({
+    summary: '본인 프로필 수정 (profile:write scope 필요)',
+  })
+  async updateUserinfo(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() dto: SelfUpdateUserDto,
+    @Req() req: Request,
+    @Ip() ip: string,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const { sub, scopes } = await this.verifyAccessToken(
+      tenant.tenantId,
+      authHeader,
+    );
+    if (!scopes.has('profile:write')) {
+      throw new ForbiddenException('insufficient_scope');
+    }
+
+    const saved = await this.usersService.updateSelf(
+      tenant.tenantId,
+      sub,
+      dto,
+      {
+        actorId: sub,
+        actorType: 'user',
+        ipAddress: ip ?? null,
+        userAgent: (req.headers['user-agent'] as string) ?? null,
+        requestId: (req.headers['x-request-id'] as string) ?? null,
+      },
+    );
+
+    const profile = await this.profileRepo.findOne({
+      where: { userId: saved.id },
+    });
+
+    return {
+      sub: saved.id,
+      loginId: saved.loginId,
+      profile: profile?.profileJsonb ?? {},
+    };
+  }
+
+  private async verifyAccessToken(
+    tenantId: string,
+    authHeader: string | undefined,
+  ): Promise<{ sub: string; jti: string; scopes: Set<string> }> {
     if (!authHeader?.startsWith('Bearer ')) {
       throw new UnauthorizedException('Bearer token required');
     }
     const rawToken = authHeader.slice(7);
 
-    // JWT 검증
     const activeKey = await this.keysService.getActiveKey(null);
     let payload: { sub: string; jti: string; scope: string };
     try {
@@ -108,30 +191,17 @@ export class DiscoveryController {
       throw new UnauthorizedException('invalid_token');
     }
 
-    // 폐기 여부 확인
     const tokenRecord = await this.accessTokenRepo.findOne({
-      where: { tenantId: tenant.tenantId, jti: payload.jti },
+      where: { tenantId, jti: payload.jti },
     });
     if (!tokenRecord || tokenRecord.revoked) {
       throw new UnauthorizedException('token_revoked');
     }
 
-    const user = await this.userRepo.findOne({
-      where: { id: payload.sub, tenantId: tenant.tenantId },
-    });
-    if (!user) throw new UnauthorizedException('user_not_found');
-
-    const profile = await this.profileRepo.findOne({
-      where: { userId: user.id },
-    });
-    const scopes = payload.scope.split(' ');
-
-    const claims: Record<string, unknown> = { sub: user.id };
-    if (scopes.includes('email')) claims['email'] = user.email;
-    if (scopes.includes('profile') && profile) {
-      claims['profile'] = profile.profileJsonb;
-    }
-
-    return claims;
+    return {
+      sub: payload.sub,
+      jti: payload.jti,
+      scopes: new Set((payload.scope ?? '').split(' ').filter(Boolean)),
+    };
   }
 }

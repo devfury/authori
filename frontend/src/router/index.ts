@@ -24,6 +24,12 @@ const router = createRouter({
       component: () => import('@/views/oauth/OAuthRegisterView.vue'),
       meta: { layout: 'auth', public: true },
     },
+    {
+      path: '/profile',
+      name: 'oauth-profile',
+      component: () => import('@/views/oauth/OAuthProfileView.vue'),
+      meta: { layout: 'auth', public: true },
+    },
     // ── 인증 ──────────────────────────────────────────
     {
       path: '/admin/login',

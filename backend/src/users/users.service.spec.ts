@@ -92,4 +92,103 @@ describe('UsersService', () => {
       NotFoundException,
     );
   });
+
+  describe('updateSelf', () => {
+    let profileSchemaService: {
+      validate: jest.Mock;
+      findActive: jest.Mock;
+    };
+    let auditService: { record: jest.Mock };
+    let dataSource: { transaction: jest.Mock };
+    let profileRepoMock: { save: jest.Mock };
+    let userRepoMock: {
+      findOne: jest.Mock;
+      save: jest.Mock;
+    };
+
+    beforeEach(() => {
+      profileSchemaService = {
+        validate: jest.fn().mockResolvedValue(undefined),
+        findActive: jest.fn().mockResolvedValue({ id: 'schema-2' }),
+      };
+      auditService = { record: jest.fn().mockResolvedValue(undefined) };
+
+      profileRepoMock = { save: jest.fn() };
+      userRepoMock = {
+        findOne: jest.fn().mockResolvedValue(structuredClone(user)),
+        save: jest.fn().mockImplementation(async (u) => u),
+      };
+
+      const manager = {
+        save: jest.fn().mockImplementation(async (_entity, value) => value),
+      };
+      dataSource = {
+        transaction: jest.fn().mockImplementation(async (cb) => cb(manager)),
+      };
+
+      service = new UsersService(
+        userRepoMock as never,
+        profileRepoMock as never,
+        dataSource as never,
+        profileSchemaService as never,
+        auditService as never,
+      );
+    });
+
+    it('merges profile fields and validates against the active schema', async () => {
+      const result = await service.updateSelf(tenantId, userId, {
+        profile: { nickname: 'Johnny' },
+      });
+
+      expect(profileSchemaService.validate).toHaveBeenCalledWith(tenantId, {
+        name: 'Lee Jin Ho',
+        department: 'Engineering',
+        nickname: 'Johnny',
+      });
+      expect(result.profile.profileJsonb).toEqual({
+        name: 'Lee Jin Ho',
+        department: 'Engineering',
+        nickname: 'Johnny',
+      });
+      expect(result.profile.schemaVersionId).toBe('schema-2');
+    });
+
+    it('updates loginId when provided', async () => {
+      const result = await service.updateSelf(tenantId, userId, {
+        loginId: 'lee-jinho',
+      });
+
+      expect(result.loginId).toBe('lee-jinho');
+    });
+
+    it('records a USER_UPDATED audit event with actorType=user', async () => {
+      await service.updateSelf(
+        tenantId,
+        userId,
+        { profile: { nickname: 'J' } },
+        { actorId: userId, ipAddress: '10.0.0.1' },
+      );
+
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId,
+          action: 'USER.UPDATED',
+          actorType: 'user',
+          actorId: userId,
+          targetType: 'user',
+          targetId: userId,
+          metadata: expect.objectContaining({ source: 'self_service' }),
+          ipAddress: '10.0.0.1',
+        }),
+      );
+    });
+
+    it('throws NotFoundException when the user does not exist', async () => {
+      userRepoMock.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateSelf(tenantId, userId, { loginId: 'x' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });

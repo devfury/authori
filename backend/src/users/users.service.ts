@@ -16,6 +16,7 @@ import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { ProfileSchemaService } from '../profile-schema/profile-schema.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SelfUpdateUserDto } from './dto/self-update-user.dto';
 
 export interface UserListQuery {
   page?: number; // 1-based, 기본값 1
@@ -164,6 +165,55 @@ export class UsersService {
       targetId: id,
       metadata: { dto },
       ...ctx,
+    });
+
+    return saved;
+  }
+
+  /**
+   * 엔드유저가 본인 프로필/loginId 를 수정한다.
+   * 관리자용 update() 와 분리한 이유:
+   *  - status 필드는 본인이 변경할 수 없어야 한다.
+   *  - audit actorType 이 'user' 고정이다.
+   *  - 호출부가 TenantAdminGuard 없이 access_token 만으로 도달한다.
+   */
+  async updateSelf(
+    tenantId: string,
+    userId: string,
+    dto: SelfUpdateUserDto,
+    ctx?: AuditContext,
+  ): Promise<User> {
+    const user = await this.findOne(tenantId, userId);
+
+    if (dto.loginId !== undefined) user.loginId = dto.loginId;
+
+    if (dto.profile) {
+      const merged = { ...user.profile.profileJsonb, ...dto.profile };
+      await this.profileSchemaService.validate(tenantId, merged);
+
+      const activeSchema = await this.profileSchemaService.findActive(tenantId);
+      user.profile.profileJsonb = merged;
+      user.profile.schemaVersionId = activeSchema?.id ?? null;
+    }
+
+    const saved = await this.dataSource.transaction(async (manager) => {
+      if (dto.profile) {
+        await manager.save(UserProfile, user.profile);
+      }
+      return manager.save(User, user);
+    });
+
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_UPDATED,
+      actorType: 'user',
+      actorId: ctx?.actorId ?? userId,
+      targetType: 'user',
+      targetId: userId,
+      metadata: { source: 'self_service', dto },
+      ipAddress: ctx?.ipAddress ?? null,
+      userAgent: ctx?.userAgent ?? null,
+      requestId: ctx?.requestId ?? null,
     });
 
     return saved;

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { TenantScope } from '../../database/entities';
@@ -25,6 +29,12 @@ export const DEFAULT_TENANT_SCOPES: ReadonlyArray<
     displayName: 'Email',
     description: 'Read the user email address.',
     isDefault: true,
+  },
+  {
+    name: 'profile:write',
+    displayName: 'Profile (Write)',
+    description: 'Update the authenticated user profile.',
+    isDefault: false,
   },
 ];
 
@@ -97,14 +107,20 @@ export class ScopesService {
   }
 
   async create(tenantId: string, dto: CreateScopeDto): Promise<TenantScope> {
-    const exists = await this.scopeRepo.findOne({ where: { tenantId, name: dto.name } });
+    const exists = await this.scopeRepo.findOne({
+      where: { tenantId, name: dto.name },
+    });
     if (exists) throw new BadRequestException('scope_already_exists');
     return this.scopeRepo.save(
       this.scopeRepo.create({ tenantId, ...dto, isDefault: false }),
     );
   }
 
-  async update(tenantId: string, id: string, dto: UpdateScopeDto): Promise<TenantScope> {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateScopeDto,
+  ): Promise<TenantScope> {
     const scope = await this.findOne(tenantId, id);
     Object.assign(scope, dto);
     return this.scopeRepo.save(scope);
@@ -112,7 +128,8 @@ export class ScopesService {
 
   async remove(tenantId: string, id: string): Promise<void> {
     const scope = await this.findOne(tenantId, id);
-    if (scope.isDefault) throw new BadRequestException('cannot_delete_default_scope');
+    if (scope.isDefault)
+      throw new BadRequestException('cannot_delete_default_scope');
     await this.scopeRepo.remove(scope);
   }
 
