@@ -19,6 +19,9 @@ export const schemasApi = {
   findAll(tenantId: string) {
     return http.get<ProfileSchemaVersion[]>(`/admin/tenants/${tenantId}/schemas`)
   },
+  findActive(tenantId: string) {
+    return http.get<ProfileSchemaVersion | null>(`/admin/tenants/${tenantId}/schemas/active`)
+  },
   publish(tenantId: string, payload: PublishSchemaPayload) {
     return http.post<ProfileSchemaVersion>(`/admin/tenants/${tenantId}/schemas`, payload)
   },
