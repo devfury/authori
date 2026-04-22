@@ -39,6 +39,7 @@ async function loadData() {
     allPermissions.value = allRes.data || []
     selectedPermissionIds.value = (roleRes.data || []).map((p) => p.id)
   } catch (e: unknown) {
+    console.error('[RolePermissionDialog] loadData failed', e)
     error.value = '데이터를 불러오는 중 오류가 발생했습니다.'
   } finally {
     loading.value = false

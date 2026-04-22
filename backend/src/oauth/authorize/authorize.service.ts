@@ -173,7 +173,7 @@ export class AuthorizeService {
     tenantId: string,
     dto: RegisterDto,
     ctx: AuditContext = {},
-  ): Promise<{ message: 'registered' }> {
+  ): Promise<{ message: 'registered'; id: string; email: string }> {
     const settings = await this.settingsRepo.findOne({ where: { tenantId } });
     if (!settings?.allowRegistration) {
       throw new ForbiddenException('registration_disabled');
@@ -183,8 +183,9 @@ export class AuthorizeService {
       throw new BadRequestException('password_too_short');
     }
 
+    let savedUser: User;
     try {
-      await this.usersService.create(
+      savedUser = await this.usersService.create(
         tenantId,
         {
           email: dto.email,
@@ -204,7 +205,7 @@ export class AuthorizeService {
       throw error;
     }
 
-    return { message: 'registered' };
+    return { message: 'registered', id: savedUser.id, email: savedUser.email };
   }
 
   async loginAndAuthorize(

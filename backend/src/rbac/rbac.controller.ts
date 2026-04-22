@@ -57,6 +57,16 @@ export class RbacController {
     return this.rbacService.removeRole(tenantId, id);
   }
 
+  @Get('roles/:id/permissions')
+  @ApiOperation({ summary: '역할 권한 조회' })
+  async getRolePermissions(
+    @Param('tenantId') tenantId: string,
+    @Param('id') id: string,
+  ) {
+    const role = await this.rbacService.findRole(tenantId, id);
+    return role.rolePermissions.map((rp) => rp.permission);
+  }
+
   @Put('roles/:id/permissions')
   @ApiOperation({ summary: '역할 권한 일괄 설정' })
   setRolePermissions(
