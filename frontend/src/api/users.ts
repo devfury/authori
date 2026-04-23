@@ -80,4 +80,7 @@ export const usersApi = {
   activate(tenantId: string, userId: string) {
     return http.post(`/admin/tenants/${tenantId}/users/${userId}/activate`)
   },
+  changePassword(tenantId: string, userId: string, password: string) {
+    return http.post(`/admin/tenants/${tenantId}/users/${userId}/password`, { password })
+  },
 }

@@ -10,6 +10,7 @@ import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import UserRoleDialog from './UserRoleDialog.vue'
+import ChangePasswordDialog from './ChangePasswordDialog.vue'
 
 const route = useRoute()
 const tenantId = route.params.tenantId as string
@@ -22,6 +23,7 @@ const loading = ref(true)
 const showDeactivate = ref(false)
 const showActivate = ref(false)
 const showRoleDialog = ref(false)
+const showPasswordDialog = ref(false)
 
 async function load() {
   loading.value = true
@@ -127,6 +129,12 @@ onMounted(load)
 
             <div class="mt-5 pt-4 border-t border-gray-100 flex gap-3">
               <button
+                class="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                @click="showPasswordDialog = true"
+              >
+                비밀번호 변경
+              </button>
+              <button
                 v-if="user.status === UserStatus.ACTIVE"
                 class="px-4 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 @click="showDeactivate = true"
@@ -211,6 +219,15 @@ onMounted(load)
       :user-name="user?.email || ''"
       @close="showRoleDialog = false"
       @updated="load"
+    />
+
+    <ChangePasswordDialog
+      v-if="showPasswordDialog"
+      :open="showPasswordDialog"
+      :tenant-id="tenantId"
+      :user-id="userId"
+      :user-email="user?.email || ''"
+      @close="showPasswordDialog = false"
     />
 
     <ConfirmDialog

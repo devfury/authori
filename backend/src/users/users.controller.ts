@@ -18,6 +18,7 @@ import { TenantAdminGuard } from '../admin/guards/tenant-admin.guard';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserStatus } from '../database/entities';
 
 @ApiTags('Admin / Users')
@@ -75,6 +76,24 @@ export class UsersController {
     @Req() req: Request,
   ) {
     return this.usersService.update(tenantId, id, dto, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
+  }
+
+  @Post(':id/password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: '비밀번호 변경 (관리자)' })
+  changePassword(
+    @Param('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ) {
+    return this.usersService.changePassword(tenantId, id, dto.password, {
       actorId: req.admin?.sub ?? null,
       actorType: req.admin ? 'admin' : null,
       ipAddress: req.ip ?? null,

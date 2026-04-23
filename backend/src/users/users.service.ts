@@ -219,6 +219,26 @@ export class UsersService {
     return saved;
   }
 
+  async changePassword(
+    tenantId: string,
+    id: string,
+    password: string,
+    ctx?: AuditContext,
+  ): Promise<void> {
+    const user = await this.findOne(tenantId, id);
+    user.passwordHash = await CryptoUtil.hash(password);
+    await this.userRepo.save(user);
+
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_UPDATED,
+      targetType: 'user',
+      targetId: id,
+      metadata: { field: 'password' },
+      ...ctx,
+    });
+  }
+
   async activate(
     tenantId: string,
     id: string,
