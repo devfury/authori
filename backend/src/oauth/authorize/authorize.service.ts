@@ -28,7 +28,10 @@ import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { ExternalAuthService } from '../../external-auth/external-auth.service';
 import { UsersService } from '../../users/users.service';
-import { ScopesService } from '../scopes/scopes.service';
+import {
+  DEFAULT_TENANT_SCOPES,
+  ScopesService,
+} from '../scopes/scopes.service';
 import { PendingRequestStore } from './pending-request.store';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
@@ -149,17 +152,32 @@ export class AuthorizeService {
       throw new BadRequestException('invalid_client');
     }
 
-    const [settings, activeSchema] = await Promise.all([
+    const [settings, activeSchema, scopeDetails] = await Promise.all([
       this.settingsRepo.findOne({ where: { tenantId } }),
       this.schemaRepo.findOne({
         where: { tenantId, status: SchemaStatus.PUBLISHED },
         order: { version: 'DESC' },
       }),
+      this.scopesService.getScopeDetails(tenantId, client.allowedScopes),
     ]);
+
+    const scopeByName = new Map(scopeDetails.map((scope) => [scope.name, scope]));
+    const defaultScopeByName = new Map(
+      DEFAULT_TENANT_SCOPES.map((scope) => [scope.name, scope]),
+    );
+    const scopes = Array.from(new Set(client.allowedScopes)).map((name) => {
+      const scope = scopeByName.get(name) ?? defaultScopeByName.get(name);
+      return {
+        name,
+        displayName: scope?.displayName ?? name,
+        description: scope?.description ?? null,
+      };
+    });
 
     return {
       clientName: client.name,
       branding: client.branding ?? null,
+      scopes,
       allowRegistration: settings?.allowRegistration ?? false,
       activeSchema: activeSchema
         ? {

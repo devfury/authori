@@ -13,6 +13,7 @@ import {
   OAuthClient,
   SigningKey,
   Tenant,
+  TenantScope,
   User,
   UserProfile,
   UserStatus,
@@ -86,6 +87,30 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
       allowedGrants: ['authorization_code'],
     });
 
+    await dataSource.getRepository(TenantScope).save([
+      {
+        tenantId,
+        name: 'openid',
+        displayName: 'OpenID',
+        description: 'Authenticate the user and issue an OpenID Connect subject.',
+        isDefault: true,
+      },
+      {
+        tenantId,
+        name: 'profile',
+        displayName: 'Profile',
+        description: 'Read the user profile claims.',
+        isDefault: true,
+      },
+      {
+        tenantId,
+        name: 'profile:write',
+        displayName: 'Profile (Write)',
+        description: 'Update the authenticated user profile.',
+        isDefault: false,
+      },
+    ]);
+
     const saved = await dataSource.getRepository(User).save({
       tenantId,
       email: 'jin@example.com',
@@ -122,6 +147,32 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
       .patch(`/t/${tenantSlug}/oauth/userinfo`)
       .send({ profile: { nickname: 'X' } })
       .expect(401);
+  });
+
+  it('returns scope display names and descriptions in login config', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/t/${tenantSlug}/oauth/login-config`)
+      .query({ client_id: clientId })
+      .expect(200);
+
+    expect(res.body.scopes).toEqual([
+      {
+        name: 'openid',
+        displayName: 'OpenID',
+        description:
+          'Authenticate the user and issue an OpenID Connect subject.',
+      },
+      {
+        name: 'profile',
+        displayName: 'Profile',
+        description: 'Read the user profile claims.',
+      },
+      {
+        name: 'profile:write',
+        displayName: 'Profile (Write)',
+        description: 'Update the authenticated user profile.',
+      },
+    ]);
   });
 
   it('rejects tokens missing profile:write scope', async () => {
