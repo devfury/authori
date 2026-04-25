@@ -216,14 +216,17 @@ async function submit() {
 
 <template>
   <div>
+    <!-- 상단 타이틀 Teleport -->
+    <Teleport v-if="branding.title || clientName" to="#auth-header">
+      <h1 class="text-2xl font-bold text-gray-900">{{ branding.title || clientName }}</h1>
+    </Teleport>
+
     <!-- 로고 -->
     <div v-if="branding.logoUrl" class="flex justify-center mb-5">
       <img :src="branding.logoUrl" alt="logo" class="h-12 object-contain" />
     </div>
 
-    <h1 class="text-xl font-bold text-gray-800 text-center mb-6">
-      {{ branding.title || '내 프로필 관리' }}
-    </h1>
+    <h2 class="text-lg font-semibold text-gray-900 text-center mb-6">프로필 설정</h2>
 
     <div v-if="loading" class="text-center py-8 text-gray-400">
       정보를 불러오는 중...

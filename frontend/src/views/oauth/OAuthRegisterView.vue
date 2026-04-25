@@ -216,6 +216,11 @@ const loginRoute = computed(() => ({
 
 <template>
   <div>
+    <!-- 상단 타이틀 Teleport -->
+    <Teleport v-if="branding.title || clientName" to="#auth-header">
+      <h1 class="text-2xl font-bold text-gray-900">{{ branding.title || clientName }}</h1>
+    </Teleport>
+
     <!-- 로고 -->
     <div v-if="branding.logoUrl" class="flex justify-center mb-5">
       <img :src="branding.logoUrl" alt="logo" class="h-12 object-contain" />
@@ -243,9 +248,7 @@ const loginRoute = computed(() => ({
     </div>
 
     <div v-else>
-      <h1 class="text-xl font-bold text-gray-800 text-center mb-6">
-        {{ branding.title || clientName || '회원가입' }}
-      </h1>
+      <h2 class="text-lg font-semibold text-gray-900 text-center mb-6">회원가입</h2>
 
       <div v-if="error && !allowRegistration" class="text-center text-sm text-red-600 bg-red-50 p-4 rounded-lg">
         {{ error }}

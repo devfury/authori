@@ -40,6 +40,11 @@ async function submit() {
 
 <template>
   <div>
+    <Teleport to="#auth-header">
+      <h1 class="text-2xl font-bold text-gray-900">Authori</h1>
+      <p class="text-sm text-gray-500 mt-1">멀티테넌트 OAuth2 플랫폼</p>
+    </Teleport>
+
     <h2 class="text-lg font-semibold text-gray-900 mb-6">관리자 로그인</h2>
 
     <form class="space-y-4" @submit.prevent="submit">

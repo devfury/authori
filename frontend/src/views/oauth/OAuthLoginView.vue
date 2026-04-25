@@ -111,6 +111,11 @@ async function submit() {
 
 <template>
   <div>
+    <!-- 상단 타이틀 Teleport -->
+    <Teleport v-if="clientName" to="#auth-header">
+      <h1 class="text-2xl font-bold text-gray-900">{{ branding.title ?? clientName }}</h1>
+    </Teleport>
+
     <!-- 로고 -->
     <div v-if="branding.logoUrl" class="flex justify-center mb-5">
       <img :src="branding.logoUrl" alt="logo" class="h-12 object-contain" />
@@ -122,7 +127,7 @@ async function submit() {
         <span class="font-semibold text-gray-800">
           {{ branding.title ?? clientName }}
         </span>
-        {{ branding.title ? '' : '앱이 로그인을 요청합니다.' }}
+        앱이 로그인을 요청합니다.
       </p>
 
       <!-- 스코프 목록 -->
