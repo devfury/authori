@@ -75,6 +75,9 @@ export const tenantsApi = {
     return http.patch<Tenant>(`/admin/tenants/${id}`, { status: TenantStatusValues.ACTIVE })
   },
   deactivate(id: string) {
+    return http.patch<Tenant>(`/admin/tenants/${id}`, { status: TenantStatusValues.INACTIVE })
+  },
+  delete(id: string) {
     return http.delete(`/admin/tenants/${id}`)
   },
 }
