@@ -14,6 +14,7 @@ const router = useRouter()
 const tenants = ref<Tenant[]>([])
 const loading = ref(true)
 const deactivateTarget = ref<Tenant | null>(null)
+const deleteTarget = ref<Tenant | null>(null)
 
 // Pagination state
 const currentPage = ref(1)
@@ -113,6 +114,13 @@ async function confirmDeactivate() {
   if (!deactivateTarget.value) return
   await tenantsApi.deactivate(deactivateTarget.value.id)
   deactivateTarget.value = null
+  await loadPage()
+}
+
+async function confirmDelete() {
+  if (!deleteTarget.value) return
+  await tenantsApi.delete(deleteTarget.value.id)
+  deleteTarget.value = null
   await loadPage()
 }
 
@@ -222,10 +230,16 @@ onMounted(() => {
                   </button>
                   <button
                     v-if="tenant.status === TenantStatus.ACTIVE"
-                    class="text-xs text-red-500 hover:underline"
+                    class="text-xs text-red-500 hover:underline mr-3"
                     @click="deactivateTarget = tenant"
                   >
                     비활성화
+                  </button>
+                  <button
+                    class="text-xs text-red-700 font-semibold hover:underline"
+                    @click="deleteTarget = tenant"
+                  >
+                    삭제
                   </button>
                 </td>
               </tr>
@@ -304,6 +318,16 @@ onMounted(() => {
       danger
       @confirm="confirmDeactivate"
       @cancel="deactivateTarget = null"
+    />
+
+    <ConfirmDialog
+      :open="!!deleteTarget"
+      title="테넌트 영구 삭제"
+      :message="`'${deleteTarget?.name}' 테넌트를 영구 삭제합니다. 이 작업은 되돌릴 수 없으며 테넌트의 모든 데이터(사용자, 클라이언트, 토큰 등)가 삭제됩니다. 계속하시겠습니까?`"
+      confirm-label="영구 삭제"
+      danger
+      @confirm="confirmDelete"
+      @cancel="deleteTarget = null"
     />
   </div>
 </template>
