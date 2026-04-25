@@ -73,8 +73,14 @@ export class TenantsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '테넌트 비활성화' })
-  deactivate(@Param('id') id: string) {
-    return this.tenantsService.deactivate(id);
+  @ApiOperation({ summary: '테넌트 영구 삭제' })
+  deletePermanently(@Param('id') id: string, @Req() req: Request) {
+    return this.tenantsService.deletePermanently(id, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
   }
 }
