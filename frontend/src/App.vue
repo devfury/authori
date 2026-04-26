@@ -5,14 +5,13 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 
 const route = useRoute()
-const layout = computed(() => route.meta.layout === 'auth' ? 'auth' : 'admin')
+const Layout = computed(() => route.meta.layout === 'auth' ? AuthLayout : AdminLayout)
 </script>
 
 <template>
-  <AuthLayout v-if="layout === 'auth'">
-    <RouterView />
-  </AuthLayout>
-  <AdminLayout v-else>
-    <RouterView />
-  </AdminLayout>
+  <RouterView v-slot="{ Component }">
+    <component :is="Layout">
+      <component :is="Component" />
+    </component>
+  </RouterView>
 </template>
