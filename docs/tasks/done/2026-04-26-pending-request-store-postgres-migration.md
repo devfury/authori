@@ -1,3 +1,6 @@
+---
+
+---
 # PendingRequestStore 영속성 개선 (Redis / PostgreSQL)
 
 ## 배경
