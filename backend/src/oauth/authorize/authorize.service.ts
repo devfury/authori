@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -32,8 +33,7 @@ import {
   DEFAULT_TENANT_SCOPES,
   ScopesService,
 } from '../scopes/scopes.service';
-import { TypeOrmPendingRequestStore } from './typeorm-pending-request.store';
-import { PendingAuthRequest } from './pending-request.store';
+import { IPendingRequestStore, PendingAuthRequest, PENDING_REQUEST_STORE } from './pending-request.store';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -70,7 +70,8 @@ export class AuthorizeService {
     private readonly externalAuthService: ExternalAuthService,
     private readonly usersService: UsersService,
     private readonly scopesService: ScopesService,
-    private readonly pendingStore: TypeOrmPendingRequestStore,
+    @Inject(PENDING_REQUEST_STORE)
+    private readonly pendingStore: IPendingRequestStore,
   ) {}
 
   async initiateAuthorize(

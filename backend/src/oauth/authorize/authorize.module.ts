@@ -19,6 +19,7 @@ import { AuthorizeService } from './authorize.service';
 import { AuthorizeController } from './authorize.controller';
 import { TypeOrmPendingRequestStore } from './typeorm-pending-request.store';
 import { PendingRequestCleanupService } from './pending-request-cleanup.service';
+import { PENDING_REQUEST_STORE } from './pending-request.store';
 
 @Module({
   imports: [
@@ -39,6 +40,10 @@ import { PendingRequestCleanupService } from './pending-request-cleanup.service'
     ScopesModule,
   ],
   controllers: [AuthorizeController],
-  providers: [AuthorizeService, TypeOrmPendingRequestStore, PendingRequestCleanupService],
+  providers: [
+    AuthorizeService,
+    { provide: PENDING_REQUEST_STORE, useClass: TypeOrmPendingRequestStore },
+    PendingRequestCleanupService,
+  ],
 })
 export class AuthorizeModule {}
