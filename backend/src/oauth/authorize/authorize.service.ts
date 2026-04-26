@@ -33,7 +33,8 @@ import {
   DEFAULT_TENANT_SCOPES,
   ScopesService,
 } from '../scopes/scopes.service';
-import { IPendingRequestStore, PendingAuthRequest, PENDING_REQUEST_STORE } from './pending-request.store';
+import type { IPendingRequestStore, PendingAuthRequest } from './pending-request.store';
+import { PENDING_REQUEST_STORE } from './pending-request.store';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
 import { RegisterDto } from './dto/register.dto';
