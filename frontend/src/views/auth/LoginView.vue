@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { authApi } from '@/api/auth'
+import { onBeforeRouteLeave } from 'vue-router'
 
 const auth = useAuthStore()
 
@@ -10,6 +11,15 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 const bootstrapNeeded = ref(false)
+const teleportEnabled = ref(true)
+
+// AuthLayout(#auth-header)이 v-if로 파괴되기 전에 Teleport를 비활성화해야
+// "Cannot read properties of null (reading 'parentNode')" 크래시를 방지할 수 있다.
+// nextTick을 await해서 Vue가 disabled 상태를 플러시한 후 내비게이션이 진행되도록 한다.
+onBeforeRouteLeave(async () => {
+  teleportEnabled.value = false
+  await nextTick()
+})
 
 onMounted(async () => {
   try {
@@ -40,7 +50,7 @@ async function submit() {
 
 <template>
   <div>
-    <Teleport to="#auth-header">
+    <Teleport to="#auth-header" :disabled="!teleportEnabled">
       <h1 class="text-2xl font-bold text-gray-900">Authori</h1>
       <p class="text-sm text-gray-500 mt-1">멀티테넌트 OAuth2 플랫폼</p>
     </Teleport>
