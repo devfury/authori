@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -32,7 +33,7 @@ import {
   DEFAULT_TENANT_SCOPES,
   ScopesService,
 } from '../scopes/scopes.service';
-import { PendingRequestStore } from './pending-request.store';
+import { IPendingRequestStore, PendingAuthRequest, PENDING_REQUEST_STORE } from './pending-request.store';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -40,12 +41,11 @@ import { RegisterDto } from './dto/register.dto';
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
 
-type PendingRequest = NonNullable<ReturnType<PendingRequestStore['get']>>;
+type PendingRequest = PendingAuthRequest;
 
 @Injectable()
 export class AuthorizeService {
   private readonly logger = new Logger(AuthorizeService.name);
-  private readonly pendingStore = new PendingRequestStore();
 
   constructor(
     @InjectRepository(OAuthClient)
@@ -70,6 +70,8 @@ export class AuthorizeService {
     private readonly externalAuthService: ExternalAuthService,
     private readonly usersService: UsersService,
     private readonly scopesService: ScopesService,
+    @Inject(PENDING_REQUEST_STORE)
+    private readonly pendingStore: IPendingRequestStore,
   ) {}
 
   async initiateAuthorize(
@@ -115,7 +117,7 @@ export class AuthorizeService {
       requestedScopes,
     );
 
-    const requestId = this.pendingStore.save({
+    const requestId = await this.pendingStore.save({
       tenantId,
       tenantSlug,
       clientId: client.clientId,
@@ -231,7 +233,7 @@ export class AuthorizeService {
     dto: LoginAuthorizeDto,
     ctx: AuditContext = {},
   ) {
-    const pending = this.pendingStore.get(dto.requestId);
+    const pending = await this.pendingStore.get(dto.requestId);
     if (!pending)
       throw new BadRequestException('invalid_request: expired or not found');
 
@@ -549,7 +551,7 @@ export class AuthorizeService {
       await manager.save(AuthorizationCode, authCode);
     });
 
-    this.pendingStore.delete(dto.requestId);
+    await this.pendingStore.delete(dto.requestId);
 
     await this.auditService.record({
       tenantId,

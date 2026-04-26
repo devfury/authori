@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from './common/config/config.module';
@@ -29,6 +30,7 @@ import { RbacModule } from './rbac/rbac.module';
     ConfigModule,
     DatabaseModule,
     AuditModule,
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     TypeOrmModule.forFeature([Tenant]),
     // Phase 2
@@ -51,10 +53,7 @@ import { RbacModule } from './rbac/rbac.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // 모든 요청에 Request ID 부여
     consumer.apply(RequestIdMiddleware).forRoutes('*');
-
-    // /t/:tenantSlug/* 경로에 테넌트 컨텍스트 주입
     consumer
       .apply(TenantMiddleware)
       .forRoutes({ path: '/t/:tenantSlug/*path', method: RequestMethod.ALL });
