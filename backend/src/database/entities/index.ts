@@ -26,3 +26,4 @@ export { AdminUser, AdminRole, AdminStatus } from './admin-user.entity';
 export { ExternalAuthProvider } from './external-auth-provider.entity';
 export type { ExternalAuthFieldMapping } from './external-auth-provider.entity';
 export type { LoginBranding } from './oauth-client.entity';
+export { PendingOAuthRequest } from './pending-oauth-request.entity';
