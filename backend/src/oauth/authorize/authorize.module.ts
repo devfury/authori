@@ -5,6 +5,7 @@ import {
   Consent,
   OAuthClient,
   OAuthClientRedirectUri,
+  PendingOAuthRequest,
   ProfileSchemaVersion,
   TenantSettings,
   User,
@@ -16,6 +17,8 @@ import { UsersModule } from '../../users/users.module';
 import { ScopesModule } from '../scopes/scopes.module';
 import { AuthorizeService } from './authorize.service';
 import { AuthorizeController } from './authorize.controller';
+import { TypeOrmPendingRequestStore } from './typeorm-pending-request.store';
+import { PendingRequestCleanupService } from './pending-request-cleanup.service';
 
 @Module({
   imports: [
@@ -28,6 +31,7 @@ import { AuthorizeController } from './authorize.controller';
       ProfileSchemaVersion,
       Consent,
       TenantSettings,
+      PendingOAuthRequest,
     ]),
     AuditModule,
     ExternalAuthModule,
@@ -35,6 +39,6 @@ import { AuthorizeController } from './authorize.controller';
     ScopesModule,
   ],
   controllers: [AuthorizeController],
-  providers: [AuthorizeService],
+  providers: [AuthorizeService, TypeOrmPendingRequestStore, PendingRequestCleanupService],
 })
 export class AuthorizeModule {}
