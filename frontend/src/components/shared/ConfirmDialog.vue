@@ -4,6 +4,7 @@ defineProps<{
   title: string
   message: string
   confirmLabel?: string
+  showCancel?: boolean
   danger?: boolean
 }>()
 
@@ -25,6 +26,7 @@ defineEmits<{
         <p class="text-sm text-gray-600 mb-6">{{ message }}</p>
         <div class="flex justify-end gap-3">
           <button
+            v-if="showCancel !== false"
             class="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
             @click="$emit('cancel')"
           >

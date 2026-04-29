@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, type LocationQueryValue } from 'vue-router'
 import type { LoginBranding } from '@/api/clients'
 import { oauthApi } from '@/api/oauth'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
 const route = useRoute()
 
@@ -23,6 +24,7 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
+const showExpiredRequestDialog = ref(false)
 
 const branding = ref<LoginBranding>({})
 const clientName = ref('')
@@ -42,6 +44,11 @@ function applyBranding(b: LoginBranding) {
   if (b.primaryColor) {
     root.style.setProperty('--auth-primary-color', b.primaryColor)
   }
+}
+
+function handleExpiredRequestConfirm() {
+  showExpiredRequestDialog.value = false
+  window.history.back()
 }
 
 onUnmounted(() => {
@@ -99,7 +106,7 @@ async function submit() {
     } else if (msg === 'user_inactive') {
       error.value = '비활성화된 계정입니다. 이용이 필요하시면 관리자에게 문의하세요.'
     } else if (msg === 'invalid_request: expired or not found') {
-      error.value = '인증 요청이 만료됐습니다. 앱에서 다시 시도하세요.'
+      showExpiredRequestDialog.value = true
     } else {
       error.value = msg || '로그인 중 오류가 발생했습니다.'
     }
@@ -111,6 +118,15 @@ async function submit() {
 
 <template>
   <div>
+    <ConfirmDialog
+      :open="showExpiredRequestDialog"
+      title="인증 요청 만료"
+      message="인증 요청이 만료됐습니다. 앱에서 다시 시도하세요."
+      confirm-label="확인"
+      :show-cancel="false"
+      @confirm="handleExpiredRequestConfirm"
+    />
+
     <!-- 상단 타이틀 Teleport -->
     <Teleport v-if="clientName" to="#auth-header">
       <h1 class="text-2xl font-bold text-gray-900">{{ branding.title ?? clientName }}</h1>
