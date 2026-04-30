@@ -18,9 +18,15 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "migration:generate": "NODE_OPTIONS='--dns-result-order=ipv4first' typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
-    "migration:run": "NODE_OPTIONS='--dns-result-order=ipv4first' typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "migration:revert": "NODE_OPTIONS='--dns-result-order=ipv4first' typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
+    "migration:create": "typeorm-ts-node-commonjs migration:create",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
+    "migration:show:dev": "env-cmd -f .env.development.local typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
+    "migration:show:prd": "env-cmd -f .env.production.local typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "migration:run:dev": "env-cmd -f .env.development.local typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "migration:run:prd": "env-cmd -f .env.production.local typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -61,6 +67,7 @@
     "@types/pg": "^8.20.0",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^10.0.0",
+    "env-cmd": "^11.0.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
