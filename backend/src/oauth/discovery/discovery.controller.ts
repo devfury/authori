@@ -118,10 +118,13 @@ export class DiscoveryController {
       where: { userId: user.id },
     });
 
-    const claims: Record<string, unknown> = { sub: user.id };
+    const claims: Record<string, unknown> = {
+      sub: user.id,
+      tenant_id: tenant.tenantId,
+    };
     if (scopes.has('email')) claims['email'] = user.email;
     if (scopes.has('profile') && profile) {
-      claims['profile'] = profile.profileJsonb;
+      Object.assign(claims, profile.profileJsonb);
     }
 
     return claims;
