@@ -13,6 +13,7 @@ import {
 } from '../../database/entities';
 import { AuditModule } from '../../common/audit/audit.module';
 import { ExternalAuthModule } from '../../external-auth/external-auth.module';
+import { RbacModule } from '../../rbac/rbac.module';
 import { UsersModule } from '../../users/users.module';
 import { ScopesModule } from '../scopes/scopes.module';
 import { AuthorizeService } from './authorize.service';
@@ -36,6 +37,7 @@ import { PENDING_REQUEST_STORE } from './pending-request.store';
     ]),
     AuditModule,
     ExternalAuthModule,
+    RbacModule,
     UsersModule,
     ScopesModule,
   ],

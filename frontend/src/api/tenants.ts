@@ -12,6 +12,7 @@ export interface TenantSettings {
   refreshTokenRotation: boolean
   passwordMinLength: number
   allowRegistration: boolean
+  autoActivateRegistration: boolean
 }
 
 export interface Tenant {
@@ -41,6 +42,7 @@ export interface UpdateTenantPayload {
     refreshTokenRotation?: boolean
     passwordMinLength?: number
     allowRegistration?: boolean
+    autoActivateRegistration?: boolean
   }
 }
 

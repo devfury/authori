@@ -28,6 +28,7 @@ import {
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { ExternalAuthService } from '../../external-auth/external-auth.service';
+import { RbacService } from '../../rbac/rbac.service';
 import { UsersService } from '../../users/users.service';
 import {
   DEFAULT_TENANT_SCOPES,
@@ -71,6 +72,7 @@ export class AuthorizeService {
     private readonly externalAuthService: ExternalAuthService,
     private readonly usersService: UsersService,
     private readonly scopesService: ScopesService,
+    private readonly rbacService: RbacService,
     @Inject(PENDING_REQUEST_STORE)
     private readonly pendingStore: IPendingRequestStore,
   ) {}
@@ -206,13 +208,17 @@ export class AuthorizeService {
 
     let savedUser: User;
     try {
+      const initialStatus = settings.autoActivateRegistration
+        ? UserStatus.ACTIVE
+        : UserStatus.INACTIVE;
+
       savedUser = await this.usersService.create(
         tenantId,
         {
           email: dto.email,
           password: dto.password,
           profile: dto.profile,
-          initialStatus: UserStatus.INACTIVE,
+          initialStatus,
         },
         {
           actorType: 'user',
@@ -225,6 +231,8 @@ export class AuthorizeService {
       }
       throw error;
     }
+
+    await this.rbacService.assignDefaultRolesToUser(tenantId, savedUser.id);
 
     return { message: 'registered', id: savedUser.id, email: savedUser.email };
   }

@@ -16,6 +16,7 @@ const emit = defineEmits<{
 const name = ref('')
 const displayName = ref('')
 const description = ref('')
+const isDefault = ref(false)
 const error = ref('')
 const loading = ref(false)
 
@@ -27,10 +28,12 @@ watch(
         name.value = props.role.name
         displayName.value = props.role.displayName
         description.value = props.role.description || ''
+        isDefault.value = props.role.isDefault
       } else {
         name.value = ''
         displayName.value = ''
         description.value = ''
+        isDefault.value = false
       }
       error.value = ''
     }
@@ -46,12 +49,14 @@ async function submit() {
       await rbacApi.updateRole(props.tenantId, props.role.id, {
         displayName: displayName.value,
         description: description.value,
+        isDefault: isDefault.value,
       })
     } else {
       await rbacApi.createRole(props.tenantId, {
         name: name.value,
         displayName: displayName.value,
         description: description.value,
+        isDefault: isDefault.value,
       })
     }
     emit('updated')
@@ -119,6 +124,21 @@ async function submit() {
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             placeholder="역할의 용도에 대한 상세 설명입니다."
           ></textarea>
+        </div>
+
+        <div class="flex items-start">
+          <div class="flex items-center h-5">
+            <input
+              id="isDefaultRole"
+              v-model="isDefault"
+              type="checkbox"
+              class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+            />
+          </div>
+          <div class="ml-3 text-sm">
+            <label for="isDefaultRole" class="font-medium text-gray-700">기본 역할</label>
+            <p class="text-gray-500">회원가입 사용자에게 자동으로 부여됩니다.</p>
+          </div>
         </div>
 
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

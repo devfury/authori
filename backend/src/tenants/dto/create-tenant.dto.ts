@@ -68,6 +68,14 @@ export class CreateTenantSettingsDto {
   @IsOptional()
   @IsBoolean()
   allowRegistration?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'OAuth 공개 회원가입 시 사용자 자동 활성화 여부',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  autoActivateRegistration?: boolean;
 }
 
 export class CreateTenantDto {

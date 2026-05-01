@@ -87,7 +87,7 @@ export class AuthorizeController {
   @ApiOperation({
     summary: '공개 회원가입',
     description:
-      '테넌트 설정에서 회원가입이 허용된 경우 INACTIVE 상태의 사용자를 생성한다.',
+      '테넌트 설정에서 회원가입이 허용된 경우 사용자를 생성한다. 자동 활성화 설정이 꺼져 있으면 INACTIVE 상태로 생성한다.',
   })
   register(
     @CurrentTenant() tenant: TenantContext,

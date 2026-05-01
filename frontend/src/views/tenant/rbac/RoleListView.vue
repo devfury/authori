@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Plus, RefreshCw, Pencil, Trash2, ShieldCheck, Key } from 'lucide-vue-next'
+import { Plus, RefreshCw, Pencil, Trash2, ShieldCheck, Key, CheckCircle2 } from 'lucide-vue-next'
 import { rbacApi, type Role } from '@/api/rbac'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
@@ -94,6 +94,7 @@ onMounted(loadRoles)
                 <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">식별자 (ID)</th>
                 <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">표시 이름</th>
                 <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">설명</th>
+                <th class="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">기본값</th>
                 <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">생성일</th>
                 <th class="px-4 py-3"></th>
               </tr>
@@ -109,6 +110,9 @@ onMounted(loadRoles)
                 <td class="px-4 py-3 text-gray-900 font-medium">{{ role.displayName }}</td>
                 <td class="px-4 py-3 text-gray-500 max-w-xs truncate" :title="role.description || ''">
                   {{ role.description || '—' }}
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <CheckCircle2 v-if="role.isDefault" class="w-4 h-4 text-green-500 mx-auto" />
                 </td>
                 <td class="px-4 py-3 text-gray-400 text-xs">
                   {{ new Date(role.createdAt).toLocaleDateString('ko-KR') }}

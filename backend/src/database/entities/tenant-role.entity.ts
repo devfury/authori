@@ -34,6 +34,9 @@ export class TenantRole {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ name: 'is_default', default: false })
+  isDefault: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

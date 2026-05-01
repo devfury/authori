@@ -53,6 +53,10 @@ export class TenantSettings {
   @Column({ name: 'allow_registration', default: false })
   allowRegistration: boolean;
 
+  /** 공개 회원가입으로 생성된 사용자를 즉시 활성화할지 여부 */
+  @Column({ name: 'auto_activate_registration', default: false })
+  autoActivateRegistration: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

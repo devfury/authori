@@ -37,7 +37,7 @@ export class RbacService {
   async findRoles(tenantId: string): Promise<TenantRole[]> {
     return this.roleRepo.find({
       where: { tenantId },
-      order: { name: 'ASC' },
+      order: { isDefault: 'DESC', name: 'ASC' },
       relations: ['rolePermissions', 'rolePermissions.permission'],
     });
   }
@@ -61,8 +61,10 @@ export class RbacService {
     return this.roleRepo.save(
       this.roleRepo.create({
         tenantId,
-        ...dto,
+        name: dto.name,
+        displayName: dto.displayName,
         description: dto.description ?? null,
+        isDefault: dto.isDefault ?? false,
       }),
     );
   }
@@ -76,6 +78,7 @@ export class RbacService {
     if (dto.displayName !== undefined) role.displayName = dto.displayName;
     if (dto.description !== undefined)
       role.description = dto.description ?? null;
+    if (dto.isDefault !== undefined) role.isDefault = dto.isDefault;
     return this.roleRepo.save(role);
   }
 
@@ -226,6 +229,30 @@ export class RbacService {
 
     await this.userRoleRepo.delete({ userId, roleId });
     return this.findUserRoles(tenantId, userId);
+  }
+
+  async assignDefaultRolesToUser(
+    tenantId: string,
+    userId: string,
+  ): Promise<TenantRole[]> {
+    await this.assertUserBelongsToTenant(tenantId, userId);
+
+    const defaultRoles = await this.roleRepo.find({
+      where: { tenantId, isDefault: true },
+      order: { name: 'ASC' },
+    });
+
+    if (defaultRoles.length === 0) return [];
+
+    await this.userRoleRepo
+      .createQueryBuilder()
+      .insert()
+      .into(UserRole)
+      .values(defaultRoles.map((role) => ({ userId, roleId: role.id })))
+      .orIgnore()
+      .execute();
+
+    return defaultRoles;
   }
 
   async getUserRoleNames(tenantId: string, userId: string): Promise<string[]> {

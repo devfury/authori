@@ -26,6 +26,9 @@ async function load() {
 
 async function saveSettings() {
   if (!tenant.value) return
+  if (!tenant.value.settings.allowRegistration) {
+    tenant.value.settings.autoActivateRegistration = false
+  }
   saving.value = true
   error.value = ''
   successMsg.value = ''
@@ -38,6 +41,7 @@ async function saveSettings() {
         passwordMinLength: tenant.value.settings.passwordMinLength,
         refreshTokenRotation: tenant.value.settings.refreshTokenRotation,
         allowRegistration: tenant.value.settings.allowRegistration,
+        autoActivateRegistration: tenant.value.settings.autoActivateRegistration,
       },
     })
     tenant.value = data
@@ -119,6 +123,15 @@ onMounted(load)
             <label class="flex items-center gap-2 cursor-pointer">
               <input v-model="tenant.settings.allowRegistration" type="checkbox" class="rounded" />
               <span class="text-sm text-gray-700">회원가입 허용</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                v-model="tenant.settings.autoActivateRegistration"
+                type="checkbox"
+                class="rounded disabled:opacity-50"
+                :disabled="!tenant.settings.allowRegistration"
+              />
+              <span class="text-sm text-gray-700">자동 활성화</span>
             </label>
           </div>
 

@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateRoleDto {
   @ApiProperty({
@@ -23,4 +29,12 @@ export class CreateRoleDto {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  @ApiPropertyOptional({
+    description: '회원가입 사용자에게 자동 부여할 기본 역할 여부',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }

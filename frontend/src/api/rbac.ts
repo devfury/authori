@@ -6,6 +6,7 @@ export interface Role {
   name: string
   displayName: string
   description: string | null
+  isDefault: boolean
   createdAt: string
 }
 
@@ -22,11 +23,13 @@ export interface CreateRolePayload {
   name: string
   displayName: string
   description?: string
+  isDefault?: boolean
 }
 
 export interface UpdateRolePayload {
   displayName?: string
   description?: string
+  isDefault?: boolean
 }
 
 export interface CreatePermissionPayload {
