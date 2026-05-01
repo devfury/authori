@@ -184,6 +184,7 @@ export class AuthorizeService {
       branding: client.branding ?? null,
       scopes,
       allowRegistration: settings?.allowRegistration ?? false,
+      autoActivateRegistration: settings?.autoActivateRegistration ?? false,
       activeSchema: activeSchema
         ? {
             schemaJsonb: activeSchema.schemaJsonb,

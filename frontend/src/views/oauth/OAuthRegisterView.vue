@@ -16,6 +16,7 @@ const clientId = getQueryValue(route.query.clientId)
 
 const email = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 const loading = ref(false)
 const error = ref('')
 const success = ref(false)
@@ -23,6 +24,7 @@ const success = ref(false)
 const branding = ref<LoginBranding>({})
 const clientName = ref('')
 const allowRegistration = ref(true)
+const autoActivateRegistration = ref(false)
 
 // ── 스키마 기반 프로필 ──────────────────────────────────
 type FieldType = 'string' | 'number' | 'integer' | 'boolean' | 'enum'
@@ -121,6 +123,7 @@ onMounted(async () => {
     clientName.value = data.clientName
     branding.value = data.branding ?? {}
     allowRegistration.value = data.allowRegistration
+    autoActivateRegistration.value = data.autoActivateRegistration
     
     if (!data.allowRegistration) {
       error.value = '이 서비스는 회원가입을 지원하지 않습니다.'
@@ -179,6 +182,10 @@ function validateFields(): boolean {
 
 async function submit() {
   if (!tenantSlug || !allowRegistration.value) return
+  if (password.value !== confirmPassword.value) {
+    error.value = '비밀번호가 일치하지 않습니다.'
+    return
+  }
   if (!validateFields()) return
 
   error.value = ''
@@ -236,7 +243,7 @@ const loginRoute = computed(() => ({
       </div>
       <h2 class="text-xl font-bold text-gray-800 mb-2">가입 신청 완료</h2>
       <p class="text-gray-600 mb-6">
-        관리자 승인 후 로그인하실 수 있습니다.
+        {{ autoActivateRegistration ? '바로 로그인하실 수 있습니다.' : '관리자 승인 후 로그인하실 수 있습니다.' }}
       </p>
       <RouterLink
         :to="loginRoute"
@@ -273,6 +280,20 @@ const loginRoute = computed(() => ({
             v-model="password"
             type="password"
             required
+            autocomplete="new-password"
+            placeholder="••••••••"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+            :style="branding.primaryColor ? { '--tw-ring-color': branding.primaryColor } : {}"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">비밀번호 확인 <span class="text-red-500">*</span></label>
+          <input
+            v-model="confirmPassword"
+            type="password"
+            required
+            autocomplete="new-password"
             placeholder="••••••••"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent"
             :style="branding.primaryColor ? { '--tw-ring-color': branding.primaryColor } : {}"

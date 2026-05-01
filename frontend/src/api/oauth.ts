@@ -11,6 +11,7 @@ export interface LoginConfigResponse {
   branding: LoginBranding | null
   scopes?: Array<{ name: string; displayName: string; description: string | null }>
   allowRegistration: boolean
+  autoActivateRegistration: boolean
   activeSchema?: {
     schemaJsonb: Record<string, any>
   } | null
