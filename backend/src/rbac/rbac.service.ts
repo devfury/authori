@@ -59,7 +59,11 @@ export class RbacService {
     if (exists) throw new BadRequestException('role_already_exists');
 
     return this.roleRepo.save(
-      this.roleRepo.create({ tenantId, ...dto, description: dto.description ?? null }),
+      this.roleRepo.create({
+        tenantId,
+        ...dto,
+        description: dto.description ?? null,
+      }),
     );
   }
 
@@ -70,7 +74,8 @@ export class RbacService {
   ): Promise<TenantRole> {
     const role = await this.findRole(tenantId, id);
     if (dto.displayName !== undefined) role.displayName = dto.displayName;
-    if (dto.description !== undefined) role.description = dto.description ?? null;
+    if (dto.description !== undefined)
+      role.description = dto.description ?? null;
     return this.roleRepo.save(role);
   }
 
@@ -157,10 +162,7 @@ export class RbacService {
     return this.findRole(tenantId, roleId);
   }
 
-  async findUserRoles(
-    tenantId: string,
-    userId: string,
-  ): Promise<TenantRole[]> {
+  async findUserRoles(tenantId: string, userId: string): Promise<TenantRole[]> {
     await this.assertUserBelongsToTenant(tenantId, userId);
 
     return this.roleRepo
@@ -195,10 +197,38 @@ export class RbacService {
     return this.findUserRoles(tenantId, userId);
   }
 
-  async getUserRoleNames(
+  async addUserRole(
     tenantId: string,
     userId: string,
-  ): Promise<string[]> {
+    roleId: string,
+  ): Promise<TenantRole[]> {
+    await this.assertUserBelongsToTenant(tenantId, userId);
+    await this.assertRolesBelongToTenant(tenantId, [roleId]);
+
+    await this.userRoleRepo
+      .createQueryBuilder()
+      .insert()
+      .into(UserRole)
+      .values({ userId, roleId })
+      .orIgnore()
+      .execute();
+
+    return this.findUserRoles(tenantId, userId);
+  }
+
+  async removeUserRole(
+    tenantId: string,
+    userId: string,
+    roleId: string,
+  ): Promise<TenantRole[]> {
+    await this.assertUserBelongsToTenant(tenantId, userId);
+    await this.assertRolesBelongToTenant(tenantId, [roleId]);
+
+    await this.userRoleRepo.delete({ userId, roleId });
+    return this.findUserRoles(tenantId, userId);
+  }
+
+  async getUserRoleNames(tenantId: string, userId: string): Promise<string[]> {
     const roles = await this.roleRepo
       .createQueryBuilder('role')
       .innerJoin(UserRole, 'userRole', '"userRole"."role_id" = "role"."id"')
@@ -231,7 +261,9 @@ export class RbacService {
       .orderBy('permission.name', 'ASC')
       .getMany();
 
-    return Array.from(new Set(permissions.map((permission) => permission.name)));
+    return Array.from(
+      new Set(permissions.map((permission) => permission.name)),
+    );
   }
 
   private async assertUserBelongsToTenant(
