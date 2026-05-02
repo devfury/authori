@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UserStatus } from '../database/entities';
+import { UserStatus, AuditAction } from '../database/entities';
 
 describe('UsersService', () => {
   const tenantId = 'tenant-1';
@@ -191,4 +191,8 @@ describe('UsersService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+});
+
+it('AuditAction has USER_UNLOCKED value', () => {
+  expect(AuditAction.USER_UNLOCKED).toBe('USER.UNLOCKED');
 });
