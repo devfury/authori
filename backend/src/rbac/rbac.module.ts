@@ -11,7 +11,9 @@ import {
 import { AdminAuthModule } from '../admin/auth/admin-auth.module';
 import { AuditModule } from '../common/audit/audit.module';
 import { KeysModule } from '../oauth/keys/keys.module';
+import { UsersModule } from '../users/users.module';
 import { M2mRbacController } from './m2m-rbac.controller';
+import { M2mUsersController } from './m2m-users.controller';
 import { RbacController } from './rbac.controller';
 import { RbacService } from './rbac.service';
 
@@ -28,8 +30,9 @@ import { RbacService } from './rbac.service';
     AdminAuthModule,
     KeysModule,
     AuditModule,
+    UsersModule,
   ],
-  controllers: [RbacController, M2mRbacController],
+  controllers: [RbacController, M2mRbacController, M2mUsersController],
   providers: [RbacService],
   exports: [RbacService],
 })
