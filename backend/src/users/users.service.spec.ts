@@ -191,8 +191,106 @@ describe('UsersService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
-});
 
-it('AuditAction has USER_UNLOCKED value', () => {
-  expect(AuditAction.USER_UNLOCKED).toBe('USER.UNLOCKED');
+  it('AuditAction has USER_UNLOCKED value', () => {
+    expect(AuditAction.USER_UNLOCKED).toBe('USER.UNLOCKED');
+  });
+
+  describe('lock', () => {
+    let userRepoMock: { findOne: jest.Mock; save: jest.Mock };
+    let auditSvc: { record: jest.Mock };
+
+    beforeEach(() => {
+      userRepoMock = {
+        findOne: jest.fn().mockResolvedValue({
+          id: userId,
+          tenantId,
+          email: 'lee@example.com',
+          status: UserStatus.ACTIVE,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          profile: { profileJsonb: {} },
+        }),
+        save: jest.fn().mockImplementation(async (u: unknown) => u),
+      };
+      auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
+      service = new UsersService(
+        userRepoMock as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        auditSvc as never,
+      );
+    });
+
+    it('sets status to LOCKED', async () => {
+      await service.lock(tenantId, userId);
+      expect(userRepoMock.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: UserStatus.LOCKED }),
+      );
+    });
+
+    it('records USER_LOCKED audit action', async () => {
+      await service.lock(tenantId, userId);
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_LOCKED }),
+      );
+    });
+
+    it('throws NotFoundException when user not found', async () => {
+      userRepoMock.findOne.mockResolvedValue(null);
+      await expect(service.lock(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('unlock', () => {
+    let userRepoMock: { findOne: jest.Mock; save: jest.Mock };
+    let auditSvc: { record: jest.Mock };
+
+    beforeEach(() => {
+      userRepoMock = {
+        findOne: jest.fn().mockResolvedValue({
+          id: userId,
+          tenantId,
+          email: 'lee@example.com',
+          status: UserStatus.LOCKED,
+          failedLoginAttempts: 5,
+          lockedUntil: new Date('2026-06-01'),
+          profile: { profileJsonb: {} },
+        }),
+        save: jest.fn().mockImplementation(async (u: unknown) => u),
+      };
+      auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
+      service = new UsersService(
+        userRepoMock as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        auditSvc as never,
+      );
+    });
+
+    it('sets status to ACTIVE, resets failedLoginAttempts and lockedUntil', async () => {
+      await service.unlock(tenantId, userId);
+      expect(userRepoMock.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: UserStatus.ACTIVE,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        }),
+      );
+    });
+
+    it('records USER_UNLOCKED audit action', async () => {
+      await service.unlock(tenantId, userId);
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_UNLOCKED }),
+      );
+    });
+
+    it('throws NotFoundException when user not found', async () => {
+      userRepoMock.findOne.mockResolvedValue(null);
+      await expect(service.unlock(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });

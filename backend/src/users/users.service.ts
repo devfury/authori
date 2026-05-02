@@ -272,4 +272,40 @@ export class UsersService {
       ...ctx,
     });
   }
+
+  async lock(
+    tenantId: string,
+    id: string,
+    ctx?: AuditContext,
+  ): Promise<void> {
+    const user = await this.findOne(tenantId, id);
+    user.status = UserStatus.LOCKED;
+    await this.userRepo.save(user);
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_LOCKED,
+      targetType: 'user',
+      targetId: id,
+      ...ctx,
+    });
+  }
+
+  async unlock(
+    tenantId: string,
+    id: string,
+    ctx?: AuditContext,
+  ): Promise<void> {
+    const user = await this.findOne(tenantId, id);
+    user.status = UserStatus.ACTIVE;
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    await this.userRepo.save(user);
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_UNLOCKED,
+      targetType: 'user',
+      targetId: id,
+      ...ctx,
+    });
+  }
 }
