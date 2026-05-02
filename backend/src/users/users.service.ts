@@ -109,9 +109,10 @@ export class UsersService {
       .skip(offset);
 
     if (search) {
-      qb.andWhere('u.email ILIKE :search', {
-        search: `%${search}%`,
-      });
+      qb.andWhere(
+        '(u.email ILIKE :search OR profile.profile_jsonb::text ILIKE :search)',
+        { search: `%${search}%` },
+      );
     }
 
     if (status) {

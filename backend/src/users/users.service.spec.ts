@@ -70,6 +70,26 @@ describe('UsersService', () => {
     expect(result.total).toBe(1);
   });
 
+  it('searches email and all profile fields when search param is given', async () => {
+    const qb = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[user], 1]),
+    };
+    userRepo.createQueryBuilder.mockReturnValue(qb);
+
+    await service.findAll(tenantId, { search: '이몽룡' });
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      '(u.email ILIKE :search OR profile.profile_jsonb::text ILIKE :search)',
+      { search: '%이몽룡%' },
+    );
+  });
+
   it('includes profile data when finding one user', async () => {
     userRepo.findOne.mockResolvedValue(user);
 
