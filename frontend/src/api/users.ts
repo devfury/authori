@@ -72,6 +72,9 @@ export const usersApi = {
     return http.post<User>(`/admin/tenants/${tenantId}/users`, payload)
   },
   deactivate(tenantId: string, userId: string) {
+    return http.patch(`/admin/tenants/${tenantId}/users/${userId}`, { status: 'INACTIVE' })
+  },
+  delete(tenantId: string, userId: string) {
     return http.delete(`/admin/tenants/${tenantId}/users/${userId}`)
   },
   update(tenantId: string, userId: string, payload: UpdateUserPayload) {
