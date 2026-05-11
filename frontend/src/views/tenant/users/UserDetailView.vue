@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ShieldCheck, Plus } from 'lucide-vue-next'
 import { usersApi, type User } from '@/api/users'
 import { rbacApi, type Role } from '@/api/rbac'
@@ -13,6 +13,7 @@ import UserRoleDialog from './UserRoleDialog.vue'
 import ChangePasswordDialog from './ChangePasswordDialog.vue'
 
 const route = useRoute()
+const router = useRouter()
 const tenantId = route.params.tenantId as string
 const userId = route.params.userId as string
 
@@ -24,6 +25,7 @@ const showDeactivate = ref(false)
 const showActivate = ref(false)
 const showRoleDialog = ref(false)
 const showPasswordDialog = ref(false)
+const showDelete = ref(false)
 
 async function load() {
   loading.value = true
@@ -75,6 +77,12 @@ async function activate() {
   await usersApi.activate(tenantId, userId)
   showActivate.value = false
   await load()
+}
+
+async function deleteUser() {
+  await usersApi.delete(tenantId, userId)
+  showDelete.value = false
+  router.push({ name: 'user-list', params: { tenantId } })
 }
 
 onMounted(load)
@@ -147,6 +155,12 @@ onMounted(load)
                 @click="showActivate = true"
               >
                 사용자 활성화
+              </button>
+              <button
+                class="px-4 py-2 text-sm border border-red-600 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ml-auto"
+                @click="showDelete = true"
+              >
+                영구 삭제
               </button>
             </div>
           </div>
@@ -247,6 +261,16 @@ onMounted(load)
       confirm-label="활성화"
       @confirm="activate"
       @cancel="showActivate = false"
+    />
+
+    <ConfirmDialog
+      :open="showDelete"
+      title="사용자 영구 삭제"
+      :message="`'${user?.email}' 사용자를 영구 삭제합니다. 이 작업은 되돌릴 수 없습니다.`"
+      confirm-label="삭제"
+      danger
+      @confirm="deleteUser"
+      @cancel="showDelete = false"
     />
   </div>
 </template>
