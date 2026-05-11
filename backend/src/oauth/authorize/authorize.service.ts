@@ -27,7 +27,10 @@ import {
 } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
-import { ExternalAuthService } from '../../external-auth/external-auth.service';
+import {
+  ExternalAuthResult,
+  ExternalAuthService,
+} from '../../external-auth/external-auth.service';
 import { RbacService } from '../../rbac/rbac.service';
 import { UsersService } from '../../users/users.service';
 import {
@@ -286,6 +289,8 @@ export class AuthorizeService {
         provider,
         dto.email,
         dto.password,
+        tenantId,
+        pending.clientId,
       );
 
       if (result.error) {
@@ -368,7 +373,7 @@ export class AuthorizeService {
           tenantId,
           dto.email,
           dto.password,
-          result.user,
+          result,
           provider,
           ctx,
         );
@@ -384,7 +389,7 @@ export class AuthorizeService {
 
       if (provider.syncOnLogin && result.user) {
         const mapped = this.externalAuthService.applyFieldMapping(
-          result.user,
+          result,
           provider.fieldMapping,
         );
         if (mapped.loginId !== undefined) user.loginId = mapped.loginId ?? null;
@@ -442,18 +447,14 @@ export class AuthorizeService {
     tenantId: string,
     email: string,
     password: string,
-    externalUser: {
-      email: string;
-      loginId?: string;
-      profile?: Record<string, unknown>;
-    },
+    externalResult: ExternalAuthResult,
     provider: NonNullable<
       Awaited<ReturnType<ExternalAuthService['findActive']>>
     >,
     ctx: AuditContext,
   ): Promise<User> {
     const mapped = this.externalAuthService.applyFieldMapping(
-      externalUser,
+      externalResult,
       provider.fieldMapping,
     );
     const passwordHash = await CryptoUtil.hash(password);
@@ -478,6 +479,8 @@ export class AuthorizeService {
     });
 
     const saved = await this.userRepo.save(user);
+
+    await this.rbacService.assignDefaultRolesToUser(tenantId, saved.id);
 
     await this.auditService.record({
       tenantId,

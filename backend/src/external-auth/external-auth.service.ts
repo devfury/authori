@@ -1,11 +1,14 @@
+import { createHash } from 'crypto';
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExternalAuthProvider } from '../database/entities';
+import type { TransformSpec } from '../database/entities';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 
 export interface ExternalAuthResult {
+  [key: string]: unknown;
   authenticated: boolean;
   /**
    * 외부 시스템의 명시적 거부 사유.
@@ -21,7 +24,7 @@ export interface ExternalAuthResult {
     email: string;
     loginId?: string;
     profile?: Record<string, unknown>;
-  };
+  } & Record<string, unknown>;
 }
 
 @Injectable()
@@ -42,9 +45,11 @@ export class ExternalAuthService {
       providerUrl: dto.providerUrl,
       credentialHeader: dto.credentialHeader ?? null,
       credentialValue: dto.credentialValue ?? null,
+      credentialHeaders: dto.credentialHeaders ?? null,
       jitProvision: dto.jitProvision ?? true,
       syncOnLogin: dto.syncOnLogin ?? false,
       fieldMapping: dto.fieldMapping ?? null,
+      requestMapping: dto.requestMapping ?? null,
     });
     return this.providerRepo.save(provider);
   }
@@ -79,9 +84,11 @@ export class ExternalAuthService {
       ...(dto.providerUrl !== undefined && { providerUrl: dto.providerUrl }),
       ...(dto.credentialHeader !== undefined && { credentialHeader: dto.credentialHeader ?? null }),
       ...(dto.credentialValue !== undefined && { credentialValue: dto.credentialValue ?? null }),
+      ...(dto.credentialHeaders !== undefined && { credentialHeaders: dto.credentialHeaders ?? null }),
       ...(dto.jitProvision !== undefined && { jitProvision: dto.jitProvision }),
       ...(dto.syncOnLogin !== undefined && { syncOnLogin: dto.syncOnLogin }),
       ...(dto.fieldMapping !== undefined && { fieldMapping: dto.fieldMapping ?? null }),
+      ...(dto.requestMapping !== undefined && { requestMapping: dto.requestMapping ?? null }),
     });
     return this.providerRepo.save(provider);
   }
@@ -111,6 +118,103 @@ export class ExternalAuthService {
       .getOne() ?? null;
   }
 
+  applyValueTransforms(value: string, transforms: TransformSpec[]): string {
+    return transforms.reduce((current, transform) => {
+      if (typeof transform === 'string') {
+        switch (transform) {
+          case 'base64':
+            return Buffer.from(current).toString('base64');
+          case 'base64url':
+            return Buffer.from(current).toString('base64url');
+          case 'md5':
+            return createHash('md5').update(current).digest('hex');
+          case 'sha256':
+            return createHash('sha256').update(current).digest('hex');
+          case 'uppercase':
+            return current.toUpperCase();
+          case 'lowercase':
+            return current.toLowerCase();
+          case 'trim':
+            return current.trim();
+          case 'email_prefix': {
+            const atIdx = current.indexOf('@');
+            return atIdx >= 0 ? current.slice(0, atIdx) : current;
+          }
+          case 'email_domain': {
+            const atIdx = current.indexOf('@');
+            return atIdx >= 0 ? current.slice(atIdx + 1) : current;
+          }
+          default:
+            return current;
+        }
+      }
+      switch (transform.type) {
+        case 'prefix':
+          return `${transform.value}${current}`;
+        case 'suffix':
+          return `${current}${transform.value}`;
+        case 'template':
+          return transform.pattern.replace('{value}', current);
+        case 'regex_extract': {
+          const match = new RegExp(transform.pattern).exec(current);
+          return match?.[transform.group ?? 1] ?? current;
+        }
+        case 'substring':
+          return current.slice(transform.start, transform.end);
+        default:
+          return current;
+      }
+    }, value);
+  }
+
+  buildProviderRequestBody(
+    mapping: ExternalAuthProvider['requestMapping'],
+    email: string,
+    password: string,
+    tenantId: string,
+    clientId: string,
+  ): Record<string, unknown> {
+    const body: Record<string, unknown> = {};
+
+    const setPath = (path: string | undefined, value: unknown) => {
+      const normalizedPath = path?.trim();
+      if (!normalizedPath) return;
+
+      const keys = normalizedPath.split('.').map((key) => key.trim()).filter(Boolean);
+      if (keys.length === 0) return;
+
+      let cursor: Record<string, unknown> = body;
+      for (const key of keys.slice(0, -1)) {
+        const next = cursor[key];
+        if (!next || typeof next !== 'object' || Array.isArray(next)) {
+          cursor[key] = {};
+        }
+        cursor = cursor[key] as Record<string, unknown>;
+      }
+      cursor[keys[keys.length - 1]] = value;
+    };
+
+    if (!mapping) {
+      return { email, password };
+    }
+
+    const t = mapping.transforms ?? {};
+    const transformedEmail = t.email?.length ? this.applyValueTransforms(email, t.email) : email;
+    const transformedPassword = t.password?.length ? this.applyValueTransforms(password, t.password) : password;
+    const transformedTenantId = t.tenantId?.length ? this.applyValueTransforms(tenantId, t.tenantId) : tenantId;
+    const transformedClientId = t.clientId?.length ? this.applyValueTransforms(clientId, t.clientId) : clientId;
+
+    for (const [path, value] of Object.entries(mapping.staticParams ?? {})) {
+      setPath(path, value);
+    }
+    setPath(mapping.clientId, transformedClientId);
+    setPath(mapping.tenantId, transformedTenantId);
+    setPath(mapping.password ?? 'password', transformedPassword);
+    setPath(mapping.email ?? 'email', transformedEmail);
+
+    return body;
+  }
+
   /**
    * 외부 인증 API를 호출한다.
    * - 성공(authenticated:true): user 데이터 포함 반환
@@ -121,10 +225,16 @@ export class ExternalAuthService {
     provider: ExternalAuthProvider,
     email: string,
     password: string,
+    tenantId: string,
+    clientId: string,
   ): Promise<ExternalAuthResult> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (provider.credentialHeader && provider.credentialValue) {
       headers[provider.credentialHeader] = provider.credentialValue;
+    }
+    for (const [name, value] of Object.entries(provider.credentialHeaders ?? {})) {
+      const headerName = name.trim();
+      if (headerName && value) headers[headerName] = value;
     }
 
     const controller = new AbortController();
@@ -134,7 +244,13 @@ export class ExternalAuthService {
       const response = await fetch(provider.providerUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(this.buildProviderRequestBody(
+          provider.requestMapping,
+          email,
+          password,
+          tenantId,
+          clientId,
+        )),
         signal: controller.signal,
       });
 
@@ -183,27 +299,52 @@ export class ExternalAuthService {
    * fieldMapping을 적용하여 외부 응답 데이터를 User 생성 인자로 변환.
    */
   applyFieldMapping(
-    externalUser: NonNullable<ExternalAuthResult['user']>,
+    externalAuth: ExternalAuthResult | NonNullable<ExternalAuthResult['user']>,
     mapping: ExternalAuthProvider['fieldMapping'],
   ): { loginId?: string; profile: Record<string, unknown> } {
     const get = (obj: Record<string, unknown>, path: string): unknown =>
       path.split('.').reduce((cur: unknown, key) => (cur as Record<string, unknown>)?.[key], obj);
 
-    const src = externalUser as unknown as Record<string, unknown>;
+    const input = externalAuth as Record<string, unknown>;
+    const isFullResult = 'authenticated' in input || 'user' in input;
+    const response = isFullResult ? input : { user: input };
+    const externalUser = (isFullResult ? response.user : input) as
+      | (NonNullable<ExternalAuthResult['user']> & Record<string, unknown>)
+      | undefined;
+    const externalProfile = externalUser?.profile as Record<string, unknown> | undefined;
+
+    const getMappedUserValue = (path: string): unknown => {
+      if (!path.includes('.') && externalUser && path in externalUser) {
+        return externalUser[path];
+      }
+      return get(response, path);
+    };
+
+    const getMappedProfileValue = (path: string): unknown => {
+      if (!path.includes('.') && externalProfile && path in externalProfile) {
+        return externalProfile[path];
+      }
+      return get(response, path);
+    };
 
     const loginId = mapping?.loginId
-      ? (get(src, mapping.loginId) as string | undefined)
-      : externalUser.loginId;
+      ? (getMappedUserValue(mapping.loginId) as string | undefined)
+      : externalUser?.loginId;
 
     const profile: Record<string, unknown> = {};
-    if (externalUser.profile) {
+    if (externalProfile) {
       if (mapping?.profile) {
         for (const [extKey, localKey] of Object.entries(mapping.profile)) {
-          const val = get(externalUser.profile as unknown as Record<string, unknown>, extKey);
+          const val = getMappedProfileValue(extKey);
           if (val !== undefined) profile[localKey] = val;
         }
       } else {
-        Object.assign(profile, externalUser.profile);
+        Object.assign(profile, externalProfile);
+      }
+    } else if (mapping?.profile) {
+      for (const [extKey, localKey] of Object.entries(mapping.profile)) {
+        const val = getMappedProfileValue(extKey);
+        if (val !== undefined) profile[localKey] = val;
       }
     }
 

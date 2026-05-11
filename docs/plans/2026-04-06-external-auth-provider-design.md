@@ -125,12 +125,13 @@ Content-Type: application/json
 
 {
   "email": "user@example.com",
-  "password": "plain_password",
-  "tenantId": "550e8400-...",
-  "clientId": "abc123"
+  "password": "plain_password"
 }
 ```
 
+- `requestMapping`이 설정되지 않은 경우 기본값 `{ email, password }`만 전달된다.
+- `requestMapping.tenantId`, `requestMapping.clientId`가 설정된 경우에만 테넌트/클라이언트 컨텍스트를 request body에 포함한다. 기존 외부 인증 서버와의 호환성을 위해 기본적으로 포함하지 않는다.
+- `requestMapping`으로 필드명과 중첩 경로를 재정의할 수 있다. 설정 예와 결과는 `authori-integration-guide.md` §15 참조.
 - `password`는 평문으로 전달된다. HTTPS 필수.
 - 외부 서비스는 인증 성공 시 200, 실패 시 401 또는 `authenticated: false`를 반환해야 한다.
 - 타임아웃: 5초. 초과 시 `invalid_credentials`로 처리.

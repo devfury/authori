@@ -754,7 +754,199 @@ OAUTH_CLIENT_SECRET=<CONFIDENTIAL_CLIENT_SECRET>
 
 ---
 
-## 14. 오류 코드
+## 14. 외부 인증 호출 파라미터 매핑
+
+Authori는 사용자 로그인 시 외부 인증 서버에 POST 요청을 보낸다. 기본 request body는 다음과 같다.
+
+```json
+{
+  "email": "user@example.com",
+  "password": "plain_password"
+}
+```
+
+외부 인증 서버가 다른 필드명을 요구하면 관리자 화면의 **호출 파라미터 매핑** 섹션에서 필드명을 지정한다.
+
+| 설정 | 값 |
+|---|---|
+| 이메일 요청 필드 | `login_id` |
+| 비밀번호 요청 필드 | `passwd` |
+| 테넌트 ID 요청 필드 | `context.tenantId` |
+| 클라이언트 ID 요청 필드 | `context.clientId` |
+| 고정 파라미터 | `source=authori` |
+
+위 설정은 다음 request body를 만든다.
+
+```json
+{
+  "login_id": "user@example.com",
+  "passwd": "plain_password",
+  "context": {
+    "tenantId": "tenant-uuid",
+    "clientId": "oauth-client-id"
+  },
+  "source": "authori"
+}
+```
+
+규칙:
+
+- 이메일/비밀번호 필드를 비워두면 기본값(`email`, `password`)을 사용한다.
+- 테넌트 ID, 클라이언트 ID 요청 필드를 지정하지 않으면 request body에 포함하지 않는다.
+- 점(`.`) 경로를 사용하면 중첩 객체로 전송된다. 예: `credentials.email` → `{ "credentials": { "email": "..." } }`.
+- 고정 파라미터는 모든 요청에 항상 포함된다. 점 경로도 지원한다.
+
+외부 인증 서버가 여러 인증 헤더를 요구하면 관리자 화면의 **추가 인증 헤더**에 여러 행을 등록한다.
+
+| 헤더 이름 | 헤더 값 |
+|---|---|
+| `Authorization` | `Bearer <token>` |
+| `X-Tenant-Code` | `demo` |
+| `X-Solution-Code` | `mobile-emr` |
+
+기존 단일 인증 헤더 필드(`credentialHeader`, `credentialValue`)도 계속 지원된다. 동일한 헤더 이름이 단일 헤더와 추가 헤더에 모두 있으면 추가 헤더 값이 사용된다.
+
+### 외부 인증 요청 값 변환
+
+필드명 매핑 외에, 전송 전에 값 자체를 변환할 수 있다. `requestMapping.transforms`에 소스별 변환 파이프라인을 배열로 지정하며 순서대로 적용된다.
+
+관리자 화면의 **호출 파라미터 매핑** 섹션 하단 **값 변환** 영역에서 이메일/비밀번호 드롭다운으로 단순 변환을 선택할 수 있다.
+
+#### 예시 1 — 이메일에서 아이디 추출
+
+외부 서비스가 `loginId`에 `@` 앞 부분만 받는 경우:
+
+```json
+{
+  "email": "loginId",
+  "transforms": {
+    "email": ["email_prefix"]
+  }
+}
+```
+
+`"test1@ezcaretech.com"` → `"test1"` → `loginId: "test1"` 으로 전송
+
+#### 예시 2 — 비밀번호 Base64 인코딩
+
+```json
+{
+  "transforms": {
+    "password": ["base64"]
+  }
+}
+```
+
+`"1234"` → `"MTIzNA=="` → `password: "MTIzNA=="` 으로 전송
+
+#### 예시 3 — 파이프라인 조합
+
+```json
+{
+  "email": "loginId",
+  "password": "passwd",
+  "transforms": {
+    "email": ["email_prefix", "uppercase"],
+    "password": ["trim", "md5"]
+  }
+}
+```
+
+| 소스 | 원본 | 변환 결과 | 전송 필드 |
+|---|---|---|---|
+| email | `test1@ezcaretech.com` | `TEST1` | `loginId` |
+| password | ` 1234 ` | MD5 해시 | `passwd` |
+
+#### 지원 변환 목록
+
+| 식별자 | 설명 |
+|---|---|
+| `email_prefix` | `@` 앞 부분(local-part) 추출 |
+| `email_domain` | `@` 뒷 부분(domain) 추출 |
+| `base64` | Base64 인코딩 |
+| `base64url` | URL-safe Base64 인코딩 (padding 없음) |
+| `md5` | MD5 해시 hex — 레거시 시스템 호환 |
+| `sha256` | SHA-256 해시 hex |
+| `uppercase` | 대문자 변환 |
+| `lowercase` | 소문자 변환 |
+| `trim` | 앞뒤 공백 제거 |
+
+#### 파라미터화된 변환 (JSON 직접 설정)
+
+드롭다운에서 선택할 수 없는 변환은 JSON 직접 설정으로 사용한다.
+
+| type | 파라미터 | 설명 |
+|---|---|---|
+| `prefix` | `value` | 값 앞에 고정 문자열 추가 |
+| `suffix` | `value` | 값 뒤에 고정 문자열 추가 |
+| `template` | `pattern` | `{value}` 자리에 삽입. 예: `"Bearer {value}"` |
+| `regex_extract` | `pattern`, `group?` | 정규식 캡처 그룹 추출 (기본 group=1) |
+| `substring` | `start`, `end?` | 부분 문자열 |
+
+예시:
+
+```json
+{
+  "transforms": {
+    "password": [{ "type": "prefix", "value": "ENC:" }, "base64"]
+  }
+}
+```
+
+`"1234"` → `"ENC:1234"` → `"RU5DOjEyMzQ="`
+
+---
+
+## 15. 외부 인증 응답 매핑
+
+외부 인증 응답이 `user.profile`을 쓰지 않고 root 또는 `user` 객체에 업무 필드를 직접 포함하는 경우, 외부 응답 source 경로를 `fieldMapping.profile`의 key로 지정하고 로컬 profile key를 value로 지정한다.
+
+```json
+{
+  "authenticated": true,
+  "tenantCode": "demo",
+  "solutionCode": "mobile-emr",
+  "user": {
+    "loginId": "doctor001",
+    "hospitalCode": "EZCT1000",
+    "employeeNo": "12345",
+    "departmentCode": "IM",
+    "departmentName": "내과",
+    "email": "doctor001@example.com"
+  }
+}
+```
+
+위 응답은 다음처럼 매핑한다.
+
+```json
+{
+  "loginId": "user.loginId",
+  "profile": {
+    "tenantCode": "tenantCode",
+    "solutionCode": "solutionCode",
+    "user.hospitalCode": "hospitalCode",
+    "user.employeeNo": "employeeNo",
+    "user.departmentCode": "departmentCode",
+    "user.departmentName": "departmentName"
+  }
+}
+```
+
+기존 `user.profile` 기반 매핑도 계속 지원한다.
+
+```json
+{
+  "profile": {
+    "dept": "departmentCode",
+    "empNo": "employeeNo"
+  }
+}
+```
+
+---
+
+## 16. 오류 코드
 
 Authorization:
 

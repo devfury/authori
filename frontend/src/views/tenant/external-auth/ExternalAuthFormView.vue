@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { externalAuthApi, type CreateProviderPayload, type FieldMapping } from '@/api/external-auth'
+import { externalAuthApi, type CreateProviderPayload, type FieldMapping, type RequestMapping, type SimpleTransform } from '@/api/external-auth'
 import { clientsApi, type OAuthClient } from '@/api/clients'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
@@ -18,14 +18,37 @@ const enabled = ref(true)
 const providerUrl = ref('')
 const credentialHeader = ref('')
 const credentialValue = ref('')
+const credentialHeaderRows = ref<{ name: string; value: string }[]>([])
 const jitProvision = ref(true)
 const syncOnLogin = ref(true)
 
 // 필드 매핑
 const mappingEmail = ref('')
-const mappingName = ref('')
 const mappingLoginId = ref('')
 const profileMappingRows = ref<{ ext: string; local: string }[]>([])
+
+// 호출 파라미터 매핑
+const requestEmail = ref('')
+const requestPassword = ref('')
+const requestTenantId = ref('')
+const requestClientId = ref('')
+const staticParamRows = ref<{ key: string; value: string }[]>([])
+
+// 값 변환
+const emailTransforms = ref<string[]>([])
+const passwordTransforms = ref<string[]>([])
+
+const SIMPLE_TRANSFORMS: { value: SimpleTransform; label: string }[] = [
+  { value: 'email_prefix', label: '이메일 앞 부분 (@앞)' },
+  { value: 'email_domain', label: '이메일 도메인 (@뒤)' },
+  { value: 'base64', label: 'Base64 인코딩' },
+  { value: 'base64url', label: 'Base64URL 인코딩' },
+  { value: 'md5', label: 'MD5 해시 (레거시)' },
+  { value: 'sha256', label: 'SHA-256 해시' },
+  { value: 'uppercase', label: '대문자 변환' },
+  { value: 'lowercase', label: '소문자 변환' },
+  { value: 'trim', label: '공백 제거' },
+]
 
 // 클라이언트 목록 (clientId 선택용)
 const clients = ref<OAuthClient[]>([])
@@ -43,7 +66,28 @@ function removeProfileRow(i: number) {
   profileMappingRows.value.splice(i, 1)
 }
 
+function addCredentialHeaderRow() {
+  credentialHeaderRows.value.push({ name: '', value: '' })
+}
+
+function removeCredentialHeaderRow(i: number) {
+  credentialHeaderRows.value.splice(i, 1)
+}
+
+function addStaticParamRow() {
+  staticParamRows.value.push({ key: '', value: '' })
+}
+
+function removeStaticParamRow(i: number) {
+  staticParamRows.value.splice(i, 1)
+}
+
 function buildPayload(): CreateProviderPayload {
+  const credentialHeaders: Record<string, string> = {}
+  for (const row of credentialHeaderRows.value) {
+    if (row.name && row.value) credentialHeaders[row.name] = row.value
+  }
+
   const profileMapping: Record<string, string> = {}
   for (const row of profileMappingRows.value) {
     if (row.ext && row.local) profileMapping[row.ext] = row.local
@@ -51,9 +95,27 @@ function buildPayload(): CreateProviderPayload {
 
   const fieldMapping: FieldMapping = {}
   if (mappingEmail.value) fieldMapping.email = mappingEmail.value
-  if (mappingName.value) fieldMapping.name = mappingName.value
   if (mappingLoginId.value) fieldMapping.loginId = mappingLoginId.value
   if (Object.keys(profileMapping).length > 0) fieldMapping.profile = profileMapping
+
+  const staticParams: Record<string, string> = {}
+  for (const row of staticParamRows.value) {
+    if (row.key && row.value) staticParams[row.key] = row.value
+  }
+
+  const requestMapping: RequestMapping = {}
+  if (requestEmail.value) requestMapping.email = requestEmail.value
+  if (requestPassword.value) requestMapping.password = requestPassword.value
+  if (requestTenantId.value) requestMapping.tenantId = requestTenantId.value
+  if (requestClientId.value) requestMapping.clientId = requestClientId.value
+  if (Object.keys(staticParams).length > 0) requestMapping.staticParams = staticParams
+
+  const transforms: RequestMapping['transforms'] = {}
+  const validEmailTransforms = emailTransforms.value.filter(Boolean) as SimpleTransform[]
+  const validPasswordTransforms = passwordTransforms.value.filter(Boolean) as SimpleTransform[]
+  if (validEmailTransforms.length > 0) transforms.email = validEmailTransforms
+  if (validPasswordTransforms.length > 0) transforms.password = validPasswordTransforms
+  if (Object.keys(transforms).length > 0) requestMapping.transforms = transforms
 
   return {
     clientId: applyToAll.value ? null : (clientId.value || null),
@@ -61,9 +123,11 @@ function buildPayload(): CreateProviderPayload {
     providerUrl: providerUrl.value,
     credentialHeader: credentialHeader.value || null,
     credentialValue: credentialValue.value || null,
+    credentialHeaders: Object.keys(credentialHeaders).length > 0 ? credentialHeaders : null,
     jitProvision: jitProvision.value,
     syncOnLogin: syncOnLogin.value,
     fieldMapping: Object.keys(fieldMapping).length > 0 ? fieldMapping : null,
+    requestMapping: Object.keys(requestMapping).length > 0 ? requestMapping : null,
   }
 }
 
@@ -74,14 +138,37 @@ function fillForm(data: Awaited<ReturnType<typeof externalAuthApi.findOne>>['dat
   providerUrl.value = data.providerUrl
   credentialHeader.value = data.credentialHeader ?? ''
   credentialValue.value = data.credentialValue ?? ''
+  credentialHeaderRows.value = data.credentialHeaders
+    ? Object.entries(data.credentialHeaders).map(([name, value]) => ({ name, value }))
+    : []
   jitProvision.value = data.jitProvision
   syncOnLogin.value = data.syncOnLogin
   if (data.fieldMapping) {
     mappingEmail.value = data.fieldMapping.email ?? ''
-    mappingName.value = data.fieldMapping.name ?? ''
     mappingLoginId.value = data.fieldMapping.loginId ?? ''
     if (data.fieldMapping.profile) {
       profileMappingRows.value = Object.entries(data.fieldMapping.profile).map(([ext, local]) => ({ ext, local }))
+    }
+  }
+  if (data.requestMapping) {
+    requestEmail.value = data.requestMapping.email ?? ''
+    requestPassword.value = data.requestMapping.password ?? ''
+    requestTenantId.value = data.requestMapping.tenantId ?? ''
+    requestClientId.value = data.requestMapping.clientId ?? ''
+    if (data.requestMapping.staticParams) {
+      staticParamRows.value = Object.entries(data.requestMapping.staticParams)
+        .map(([key, value]) => ({ key, value }))
+    }
+    const simpleKeys = new Set(SIMPLE_TRANSFORMS.map(t => t.value as string))
+    if (data.requestMapping.transforms?.email) {
+      emailTransforms.value = data.requestMapping.transforms.email.filter(
+        (t) => typeof t === 'string' && simpleKeys.has(t)
+      ) as string[]
+    }
+    if (data.requestMapping.transforms?.password) {
+      passwordTransforms.value = data.requestMapping.transforms.password.filter(
+        (t) => typeof t === 'string' && simpleKeys.has(t)
+      ) as string[]
     }
   }
 }
@@ -298,8 +385,22 @@ onMounted(async () => {
           </div>
         </div>
         <p class="text-xs text-gray-500 mt-1">
-          설정 시 Authori가 요청 헤더에 지정한 값을 포함해 전송합니다. 외부 서버에서 해당 헤더를 검증합니다. 설정하지 않으면 헤더 없이 요청합니다.
+          설정 시 Authori가 요청 헤더에 지정한 값을 포함해 전송합니다. 외부 서버에서 해당 헤더를 검증합니다. 추가 헤더와 함께 전송할 수 있습니다.
         </p>
+
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs text-gray-500">추가 인증 헤더</label>
+            <button type="button" class="text-xs text-indigo-600 hover:text-indigo-800" @click="addCredentialHeaderRow">+ 추가</button>
+          </div>
+          <div v-if="credentialHeaderRows.length === 0" class="text-xs text-gray-400 py-2">추가 헤더 없음</div>
+          <div v-for="(row, i) in credentialHeaderRows" :key="i" class="flex gap-2 items-center mb-2">
+            <input v-model="row.name" type="text" placeholder="헤더 이름" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <span class="text-gray-400 text-xs">:</span>
+            <input v-model="row.value" type="password" placeholder="헤더 값" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button type="button" class="text-red-400 hover:text-red-600 text-xs px-1" @click="removeCredentialHeaderRow(i)">✕</button>
+          </div>
+        </div>
       </div>
 
       <!-- 프로비저닝 설정 -->
@@ -323,6 +424,81 @@ onMounted(async () => {
         </label>
       </div>
 
+      <!-- 호출 파라미터 매핑 -->
+      <div class="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        <div>
+          <h2 class="text-sm font-semibold text-gray-900">호출 파라미터 매핑 <span class="text-xs font-normal text-gray-400">(선택, 기본값: email/password)</span></h2>
+          <p class="text-xs text-gray-400 mt-1">외부 인증 서버가 요구하는 요청 필드명이 다를 경우 Authori 입력값을 해당 필드명으로 매핑합니다. 점 경로를 사용하면 중첩 객체로 전송됩니다.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">이메일 요청 필드</label>
+            <input v-model="requestEmail" type="text" placeholder="email 또는 credentials.email" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">비밀번호 요청 필드</label>
+            <input v-model="requestPassword" type="text" placeholder="password 또는 credentials.password" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">테넌트 ID 요청 필드</label>
+            <input v-model="requestTenantId" type="text" placeholder="tenantId 또는 context.tenantId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">클라이언트 ID 요청 필드</label>
+            <input v-model="requestClientId" type="text" placeholder="clientId 또는 context.clientId" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs text-gray-500">고정 파라미터</label>
+            <button type="button" class="text-xs text-indigo-600 hover:text-indigo-800" @click="addStaticParamRow">+ 추가</button>
+          </div>
+          <div v-if="staticParamRows.length === 0" class="text-xs text-gray-400 py-2">고정 파라미터 없음</div>
+          <div v-for="(row, i) in staticParamRows" :key="i" class="flex gap-2 items-center mb-2">
+            <input v-model="row.key" type="text" placeholder="요청 필드" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <span class="text-gray-400 text-xs">=</span>
+            <input v-model="row.value" type="text" placeholder="고정 값" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button type="button" class="text-red-400 hover:text-red-600 text-xs px-1" @click="removeStaticParamRow(i)">✕</button>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-100 pt-4">
+          <div class="text-xs font-medium text-gray-700 mb-1">값 변환 <span class="text-gray-400 font-normal">(선택, 순서대로 적용)</span></div>
+          <p class="text-xs text-gray-400 mb-3">전송 전 email 또는 password 값을 변환합니다. 예: 이메일에서 아이디만 추출, 비밀번호를 Base64로 인코딩.</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">이메일 변환</label>
+              <div class="space-y-1">
+                <div v-for="(_, i) in emailTransforms" :key="i" class="flex gap-1 items-center">
+                  <select v-model="emailTransforms[i]" class="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">선택</option>
+                    <option v-for="t in SIMPLE_TRANSFORMS" :key="t.value" :value="t.value">{{ t.label }}</option>
+                  </select>
+                  <button type="button" class="text-red-400 hover:text-red-600 text-xs px-1" @click="emailTransforms.splice(i, 1)">✕</button>
+                </div>
+                <button type="button" class="text-xs text-indigo-600 hover:text-indigo-800" @click="emailTransforms.push('')">+ 변환 추가</button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">비밀번호 변환</label>
+              <div class="space-y-1">
+                <div v-for="(_, i) in passwordTransforms" :key="i" class="flex gap-1 items-center">
+                  <select v-model="passwordTransforms[i]" class="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">선택</option>
+                    <option v-for="t in SIMPLE_TRANSFORMS" :key="t.value" :value="t.value">{{ t.label }}</option>
+                  </select>
+                  <button type="button" class="text-red-400 hover:text-red-600 text-xs px-1" @click="passwordTransforms.splice(i, 1)">✕</button>
+                </div>
+                <button type="button" class="text-xs text-indigo-600 hover:text-indigo-800" @click="passwordTransforms.push('')">+ 변환 추가</button>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">prefix, suffix, template, regex_extract 등 파라미터가 필요한 변환은 JSON 직접 설정으로 사용 가능합니다.</p>
+        </div>
+      </div>
+
       <!-- 필드 매핑 -->
       <div class="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
         <div>
@@ -334,10 +510,6 @@ onMounted(async () => {
           <div>
             <label class="block text-xs text-gray-500 mb-1">이메일 필드</label>
             <input v-model="mappingEmail" type="text" placeholder="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">이름 필드</label>
-            <input v-model="mappingName" type="text" placeholder="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
             <label class="block text-xs text-gray-500 mb-1">로그인 ID 필드</label>
