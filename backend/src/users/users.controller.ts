@@ -117,9 +117,13 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '사용자 비활성화' })
-  deactivate(@Param('tenantId') tenantId: string, @Param('id') id: string, @Req() req: Request) {
-    return this.usersService.deactivate(tenantId, id, {
+  @ApiOperation({ summary: '사용자 영구 삭제' })
+  remove(
+    @Param('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    return this.usersService.delete(tenantId, id, {
       actorId: req.admin?.sub ?? null,
       actorType: req.admin ? 'admin' : null,
       ipAddress: req.ip ?? null,
