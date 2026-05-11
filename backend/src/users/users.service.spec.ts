@@ -313,4 +313,8 @@ describe('UsersService', () => {
       await expect(service.unlock(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+
+  it('AuditAction has USER_DELETED value', () => {
+    expect(AuditAction.USER_DELETED).toBe('USER.DELETED');
+  });
 });
