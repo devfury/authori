@@ -317,4 +317,78 @@ describe('UsersService', () => {
   it('AuditAction has USER_DELETED value', () => {
     expect(AuditAction.USER_DELETED).toBe('USER.DELETED');
   });
+
+  describe('delete', () => {
+    let userRepoMock: { findOne: jest.Mock };
+    let auditSvc: { record: jest.Mock };
+    let dataSource: { transaction: jest.Mock };
+    let managerMock: { delete: jest.Mock; remove: jest.Mock };
+
+    const userToDelete = {
+      id: userId,
+      tenantId,
+      email: 'lee@example.com',
+      status: UserStatus.ACTIVE,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      profile: { profileJsonb: {} },
+    };
+
+    beforeEach(() => {
+      userRepoMock = {
+        findOne: jest.fn().mockResolvedValue(structuredClone(userToDelete)),
+      };
+      auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
+      managerMock = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        remove: jest.fn().mockResolvedValue(undefined),
+      };
+      dataSource = {
+        transaction: jest.fn().mockImplementation(async (cb) => cb(managerMock)),
+      };
+
+      service = new UsersService(
+        userRepoMock as never,
+        {} as never,
+        dataSource as never,
+        {} as never,
+        auditSvc as never,
+      );
+    });
+
+    it('deletes Consent, AccessToken, RefreshToken, AuthorizationCode then User in a transaction', async () => {
+      await service.delete(tenantId, userId);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(managerMock.delete).toHaveBeenCalledTimes(4);
+      expect(managerMock.remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('records USER_DELETED audit event after transaction', async () => {
+      await service.delete(tenantId, userId, {
+        actorId: 'admin-1',
+        actorType: 'admin',
+        ipAddress: '10.0.0.1',
+        userAgent: 'test-agent',
+        requestId: 'req-1',
+      });
+
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId,
+          action: AuditAction.USER_DELETED,
+          targetType: 'user',
+          targetId: userId,
+          metadata: { email: 'lee@example.com' },
+          actorId: 'admin-1',
+        }),
+      );
+    });
+
+    it('throws NotFoundException when user does not exist', async () => {
+      userRepoMock.findOne.mockResolvedValue(null);
+
+      await expect(service.delete(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });

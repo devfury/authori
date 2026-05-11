@@ -7,6 +7,10 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
   AuditAction,
+  AuthorizationCode,
+  AccessToken,
+  Consent,
+  RefreshToken,
   User,
   UserProfile,
   UserStatus,
@@ -306,6 +310,31 @@ export class UsersService {
       action: AuditAction.USER_UNLOCKED,
       targetType: 'user',
       targetId: id,
+      ...ctx,
+    });
+  }
+
+  async delete(
+    tenantId: string,
+    id: string,
+    ctx?: AuditContext,
+  ): Promise<void> {
+    const user = await this.findOne(tenantId, id);
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(Consent, { tenantId, userId: id });
+      await manager.delete(AccessToken, { tenantId, userId: id });
+      await manager.delete(RefreshToken, { tenantId, userId: id });
+      await manager.delete(AuthorizationCode, { tenantId, userId: id });
+      await manager.remove(User, user);
+    });
+
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_DELETED,
+      targetType: 'user',
+      targetId: id,
+      metadata: { email: user.email },
       ...ctx,
     });
   }
