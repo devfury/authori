@@ -1,6 +1,15 @@
 import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UserStatus, AuditAction } from '../database/entities';
+import {
+  UserStatus,
+  AuditAction,
+  Consent,
+  AccessToken,
+  RefreshToken,
+  AuthorizationCode,
+  UserProfile,
+  User,
+} from '../database/entities';
 
 describe('UsersService', () => {
   const tenantId = 'tenant-1';
@@ -356,12 +365,18 @@ describe('UsersService', () => {
       );
     });
 
-    it('deletes Consent, AccessToken, RefreshToken, AuthorizationCode then User in a transaction', async () => {
+    it('deletes Consent, AccessToken, RefreshToken, AuthorizationCode, UserProfile then User in a transaction', async () => {
       await service.delete(tenantId, userId);
 
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(managerMock.delete).toHaveBeenCalledTimes(4);
-      expect(managerMock.remove).toHaveBeenCalledTimes(1);
+      expect(managerMock.delete).toHaveBeenCalledTimes(6);
+      expect(managerMock.remove).not.toHaveBeenCalled();
+      expect(managerMock.delete).toHaveBeenNthCalledWith(1, Consent, { tenantId, userId });
+      expect(managerMock.delete).toHaveBeenNthCalledWith(2, AccessToken, { tenantId, userId });
+      expect(managerMock.delete).toHaveBeenNthCalledWith(3, RefreshToken, { tenantId, userId });
+      expect(managerMock.delete).toHaveBeenNthCalledWith(4, AuthorizationCode, { tenantId, userId });
+      expect(managerMock.delete).toHaveBeenNthCalledWith(5, UserProfile, { userId });
+      expect(managerMock.delete).toHaveBeenNthCalledWith(6, User, { tenantId, id: userId });
     });
 
     it('records USER_DELETED audit event after transaction', async () => {

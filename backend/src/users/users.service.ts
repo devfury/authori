@@ -326,7 +326,8 @@ export class UsersService {
       await manager.delete(AccessToken, { tenantId, userId: id });
       await manager.delete(RefreshToken, { tenantId, userId: id });
       await manager.delete(AuthorizationCode, { tenantId, userId: id });
-      await manager.remove(User, user);
+      await manager.delete(UserProfile, { userId: id });
+      await manager.delete(User, { tenantId, id });
     });
 
     await this.auditService.record({
