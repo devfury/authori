@@ -207,7 +207,7 @@ onMounted(() => {
             <tbody class="divide-y divide-gray-100" :class="{ 'opacity-50': loading }">
               <tr v-for="tenant in tenants" :key="tenant.id" class="hover:bg-gray-50 transition-colors">
                 <td class="px-4 py-3 font-medium text-gray-900">
-                  <RouterLink :to="`/admin/tenants/${tenant.id}`" class="hover:text-indigo-600">
+                  <RouterLink :to="`/admin/tenants/${tenant.id}/dashboard`" class="hover:text-indigo-600">
                     {{ tenant.name }}
                   </RouterLink>
                 </td>
@@ -215,12 +215,6 @@ onMounted(() => {
                 <td class="px-4 py-3"><StatusBadge :status="tenant.status" /></td>
                 <td class="px-4 py-3 text-gray-400">{{ new Date(tenant.createdAt).toLocaleDateString('ko-KR') }}</td>
                 <td class="px-4 py-3 text-right">
-                  <RouterLink
-                    :to="`/admin/tenants/${tenant.id}/dashboard`"
-                    class="text-xs text-indigo-600 hover:underline mr-3"
-                  >
-                    관리
-                  </RouterLink>
                   <button
                     v-if="tenant.status !== TenantStatus.ACTIVE"
                     class="text-xs text-green-600 hover:underline mr-3"

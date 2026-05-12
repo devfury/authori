@@ -14,6 +14,7 @@ import {
   Key,
   Shield,
   Lock,
+  Settings,
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -38,6 +39,7 @@ const tenantLinks = computed(() => {
   if (!props.tenantId) return []
   return [
     { name: 'tenant-dashboard', label: '대시보드', icon: LayoutDashboard, params: { tenantId: props.tenantId } },
+    { name: 'tenant-settings', label: '테넌트 설정', icon: Settings, params: { tenantId: props.tenantId } },
     { name: 'client-list', label: 'OAuth 클라이언트', icon: AppWindow, params: { tenantId: props.tenantId } },
     { name: 'scope-list', label: 'OAuth2 스코프', icon: Key, params: { tenantId: props.tenantId } },
     { name: 'role-list', label: '역할 관리', icon: Shield, params: { tenantId: props.tenantId } },

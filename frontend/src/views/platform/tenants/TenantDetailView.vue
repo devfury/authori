@@ -6,10 +6,47 @@ import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
 const route = useRoute()
-const id = route.params.id as string
+const id = (route.params.tenantId || route.params.id) as string
 
 const tenant = ref<Tenant | null>(null)
 const loading = ref(true)
+
+// ── 이름 수정 ────────────────────────────────────────────
+const editingName = ref(false)
+const editName = ref('')
+const savingName = ref(false)
+const nameError = ref('')
+
+function startEditName() {
+  if (!tenant.value) return
+  editName.value = tenant.value.name
+  nameError.value = ''
+  editingName.value = true
+}
+
+function cancelEditName() {
+  editingName.value = false
+}
+
+async function saveNameEdit() {
+  if (!editName.value.trim()) {
+    nameError.value = '이름을 입력하세요.'
+    return
+  }
+  savingName.value = true
+  nameError.value = ''
+  try {
+    const { data } = await tenantsApi.update(id, { name: editName.value.trim() })
+    tenant.value = data
+    editingName.value = false
+  } catch {
+    nameError.value = '저장 중 오류가 발생했습니다.'
+  } finally {
+    savingName.value = false
+  }
+}
+
+// ── 보안 설정 ────────────────────────────────────────────
 const saving = ref(false)
 const error = ref('')
 const successMsg = ref('')
@@ -66,17 +103,64 @@ onMounted(load)
         </template>
       </PageHeader>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-          <p class="text-xs text-gray-400 mb-1">슬러그</p>
-          <p class="text-sm font-mono text-gray-800">{{ tenant.slug }}</p>
+      <!-- 기본 정보 -->
+      <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4 space-y-4">
+        <h2 class="text-sm font-semibold text-gray-900">기본 정보</h2>
+
+        <!-- 이름 -->
+        <div>
+          <p class="text-xs text-gray-400 mb-1">이름</p>
+          <template v-if="!editingName">
+            <div class="flex items-center gap-3">
+              <p class="text-sm text-gray-800">{{ tenant.name }}</p>
+              <button
+                class="text-xs text-indigo-600 hover:underline"
+                @click="startEditName"
+              >
+                수정
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="editName"
+                type="text"
+                class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-64"
+                @keyup.enter="saveNameEdit"
+                @keyup.esc="cancelEditName"
+              />
+              <button
+                :disabled="savingName"
+                class="px-3 py-1.5 text-xs bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                @click="saveNameEdit"
+              >
+                {{ savingName ? '저장 중...' : '저장' }}
+              </button>
+              <button
+                class="px-3 py-1.5 text-xs border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                @click="cancelEditName"
+              >
+                취소
+              </button>
+            </div>
+            <p v-if="nameError" class="mt-1 text-xs text-red-600">{{ nameError }}</p>
+          </template>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-          <p class="text-xs text-gray-400 mb-1">Issuer</p>
-          <p class="text-sm font-mono text-gray-800">{{ tenant.issuer ?? '—' }}</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs text-gray-400 mb-1">슬러그</p>
+            <p class="text-sm font-mono text-gray-800">{{ tenant.slug }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-1">Issuer</p>
+            <p class="text-sm font-mono text-gray-800">{{ tenant.issuer ?? '—' }}</p>
+          </div>
         </div>
       </div>
 
+      <!-- 보안 설정 -->
       <div class="bg-white rounded-xl border border-gray-200 p-6">
         <h2 class="text-sm font-semibold text-gray-900 mb-4">보안 설정</h2>
         <form class="space-y-4" @submit.prevent="saveSettings">
