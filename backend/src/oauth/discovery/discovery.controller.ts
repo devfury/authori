@@ -3,7 +3,6 @@ import {
   Controller,
   ForbiddenException,
   Get,
-  Headers,
   Ip,
   Patch,
   Req,
@@ -13,7 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { verify } from 'jsonwebtoken';
 import { createPublicKey } from 'crypto';
 import type { Request } from 'express';
@@ -98,15 +97,16 @@ export class DiscoveryController {
   }
 
   @Get('oauth/userinfo')
+  @ApiBearerAuth()
   @UseGuards(RequireTenantGuard)
   @ApiOperation({ summary: 'UserInfo (Bearer 액세스 토큰 필요)' })
   async userinfo(
     @CurrentTenant() tenant: TenantContext,
-    @Headers('authorization') authHeader?: string,
+    @Req() req: Request,
   ) {
     const { sub, scopes } = await this.verifyAccessToken(
       tenant.tenantId,
-      authHeader,
+      req.headers['authorization'],
     );
 
     const user = await this.userRepo.findOne({
@@ -131,6 +131,7 @@ export class DiscoveryController {
   }
 
   @Patch('oauth/userinfo')
+  @ApiBearerAuth()
   @UseGuards(RequireTenantGuard)
   @ApiOperation({
     summary: '본인 프로필 수정 (profile:write scope 필요)',
@@ -140,11 +141,10 @@ export class DiscoveryController {
     @Body() dto: SelfUpdateUserDto,
     @Req() req: Request,
     @Ip() ip: string,
-    @Headers('authorization') authHeader?: string,
   ) {
     const { sub, scopes } = await this.verifyAccessToken(
       tenant.tenantId,
-      authHeader,
+      req.headers['authorization'],
     );
     if (!scopes.has('profile:write')) {
       throw new ForbiddenException('insufficient_scope');

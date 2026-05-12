@@ -485,15 +485,16 @@ git commit -m "chore(discovery): wire UsersModule for userinfo write path"
 
 ```typescript
   @Get('oauth/userinfo')
+  @ApiBearerAuth()
   @UseGuards(RequireTenantGuard)
   @ApiOperation({ summary: 'UserInfo (Bearer 액세스 토큰 필요)' })
   async userinfo(
     @CurrentTenant() tenant: TenantContext,
-    @Headers('authorization') authHeader?: string,
+    @Req() req: Request,
   ) {
     const { sub, scopes } = await this.verifyAccessToken(
       tenant.tenantId,
-      authHeader,
+      req.headers['authorization'],
     );
 
     const user = await this.userRepo.findOne({
@@ -748,6 +749,7 @@ import { SelfUpdateUserDto } from '../../users/dto/self-update-user.dto';
 
 ```typescript
   @Patch('oauth/userinfo')
+  @ApiBearerAuth()
   @UseGuards(RequireTenantGuard)
   @ApiOperation({
     summary: '본인 프로필 수정 (profile:write scope 필요)',
@@ -757,11 +759,10 @@ import { SelfUpdateUserDto } from '../../users/dto/self-update-user.dto';
     @Body() dto: SelfUpdateUserDto,
     @Req() req: Request,
     @Ip() ip: string,
-    @Headers('authorization') authHeader?: string,
   ) {
     const { sub, scopes } = await this.verifyAccessToken(
       tenant.tenantId,
-      authHeader,
+      req.headers['authorization'],
     );
     if (!scopes.has('profile:write')) {
       throw new ForbiddenException('insufficient_scope');
