@@ -32,6 +32,7 @@ async function bootstrap() {
       .setDescription('OAuth2/OIDC 멀티테넌트 인증 플랫폼 API')
       .setVersion('0.1.0')
       .addBearerAuth()
+      .addBasicAuth({ type: 'http', scheme: 'basic' }, 'ClientBasicAuth')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
