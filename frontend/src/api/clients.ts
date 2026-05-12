@@ -31,10 +31,16 @@ export interface CreateClientPayload {
 
 export interface UpdateClientPayload {
   name?: string
+  type?: 'PUBLIC' | 'CONFIDENTIAL'
   allowedScopes?: string[]
   allowedGrants?: string[]
   redirectUris?: string[]
   branding?: LoginBranding | null
+}
+
+export interface ClientUpdatedResponse {
+  client: OAuthClient
+  plainSecret: string | null
 }
 
 export interface ClientCreatedResponse extends OAuthClient {
@@ -66,7 +72,7 @@ export const clientsApi = {
     return http.post<ClientCreatedResponse>(`/admin/tenants/${tenantId}/clients`, payload)
   },
   update(tenantId: string, clientId: string, payload: UpdateClientPayload) {
-    return http.patch<OAuthClient>(`/admin/tenants/${tenantId}/clients/${clientId}`, payload)
+    return http.patch<ClientUpdatedResponse>(`/admin/tenants/${tenantId}/clients/${clientId}`, payload)
   },
   rotateSecret(tenantId: string, clientId: string) {
     return http.post<{ plainSecret: string }>(

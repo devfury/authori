@@ -23,6 +23,7 @@ const availableScopes = ref<TenantScope[]>([])
 // ── 수정 모드 ───────────────────────────────────────────
 const editing = ref(false)
 const editName = ref('')
+const editType = ref<'PUBLIC' | 'CONFIDENTIAL'>('CONFIDENTIAL')
 const editScopes = ref<string[]>([])
 const editGrants = ref<string[]>([])
 const editRedirectUris = ref('')
@@ -39,6 +40,7 @@ const GRANT_OPTIONS = [
 function startEdit() {
   if (!client.value) return
   editName.value = client.value.name
+  editType.value = client.value.type
   editScopes.value = [...client.value.allowedScopes]
   editGrants.value = [...client.value.allowedGrants]
   editRedirectUris.value = client.value.redirectUris.map((r) => r.uri).join('\n')
@@ -61,12 +63,14 @@ async function saveEdit() {
   try {
     const { data } = await clientsApi.update(tenantId, clientId, {
       name: editName.value,
+      type: editType.value,
       allowedScopes: editScopes.value,
       allowedGrants: editGrants.value,
       redirectUris: editRedirectUris.value.split('\n').map((s) => s.trim()).filter(Boolean),
       branding: Object.keys(editBranding.value).length > 0 ? editBranding.value : null,
     })
-    client.value = data
+    client.value = data.client
+    if (data.plainSecret) newSecret.value = data.plainSecret
     editing.value = false
   } catch (e: unknown) {
     const axiosError = e as { response?: { data?: { message?: string | string[] } } }
@@ -190,6 +194,38 @@ onMounted(load)
                   type="text"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">클라이언트 타입</label>
+                <div class="flex gap-3">
+                  <label
+                    class="flex-1 flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors"
+                    :class="editType === 'CONFIDENTIAL' ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
+                  >
+                    <input v-model="editType" type="radio" value="CONFIDENTIAL" class="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer shrink-0" />
+                    <div>
+                      <div class="text-sm font-medium text-gray-800">Confidential</div>
+                      <div class="text-xs text-gray-500 mt-0.5">Client Secret 인증 (서버 사이드 앱)</div>
+                    </div>
+                  </label>
+                  <label
+                    class="flex-1 flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors"
+                    :class="editType === 'PUBLIC' ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
+                  >
+                    <input v-model="editType" type="radio" value="PUBLIC" class="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer shrink-0" />
+                    <div>
+                      <div class="text-sm font-medium text-gray-800">Public</div>
+                      <div class="text-xs text-gray-500 mt-0.5">Secret 없음, PKCE 필수 (SPA · 모바일)</div>
+                    </div>
+                  </label>
+                </div>
+                <p v-if="client && editType !== client.type && editType === 'CONFIDENTIAL'" class="mt-2 text-xs text-amber-600">
+                  Public → Confidential 전환 시 새 Client Secret이 발급됩니다. 저장 후 한 번만 표시됩니다.
+                </p>
+                <p v-if="client && editType !== client.type && editType === 'PUBLIC'" class="mt-2 text-xs text-red-600">
+                  Confidential → Public 전환 시 기존 Client Secret이 즉시 삭제됩니다.
+                </p>
               </div>
 
               <div>

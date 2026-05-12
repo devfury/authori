@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsEnum, IsHexColor, IsOptional, IsString, IsUrl, ValidateNested } from 'class-validator';
-import { ClientStatus } from '../../../database/entities';
+import { ClientStatus, ClientType } from '../../../database/entities';
 
 /** 빈 문자열을 null로 변환 */
 const emptyToNull = () => Transform(({ value }) => (value === '' ? null : value));
@@ -41,6 +41,11 @@ export class UpdateClientDto {
   @IsOptional()
   @IsEnum(ClientStatus)
   status?: ClientStatus;
+
+  @ApiPropertyOptional({ enum: ClientType })
+  @IsOptional()
+  @IsEnum(ClientType)
+  type?: ClientType;
 
   @ApiPropertyOptional()
   @IsOptional()

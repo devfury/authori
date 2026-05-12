@@ -21,6 +21,12 @@ export interface CreatedClientResult {
   plainSecret: string | null;
 }
 
+export interface UpdatedClientResult {
+  client: OAuthClient;
+  /** PUBLIC→CONFIDENTIAL 전환 시에만 반환. 이후 조회 불가 */
+  plainSecret: string | null;
+}
+
 export interface ClientListQuery {
   page?: number;
   limit?: number;
@@ -144,7 +150,7 @@ export class ClientsService {
     tenantId: string,
     clientId: string,
     dto: UpdateClientDto,
-  ): Promise<OAuthClient> {
+  ): Promise<UpdatedClientResult> {
     const client = await this.findOne(tenantId, clientId);
 
     if (dto.name) client.name = dto.name;
@@ -155,6 +161,17 @@ export class ClientsService {
     }
     if (dto.allowedGrants) client.allowedGrants = dto.allowedGrants;
     if (dto.branding !== undefined) client.branding = dto.branding ?? null;
+
+    let plainSecret: string | null = null;
+    if (dto.type && dto.type !== client.type) {
+      if (dto.type === ClientType.CONFIDENTIAL) {
+        plainSecret = CryptoUtil.generateToken(32);
+        client.clientSecretHash = await CryptoUtil.hash(plainSecret);
+      } else {
+        client.clientSecretHash = null;
+      }
+      client.type = dto.type;
+    }
 
     if (dto.redirectUris) {
       await this.dataSource.transaction(async (manager) => {
@@ -171,7 +188,7 @@ export class ClientsService {
       await this.clientRepo.save(client);
     }
 
-    return this.findOne(tenantId, clientId);
+    return { client: await this.findOne(tenantId, clientId), plainSecret };
   }
 
   async rotateSecret(

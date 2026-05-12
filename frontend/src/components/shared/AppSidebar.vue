@@ -20,6 +20,7 @@ const props = defineProps<{
   isOpen: boolean
   isPlatformAdmin: boolean
   tenantId?: string
+  tenantName?: string
 }>()
 
 const route = useRoute()
@@ -89,6 +90,10 @@ const tenantLinks = computed(() => {
         <p class="px-3 mb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
           테넌트
         </p>
+        <div v-if="tenantName" class="mx-3 mb-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center gap-2 min-w-0">
+          <Building2 class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+          <span class="text-xs font-medium text-indigo-700 truncate">{{ tenantName }}</span>
+        </div>
         <ul class="space-y-1">
           <li v-for="link in tenantLinks" :key="link.name">
             <RouterLink
