@@ -9,7 +9,7 @@ const isAdminLogin = computed(() => route.name === 'login')
 <template>
   <div class="min-h-screen flex items-center justify-center p-4" style="background-color: var(--auth-bg-color, #f9fafb)">
     <div class="w-full max-w-md">
-      <!-- 상단 타이틀 (Teleport 타겟) -->
+      <!-- 관리자 로그인 브랜드 -->
       <div v-if="isAdminLogin" class="flex flex-col items-center text-center mb-8">
         <img
           src="/brand/authori-admin-icon.png"
@@ -18,7 +18,9 @@ const isAdminLogin = computed(() => route.name === 'login')
         />
         <h1 class="text-2xl font-bold text-gray-900">Authori</h1>
       </div>
-      <div v-else id="auth-header" class="text-center mb-8 empty:hidden empty:mb-0"></div>
+
+      <!-- OAuth 화면 상단 타이틀 Teleport 타겟 -->
+      <div id="auth-header" class="text-center mb-8 empty:hidden empty:mb-0"></div>
 
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
         <slot />
