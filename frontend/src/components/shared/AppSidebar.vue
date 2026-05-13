@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Building2,
   Users,
-  ShieldCheck,
   AppWindow,
   FileJson,
   ClipboardList,
@@ -59,7 +58,11 @@ const tenantLinks = computed(() => {
   >
     <!-- Logo -->
     <div class="h-16 flex items-center px-6 border-b border-gray-200">
-      <ShieldCheck class="w-5 h-5 text-indigo-600 mr-2" />
+      <img
+        src="/brand/authori-admin-icon.png"
+        alt=""
+        class="w-6 h-6 mr-2 object-contain"
+      />
       <span class="font-semibold text-gray-900">Authori Admin</span>
     </div>
 

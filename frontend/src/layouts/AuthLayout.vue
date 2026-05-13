@@ -1,8 +1,24 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const isAdminLogin = computed(() => route.name === 'login')
+</script>
+
 <template>
   <div class="min-h-screen flex items-center justify-center p-4" style="background-color: var(--auth-bg-color, #f9fafb)">
     <div class="w-full max-w-md">
       <!-- 상단 타이틀 (Teleport 타겟) -->
-      <div id="auth-header" class="text-center mb-8"></div>
+      <div v-if="isAdminLogin" class="flex flex-col items-center text-center mb-8">
+        <img
+          src="/brand/authori-admin-icon.png"
+          alt=""
+          class="w-14 h-14 object-contain mb-3"
+        />
+        <h1 class="text-2xl font-bold text-gray-900">Authori</h1>
+      </div>
+      <div v-else id="auth-header" class="text-center mb-8 empty:hidden empty:mb-0"></div>
 
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
         <slot />
