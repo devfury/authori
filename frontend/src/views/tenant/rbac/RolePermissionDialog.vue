@@ -84,7 +84,6 @@ async function save() {
   <div
     v-if="open"
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-    @click.self="emit('close')"
   >
     <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
