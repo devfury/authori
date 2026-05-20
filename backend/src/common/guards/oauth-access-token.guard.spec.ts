@@ -1,141 +1,56 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { createPrivateKey, generateKeyPairSync, randomUUID } from 'crypto';
-import { sign } from 'jsonwebtoken';
-import { Repository } from 'typeorm';
-import { AccessToken } from '../../database/entities';
-import { KeysService } from '../../oauth/keys/keys.service';
+import { OAuthTokenVerifierService } from '../../oauth/token-verifier/oauth-token-verifier.service';
 import { OAuthAccessTokenGuard } from './oauth-access-token.guard';
 
 describe('OAuthAccessTokenGuard', () => {
-  let publicKeyPem: string;
-  let privateKeyPem: string;
-  let keysService: Pick<KeysService, 'getActiveKey'>;
-  let accessTokenRepo: Pick<Repository<AccessToken>, 'findOne'>;
+  let verifier: Pick<OAuthTokenVerifierService, 'verifyBearer'>;
   let guard: OAuthAccessTokenGuard;
 
-  const tenantId = randomUUID();
-  const clientId = `client-${randomUUID()}`;
-
-  const createContext = (
-    headers: Record<string, string | undefined>,
-    requestTenantId: string | undefined = tenantId,
-  ) =>
+  const createContext = (request: Record<string, unknown>): ExecutionContext =>
     ({
-      switchToHttp: () => ({
-        getRequest: () => ({
-          headers,
-          tenantContext: requestTenantId
-            ? { tenantId: requestTenantId, tenantSlug: 'acme' }
-            : undefined,
-        }),
-      }),
-    }) as ExecutionContext;
-
-  const signToken = (payload: Record<string, unknown>) =>
-    sign(payload, createPrivateKey(privateKeyPem), {
-      algorithm: 'RS256',
-    });
-
-  beforeEach(() => {
-    const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-    });
-    publicKeyPem = publicKey;
-    privateKeyPem = privateKey;
-
-    keysService = {
-      getActiveKey: jest.fn().mockResolvedValue({
-        kid: randomUUID(),
-        privateKeyPem,
-        publicKeyPem,
-        algorithm: 'RS256',
-      }),
-    };
-    accessTokenRepo = {
-      findOne: jest.fn(),
-    };
-    guard = new OAuthAccessTokenGuard(
-      keysService as KeysService,
-      accessTokenRepo as Repository<AccessToken>,
-    );
-  });
-
-  it('rejects requests without a bearer token', async () => {
-    await expect(guard.canActivate(createContext({}))).rejects.toThrow(
-      UnauthorizedException,
-    );
-  });
-
-  it('rejects tokens whose tenant_id does not match the request tenant', async () => {
-    const token = signToken({
-      sub: clientId,
-      tenant_id: randomUUID(),
-      jti: randomUUID(),
-      scope: 'rbac:write',
-    });
-
-    await expect(
-      guard.canActivate(
-        createContext({ authorization: `Bearer ${token}` }, tenantId),
-      ),
-    ).rejects.toThrow(UnauthorizedException);
-    expect(accessTokenRepo.findOne).not.toHaveBeenCalled();
-  });
-
-  it('rejects revoked token records', async () => {
-    const jti = randomUUID();
-    const token = signToken({
-      sub: clientId,
-      tenant_id: tenantId,
-      jti,
-      scope: 'rbac:write',
-    });
-    jest.mocked(accessTokenRepo.findOne).mockResolvedValue({
-      tenantId,
-      jti,
-      revoked: true,
-      expiresAt: new Date(Date.now() + 60_000),
-    } as AccessToken);
-
-    await expect(
-      guard.canActivate(createContext({ authorization: `Bearer ${token}` })),
-    ).rejects.toThrow(UnauthorizedException);
-  });
-
-  it('attaches verified payload when the token is active', async () => {
-    const jti = randomUUID();
-    const token = signToken({
-      sub: clientId,
-      client_id: clientId,
-      tenant_id: tenantId,
-      jti,
-      scope: 'rbac:read rbac:write',
-    });
-    const request = {
-      headers: { authorization: `Bearer ${token}` },
-      tenantContext: { tenantId, tenantSlug: 'acme' },
-    };
-    const context = {
       switchToHttp: () => ({
         getRequest: () => request,
       }),
-    } as ExecutionContext;
-    jest.mocked(accessTokenRepo.findOne).mockResolvedValue({
-      tenantId,
-      jti,
-      revoked: false,
-      expiresAt: new Date(Date.now() + 60_000),
-    } as AccessToken);
+    }) as ExecutionContext;
 
-    await expect(guard.canActivate(context)).resolves.toBe(true);
+  beforeEach(() => {
+    verifier = {
+      verifyBearer: jest.fn().mockResolvedValue({
+        active: true,
+        subjectType: 'client',
+        sub: 'client-1',
+        clientId: 'client-1',
+        tenantId: 'tenant-1',
+        scope: 'rbac:read',
+        scopes: ['rbac:read'],
+        jti: 'jti-1',
+        expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      }),
+    };
+    guard = new OAuthAccessTokenGuard(verifier as OAuthTokenVerifierService);
+  });
+
+  it('rejects requests without tenant context', async () => {
+    await expect(guard.canActivate(createContext({ headers: {} }))).rejects.toThrow(
+      new UnauthorizedException('Tenant context is required'),
+    );
+  });
+
+  it('delegates bearer verification to OAuthTokenVerifierService', async () => {
+    const request = {
+      headers: { authorization: 'Bearer token' },
+      tenantContext: { tenantId: 'tenant-1', tenantSlug: 'acme' },
+    };
+
+    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
+    expect(verifier.verifyBearer).toHaveBeenCalledWith('tenant-1', 'Bearer token');
     expect(request.accessToken).toMatchObject({
-      sub: clientId,
-      client_id: clientId,
-      tenant_id: tenantId,
-      jti,
-      scope: 'rbac:read rbac:write',
+      sub: 'client-1',
+      client_id: 'client-1',
+      tenant_id: 'tenant-1',
+      scope: 'rbac:read',
+      scopes: ['rbac:read'],
+      jti: 'jti-1',
     });
   });
 });

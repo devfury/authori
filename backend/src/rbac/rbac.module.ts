@@ -11,6 +11,7 @@ import {
 import { AdminAuthModule } from '../admin/auth/admin-auth.module';
 import { AuditModule } from '../common/audit/audit.module';
 import { KeysModule } from '../oauth/keys/keys.module';
+import { TokenVerifierModule } from '../oauth/token-verifier/token-verifier.module';
 import { UsersModule } from '../users/users.module';
 import { M2mRbacController } from './m2m-rbac.controller';
 import { M2mUsersController } from './m2m-users.controller';
@@ -29,6 +30,7 @@ import { RbacService } from './rbac.service';
     ]),
     AdminAuthModule,
     KeysModule,
+    TokenVerifierModule,
     AuditModule,
     UsersModule,
   ],

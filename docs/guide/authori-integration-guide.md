@@ -67,6 +67,7 @@ AUTHORI_TENANT_SLUG=acme
 | Authorization 시작 | `GET` | `/t/:tenantSlug/oauth/authorize` |
 | 로그인 제출 + code 발급 | `POST` | `/t/:tenantSlug/oauth/authorize` |
 | Token 발급/갱신 | `POST` | `/t/:tenantSlug/oauth/token` |
+| Access Token 검증 | `POST` | `/t/:tenantSlug/oauth/verify` |
 | Token 폐기 | `POST` | `/t/:tenantSlug/oauth/revoke` |
 | UserInfo 조회 | `GET` | `/t/:tenantSlug/oauth/userinfo` |
 | UserInfo/프로필 수정 | `PATCH` | `/t/:tenantSlug/oauth/userinfo` |
@@ -364,6 +365,37 @@ if (!scopes.has('profile')) {
 - `tenant_id`가 기대한 테넌트인지 확인한다.
 - `scope`는 공백 구분 문자열이다.
 - JWT 검증 실패 시 무조건 권한을 허용하지 않는다. 필요하면 Authori `/oauth/userinfo`로 opaque token fallback을 별도 구현한다.
+
+### 7.1 Authori Verify API로 검증
+
+리소스 서버가 JWKS 검증과 revocation 조회를 직접 구현하지 않으려면 Authori의 verify API에 Bearer token을 전달해 검증할 수 있다.
+
+```http
+POST /t/acme/oauth/verify
+Authorization: Bearer <access_token>
+```
+
+예시 응답:
+
+```json
+{
+  "active": true,
+  "subjectType": "client",
+  "sub": "client-id",
+  "clientId": "client-id",
+  "tenantId": "tenant-uuid",
+  "scope": "users:read rbac:read",
+  "scopes": ["users:read", "rbac:read"],
+  "jti": "token-jti",
+  "expiresAt": "2026-05-20T12:34:56.000Z"
+}
+```
+
+`/oauth/userinfo`는 사용자 프로필 조회용이며 `authorization_code`로 발급된 사용자 토큰을 전제로 한다. `client_credentials`로 발급된 M2M 토큰은 사용자가 없으므로 `/oauth/userinfo`가 아니라 `/oauth/verify`로 검증한다.
+
+응답의 `subjectType`은 `user` 또는 `client`다. `subjectType=client`이면 `sub`는 사용자 ID가 아니라 OAuth `clientId`다.
+
+검증 실패는 401로 반환된다. 폐기되었거나 DB에 없는 `jti`는 `token_revoked`, URL 테넌트와 토큰의 `tenant_id`가 다르면 `tenant_mismatch`, 서명/형식/만료 실패는 `invalid_token`이다.
 
 ---
 

@@ -29,9 +29,13 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
   let privateKeyPem: string;
 
   const signToken = (payload: Record<string, unknown>) =>
-    sign(payload, createPrivateKey(privateKeyPem), {
-      algorithm: 'RS256',
-    });
+    sign(
+      { tenant_id: tenantId, client_id: clientId, ...payload },
+      createPrivateKey(privateKeyPem),
+      {
+        algorithm: 'RS256',
+      },
+    );
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -45,9 +49,7 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
     dataSource = moduleRef.get(DataSource);
     tenantSlug = `acme-${randomUUID()}`;
 
-    const tenant = await dataSource
-      .getRepository(Tenant)
-      .save({ slug: tenantSlug, name: 'Acme' });
+    const tenant = await dataSource.getRepository(Tenant).save({ slug: tenantSlug, name: 'Acme' });
     tenantId = tenant.id;
 
     const { publicKey, privateKey } = generateKeyPairSync('rsa', {
@@ -159,8 +161,7 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
       {
         name: 'openid',
         displayName: 'OpenID',
-        description:
-          'Authenticate the user and issue an OpenID Connect subject.',
+        description: 'Authenticate the user and issue an OpenID Connect subject.',
       },
       {
         name: 'profile',
@@ -218,9 +219,7 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
       .send({ status: 'LOCKED', loginId: 'johnny' })
       .expect(200);
 
-    const user = await dataSource
-      .getRepository(User)
-      .findOne({ where: { id: userId } });
+    const user = await dataSource.getRepository(User).findOne({ where: { id: userId } });
     expect(user?.status).toBe(UserStatus.ACTIVE);
     expect(res.body.loginId).toBe('johnny');
   });

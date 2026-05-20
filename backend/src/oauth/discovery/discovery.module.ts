@@ -1,22 +1,19 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import {
-  AccessToken,
-  Tenant,
-  User,
-  UserProfile,
-} from '../../database/entities';
+import { Tenant, User, UserProfile } from '../../database/entities';
 import { KeysModule } from '../keys/keys.module';
 import { ScopesModule } from '../scopes/scopes.module';
 import { DiscoveryController } from './discovery.controller';
 import { UsersModule } from '../../users/users.module';
+import { TokenVerifierModule } from '../token-verifier/token-verifier.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Tenant, AccessToken, User, UserProfile]),
+    TypeOrmModule.forFeature([Tenant, User, UserProfile]),
     KeysModule,
     ScopesModule,
     UsersModule,
+    TokenVerifierModule,
   ],
   controllers: [DiscoveryController],
 })

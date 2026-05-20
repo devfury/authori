@@ -13,15 +13,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { verify } from 'jsonwebtoken';
-import { createPublicKey } from 'crypto';
 import type { Request } from 'express';
-import {
-  AccessToken,
-  Tenant,
-  User,
-  UserProfile,
-} from '../../database/entities';
+import { Tenant, User, UserProfile } from '../../database/entities';
 import { KeysService } from '../keys/keys.service';
 import { ScopesService } from '../scopes/scopes.service';
 import { UsersService } from '../../users/users.service';
@@ -29,6 +22,7 @@ import { SelfUpdateUserDto } from '../../users/dto/self-update-user.dto';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
 import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import type { TenantContext } from '../../common/tenant/tenant-context';
+import { OAuthTokenVerifierService } from '../token-verifier/oauth-token-verifier.service';
 
 @ApiTags('OAuth2 Discovery')
 @ApiParam({ name: 'tenantSlug', description: '테넌트 슬러그' })
@@ -39,14 +33,13 @@ export class DiscoveryController {
     private readonly configService: ConfigService,
     @InjectRepository(Tenant)
     private readonly tenantRepo: Repository<Tenant>,
-    @InjectRepository(AccessToken)
-    private readonly accessTokenRepo: Repository<AccessToken>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserProfile)
     private readonly profileRepo: Repository<UserProfile>,
     private readonly scopesService: ScopesService,
     private readonly usersService: UsersService,
+    private readonly tokenVerifier: OAuthTokenVerifierService,
   ) {}
 
   @Get('.well-known/openid-configuration')
@@ -57,10 +50,8 @@ export class DiscoveryController {
       where: { id: tenant.tenantId },
     });
     const defaultIssuer =
-      this.configService.get<string>('app.issuer') ??
-      'https://auth.example.com';
-    const issuer =
-      tenantEntity?.issuer ?? `${defaultIssuer}/t/${tenant.tenantSlug}`;
+      this.configService.get<string>('app.issuer') ?? 'https://auth.example.com';
+    const issuer = tenantEntity?.issuer ?? `${defaultIssuer}/t/${tenant.tenantSlug}`;
     const base = `${issuer}`;
 
     return {
@@ -71,20 +62,11 @@ export class DiscoveryController {
       userinfo_endpoint: `${base}/oauth/userinfo`,
       jwks_uri: `${base}/.well-known/jwks.json`,
       response_types_supported: ['code'],
-      grant_types_supported: [
-        'authorization_code',
-        'refresh_token',
-        'client_credentials',
-      ],
+      grant_types_supported: ['authorization_code', 'refresh_token', 'client_credentials'],
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256'],
-      scopes_supported: await this.scopesService.getSupportedScopes(
-        tenant.tenantId,
-      ),
-      token_endpoint_auth_methods_supported: [
-        'client_secret_basic',
-        'client_secret_post',
-      ],
+      scopes_supported: await this.scopesService.getSupportedScopes(tenant.tenantId),
+      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post'],
       code_challenge_methods_supported: ['S256', 'plain'],
     };
   }
@@ -100,10 +82,7 @@ export class DiscoveryController {
   @ApiBearerAuth()
   @UseGuards(RequireTenantGuard)
   @ApiOperation({ summary: 'UserInfo (Bearer 액세스 토큰 필요)' })
-  async userinfo(
-    @CurrentTenant() tenant: TenantContext,
-    @Req() req: Request,
-  ) {
+  async userinfo(@CurrentTenant() tenant: TenantContext, @Req() req: Request) {
     const { sub, scopes } = await this.verifyAccessToken(
       tenant.tenantId,
       req.headers['authorization'],
@@ -150,18 +129,13 @@ export class DiscoveryController {
       throw new ForbiddenException('insufficient_scope');
     }
 
-    const saved = await this.usersService.updateSelf(
-      tenant.tenantId,
-      sub,
-      dto,
-      {
-        actorId: sub,
-        actorType: 'user',
-        ipAddress: ip ?? null,
-        userAgent: (req.headers['user-agent'] as string) ?? null,
-        requestId: (req.headers['x-request-id'] as string) ?? null,
-      },
-    );
+    const saved = await this.usersService.updateSelf(tenant.tenantId, sub, dto, {
+      actorId: sub,
+      actorType: 'user',
+      ipAddress: ip ?? null,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
 
     const profile = await this.profileRepo.findOne({
       where: { userId: saved.id },
@@ -178,33 +152,11 @@ export class DiscoveryController {
     tenantId: string,
     authHeader: string | undefined,
   ): Promise<{ sub: string; jti: string; scopes: Set<string> }> {
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Bearer token required');
-    }
-    const rawToken = authHeader.slice(7);
-
-    const activeKey = await this.keysService.getActiveKey(null);
-    let payload: { sub: string; jti: string; scope: string };
-    try {
-      const publicKey = createPublicKey(activeKey.publicKeyPem);
-      payload = verify(rawToken, publicKey, {
-        algorithms: ['RS256'],
-      }) as typeof payload;
-    } catch {
-      throw new UnauthorizedException('invalid_token');
-    }
-
-    const tokenRecord = await this.accessTokenRepo.findOne({
-      where: { tenantId, jti: payload.jti },
-    });
-    if (!tokenRecord || tokenRecord.revoked) {
-      throw new UnauthorizedException('token_revoked');
-    }
-
+    const verified = await this.tokenVerifier.verifyBearer(tenantId, authHeader);
     return {
-      sub: payload.sub,
-      jti: payload.jti,
-      scopes: new Set((payload.scope ?? '').split(' ').filter(Boolean)),
+      sub: verified.sub,
+      jti: verified.jti,
+      scopes: new Set(verified.scopes),
     };
   }
 }
