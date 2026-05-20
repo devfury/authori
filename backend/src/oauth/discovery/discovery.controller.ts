@@ -75,7 +75,7 @@ export class DiscoveryController {
   @UseGuards(RequireTenantGuard)
   @ApiOperation({ summary: 'JWKS 공개키 목록' })
   async jwks(@CurrentTenant() tenant: TenantContext) {
-    return this.keysService.getJwks(null);
+    return this.keysService.getJwks(tenant.tenantId);
   }
 
   @Get('oauth/userinfo')

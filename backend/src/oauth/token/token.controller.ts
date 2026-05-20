@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBasicAuth,
   ApiBearerAuth,
@@ -48,11 +48,23 @@ export class TokenController {
   @ApiBearerAuth()
   @ApiOkResponse({ type: VerifyTokenResponseDto })
   @ApiOperation({
-    summary: '액세스 토큰 검증',
+    summary: '액세스 토큰 검증 (POST)',
     description:
       'Authorization Bearer 액세스 토큰의 서명, 만료, 폐기, 테넌트 일치를 검증한다. authorization_code와 client_credentials 토큰을 모두 지원한다.',
   })
   verify(@CurrentTenant() tenant: TenantContext, @Req() req: Request) {
+    return this.tokenVerifier.verifyBearer(tenant.tenantId, req.headers['authorization']);
+  }
+
+  @Get('verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: VerifyTokenResponseDto })
+  @ApiOperation({
+    summary: '액세스 토큰 검증 (GET)',
+    description: 'POST /verify와 동일하지만 GET 메서드로 호출한다. 본문 없이 Authorization 헤더만 사용.',
+  })
+  verifyGet(@CurrentTenant() tenant: TenantContext, @Req() req: Request) {
     return this.tokenVerifier.verifyBearer(tenant.tenantId, req.headers['authorization']);
   }
 

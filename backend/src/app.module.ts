@@ -8,6 +8,8 @@ import { AuditModule } from './common/audit/audit.module';
 import { TenantMiddleware } from './common/tenant/tenant.middleware';
 import { RequestIdMiddleware } from './common/security/request-id.middleware';
 import { Tenant } from './database/entities';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 // Phase 2
 import { TenantsModule } from './tenants/tenants.module';
 import { ClientsModule } from './oauth/clients/clients.module';
@@ -50,6 +52,8 @@ import { RbacModule } from './rbac/rbac.module';
     ExternalAuthModule,
     RbacModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

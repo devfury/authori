@@ -5,10 +5,12 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import {
+  AuditLog,
   Tenant,
   TenantRole,
   TenantSettings,
   User,
+  UserProfile,
   UserRole,
   UserStatus,
 } from '../src/database/entities';
@@ -35,8 +37,13 @@ describe('Registration defaults (e2e)', () => {
   afterAll(async () => {
     for (const tenantId of tenantIds) {
       if (!dataSource) continue;
-      await dataSource.getRepository(TenantSettings).delete({ tenantId });
-      await dataSource.getRepository(Tenant).delete({ id: tenantId });
+      const repo = dataSource.getRepository.bind(dataSource);
+      await repo(AuditLog).delete({ tenantId });
+      await repo(UserProfile).delete({ tenantId });
+      await repo(User).delete({ tenantId });
+      await repo(TenantRole).delete({ tenantId });
+      await repo(TenantSettings).delete({ tenantId });
+      await repo(Tenant).delete({ id: tenantId });
     }
     await app?.close();
   });

@@ -34,7 +34,7 @@ export class OAuthTokenVerifierService {
       throw new UnauthorizedException('Bearer token required');
     }
 
-    const payload = await this.verifyJwt(authHeader.slice(7));
+    const payload = await this.verifyJwt(authHeader.slice(7), tenantId);
     if (!payload.jti || !payload.sub || !payload.tenant_id) {
       throw new UnauthorizedException('invalid_token');
     }
@@ -65,8 +65,8 @@ export class OAuthTokenVerifierService {
     };
   }
 
-  private async verifyJwt(rawToken: string): Promise<OAuthAccessTokenPayload> {
-    const activeKey = await this.keysService.getActiveKey(null);
+  private async verifyJwt(rawToken: string, tenantId: string): Promise<OAuthAccessTokenPayload> {
+    const activeKey = await this.keysService.getActiveKey(tenantId);
     try {
       const publicKey = createPublicKey(activeKey.publicKeyPem);
       return verify(rawToken, publicKey, {

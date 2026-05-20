@@ -58,12 +58,16 @@ export class KeysService implements OnModuleInit {
   async getActiveKey(tenantId: string | null = null): Promise<ActiveKey> {
     // 테넌트 전용 키 우선, 없으면 플랫폼 공용 키 사용
     let key = tenantId
-      ? await this.keyRepo.findOne({ where: { tenantId, status: KeyStatus.ACTIVE } })
+      ? await this.keyRepo.findOne({
+          where: { tenantId, status: KeyStatus.ACTIVE },
+          order: { createdAt: 'DESC' },
+        })
       : null;
 
     if (!key) {
       key = await this.keyRepo.findOne({
         where: { tenantId: null as any, status: KeyStatus.ACTIVE },
+        order: { createdAt: 'DESC' },
       });
     }
 
@@ -81,15 +85,16 @@ export class KeysService implements OnModuleInit {
 
   /** JWKS endpoint용 공개키 목록 */
   async getJwks(tenantId: string | null = null): Promise<{ keys: object[] }> {
-    const keys = await this.keyRepo.find({
-      where: { tenantId: tenantId as any, status: KeyStatus.ACTIVE },
-    });
+    const keys = tenantId
+      ? await this.keyRepo.find({
+          where: { tenantId, status: KeyStatus.ACTIVE },
+        })
+      : [];
 
     // 플랫폼 공용 키도 포함
-    const platformKeys =
-      tenantId
-        ? await this.keyRepo.find({ where: { tenantId: null as any, status: KeyStatus.ACTIVE } })
-        : [];
+    const platformKeys = await this.keyRepo.find({
+      where: { tenantId: null as any, status: KeyStatus.ACTIVE },
+    });
 
     const allKeys = [...keys, ...platformKeys];
 

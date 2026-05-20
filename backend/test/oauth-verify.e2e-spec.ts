@@ -17,7 +17,7 @@ import {
   UserStatus,
 } from '../src/database/entities';
 
-describe('POST /t/:slug/oauth/verify (e2e)', () => {
+describe('/t/:slug/oauth/verify (e2e)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
   let tenantId: string;
@@ -223,5 +223,36 @@ describe('POST /t/:slug/oauth/verify (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(401);
     expect(res.body.message).toBe('token_revoked');
+  });
+
+  it('verifies via GET with Authorization header', async () => {
+    const jti = `verify-get-${randomUUID()}`;
+    const scopes = ['users:read'];
+    await storeToken(jti, scopes);
+    const token = signToken({
+      sub: clientId,
+      client_id: clientId,
+      tenant_id: tenantId,
+      jti,
+      scope: scopes.join(' '),
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/t/${tenantSlug}/oauth/verify`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      active: true,
+      subjectType: 'client',
+      sub: clientId,
+      clientId,
+      tenantId,
+      jti,
+    });
+  });
+
+  it('rejects GET without Authorization header', async () => {
+    await request(app.getHttpServer()).get(`/t/${tenantSlug}/oauth/verify`).expect(401);
   });
 });
