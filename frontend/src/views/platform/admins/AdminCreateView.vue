@@ -11,6 +11,7 @@ const router = useRouter()
 const email = ref('')
 const name = ref('')
 const password = ref('')
+const passwordConfirm = ref('')
 const role = ref<typeof AdminRole[keyof typeof AdminRole]>(AdminRole.TENANT_ADMIN)
 const tenantId = ref('')
 const tenants = ref<Tenant[]>([])
@@ -24,6 +25,10 @@ onMounted(async () => {
 
 async function submit() {
   error.value = ''
+  if (password.value !== passwordConfirm.value) {
+    error.value = '비밀번호가 일치하지 않습니다.'
+    return
+  }
   loading.value = true
   try {
     await adminsApi.create({
@@ -78,6 +83,22 @@ async function submit() {
             minlength="10"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            비밀번호 확인
+          </label>
+          <input
+            v-model="passwordConfirm"
+            type="password"
+            required
+            minlength="10"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            :class="{ 'border-red-400 focus:ring-red-400': passwordConfirm && password !== passwordConfirm }"
+          />
+          <p v-if="passwordConfirm && password !== passwordConfirm" class="text-xs text-red-500 mt-1">
+            비밀번호가 일치하지 않습니다.
+          </p>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">역할</label>

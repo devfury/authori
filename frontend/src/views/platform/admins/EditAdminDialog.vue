@@ -17,6 +17,7 @@ const emit = defineEmits<{
 const email = ref('')
 const name = ref('')
 const password = ref('')
+const passwordConfirm = ref('')
 const role = ref<AdminRole>(AdminRole.TENANT_ADMIN)
 const tenantId = ref('')
 const tenants = ref<Tenant[]>([])
@@ -30,6 +31,7 @@ watch(
       email.value = props.admin.email
       name.value = props.admin.name || ''
       password.value = ''
+      passwordConfirm.value = ''
       role.value = props.admin.role
       tenantId.value = props.admin.tenantId || ''
       error.value = ''
@@ -45,6 +47,10 @@ watch(
 async function submit() {
   if (!props.admin) return
   error.value = ''
+  if (password.value && password.value !== passwordConfirm.value) {
+    error.value = '비밀번호가 일치하지 않습니다.'
+    return
+  }
   loading.value = true
   try {
     await adminsApi.update(props.admin.id, {
@@ -113,6 +119,21 @@ async function submit() {
             minlength="10"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            비밀번호 확인 <span class="text-xs text-gray-400">(변경 시에만 입력)</span>
+          </label>
+          <input
+            v-model="passwordConfirm"
+            type="password"
+            minlength="10"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            :class="{ 'border-red-400 focus:ring-red-400': passwordConfirm && password !== passwordConfirm }"
+          />
+          <p v-if="passwordConfirm && password !== passwordConfirm" class="text-xs text-red-500 mt-1">
+            비밀번호가 일치하지 않습니다.
+          </p>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">역할</label>
