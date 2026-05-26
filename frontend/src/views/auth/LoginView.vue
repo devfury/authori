@@ -27,10 +27,15 @@ async function submit() {
     await auth.login(email.value, password.value)
   } catch (e: unknown) {
     const axiosError = e as { response?: { data?: { message?: string } } }
-    if (axiosError.response?.data?.message) {
-      error.value = axiosError.response.data.message
-    } else {
+    const msg = axiosError.response?.data?.message ?? ''
+    if (msg === 'invalid_credentials') {
       error.value = '이메일 또는 비밀번호가 올바르지 않습니다.'
+    } else if (msg === 'account_locked') {
+      error.value = '계정이 잠겼습니다. 잠시 후 다시 시도하세요.'
+    } else if (msg === 'user_inactive') {
+      error.value = '비활성화된 계정입니다. 이용이 필요하시면 관리자에게 문의하세요.'
+    } else {
+      error.value = msg || '로그인 중 오류가 발생했습니다.'
     }
   } finally {
     loading.value = false
