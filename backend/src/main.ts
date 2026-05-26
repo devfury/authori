@@ -22,6 +22,11 @@ async function bootstrap() {
     credentials: true,
   });
 
+  const prefix = process.env.API_PREFIX ?? '';
+  if (prefix) {
+    app.setGlobalPrefix(prefix);
+  }
+
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),
   );
@@ -36,7 +41,8 @@ async function bootstrap() {
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('docs', app, document);
+    const swaggerPath = `${prefix ? prefix + '/' : ''}docs`;
+    SwaggerModule.setup(swaggerPath, app, document);
   }
 
   await app.listen(process.env.PORT ?? 3000);
