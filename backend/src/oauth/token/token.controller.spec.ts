@@ -1,3 +1,5 @@
+import { HttpStatus } from '@nestjs/common';
+import { HTTP_CODE_METADATA } from '@nestjs/common/constants';
 import { Test } from '@nestjs/testing';
 import { OAuthTokenVerifierService } from '../token-verifier/oauth-token-verifier.service';
 import { TokenController } from './token.controller';
@@ -26,6 +28,11 @@ describe('TokenController', () => {
     }).compile();
     return moduleRef.get(TokenController);
   };
+
+  it('responds to POST /token with 200 OK per RFC 6749 §5.1 (not NestJS default 201)', () => {
+    const statusCode = Reflect.getMetadata(HTTP_CODE_METADATA, TokenController.prototype.issue);
+    expect(statusCode).toBe(HttpStatus.OK);
+  });
 
   it('delegates POST /verify to OAuthTokenVerifierService', async () => {
     const verifier = { verifyBearer: jest.fn().mockResolvedValue(verifyResponse) };

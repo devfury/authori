@@ -28,6 +28,7 @@ export class TokenController {
   ) {}
 
   @Post('token')
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiBasicAuth('ClientBasicAuth')
   @ApiOperation({
