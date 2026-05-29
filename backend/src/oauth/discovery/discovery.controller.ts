@@ -20,6 +20,7 @@ import { ScopesService } from '../scopes/scopes.service';
 import { UsersService } from '../../users/users.service';
 import { SelfUpdateUserDto } from '../../users/dto/self-update-user.dto';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
+import { resolveTenantIssuer } from '../../common/tenant/issuer.util';
 import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import type { TenantContext } from '../../common/tenant/tenant-context';
 import { OAuthTokenVerifierService } from '../token-verifier/oauth-token-verifier.service';
@@ -51,7 +52,10 @@ export class DiscoveryController {
     });
     const defaultIssuer =
       this.configService.get<string>('app.issuer') ?? 'https://auth.example.com';
-    const issuer = tenantEntity?.issuer ?? `${defaultIssuer}/t/${tenant.tenantSlug}`;
+    const issuer = resolveTenantIssuer(defaultIssuer, {
+      issuer: tenantEntity?.issuer ?? null,
+      slug: tenantEntity?.slug ?? tenant.tenantSlug,
+    });
     const base = `${issuer}`;
 
     return {

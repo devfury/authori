@@ -92,7 +92,9 @@ Refresh token은 rotation + family 추적 방식. 재사용 감지 시 동일 fa
 
 TypeORM DataSource 설정: `backend/src/database/data-source.ts`. 엔티티: `src/database/entities/`. 마이그레이션: `src/database/migrations/`.
 
-환경변수: `.env` 파일 (DB 접속 정보, JWT_SECRET, APP_ISSUER, LOGIN_PAGE_URL 등).
+환경변수: `.env` 파일 (DB 접속 정보, JWT_SECRET, JWT_ISSUER, API_PREFIX, LOGIN_PAGE_URL 등).
+
+> **issuer 규칙**: `JWT_ISSUER`는 외부에서 보이는 전체 base URL이며 `API_PREFIX`가 설정된 경우 그 prefix까지 포함해야 한다(예: `https://auth.example.com/api`). issuer 계산은 `common/tenant/issuer.util.ts`의 `resolveTenantIssuer()`로 단일화되어 있어 discovery 문서의 `issuer`/엔드포인트 URL과 access token의 `iss` 클레임이 항상 일치한다. 테넌트별 `issuer` 컬럼이 설정되면 그 값을 그대로 사용하고, 없으면 `{JWT_ISSUER}/t/{slug}`로 폴백한다.
 
 ### Swagger
 

@@ -22,6 +22,7 @@ import {
   TenantSettings,
 } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
+import { resolveTenantIssuer } from '../../common/tenant/issuer.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { KeysService } from '../keys/keys.service';
 import { RbacService } from '../../rbac/rbac.service';
@@ -247,7 +248,10 @@ export class TokenService {
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     const activeKey = await this.keysService.getActiveKey(null);
     const defaultIssuer = this.configService.get<string>('app.issuer') ?? 'https://auth.example.com';
-    const issuer = tenant?.issuer ?? defaultIssuer;
+    if (!tenant) {
+      throw new BadRequestException('invalid_request');
+    }
+    const issuer = resolveTenantIssuer(defaultIssuer, tenant);
     const jti = randomUUID();
     const [roles, permissions] = userId
       ? await Promise.all([
