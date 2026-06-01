@@ -202,13 +202,17 @@ async function submit() {
     })
     success.value = true
   } catch (e: any) {
-    const msg = e.response?.data?.message ?? ''
+    const data = e.response?.data ?? {}
+    const msg = data.message ?? ''
     if (msg === 'email_already_exists') {
       error.value = '이미 사용 중인 이메일입니다.'
     } else if (msg === 'registration_disabled') {
       error.value = '이 서비스는 회원가입을 지원하지 않습니다.'
+    } else if (msg === 'password_too_short') {
+      const min = data.minLength ?? ''
+      error.value = min ? `비밀번호는 최소 ${min}자 이상이어야 합니다.` : '비밀번호가 너무 짧습니다.'
     } else {
-      error.value = msg || '회원가입 중 오류가 발생했습니다.'
+      error.value = '회원가입 중 오류가 발생했습니다.'
     }
   } finally {
     loading.value = false

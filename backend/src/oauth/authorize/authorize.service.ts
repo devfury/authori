@@ -207,7 +207,10 @@ export class AuthorizeService {
     }
 
     if (dto.password.length < settings.passwordMinLength) {
-      throw new BadRequestException('password_too_short');
+      throw new BadRequestException({
+        message: 'password_too_short',
+        minLength: settings.passwordMinLength,
+      });
     }
 
     let savedUser: User;
