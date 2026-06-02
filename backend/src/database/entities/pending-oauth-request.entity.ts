@@ -35,6 +35,9 @@ export class PendingOAuthRequest {
   @Column({ name: 'code_challenge_method', type: 'varchar', nullable: true })
   codeChallengeMethod: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  nonce: string | null;
+
   @Index()
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;

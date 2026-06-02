@@ -53,6 +53,9 @@ export class AuthorizationCode {
   })
   codeChallengeMethod: CodeChallengeMethod | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  nonce: string | null;
+
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
 

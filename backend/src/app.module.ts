@@ -21,6 +21,7 @@ import { AuthorizeModule } from './oauth/authorize/authorize.module';
 import { TokenModule } from './oauth/token/token.module';
 import { RevokeModule } from './oauth/revoke/revoke.module';
 import { DiscoveryModule } from './oauth/discovery/discovery.module';
+import { UserInfoModule } from './oauth/userinfo/userinfo.module';
 // Phase 4
 import { AdminAuthModule } from './admin/auth/admin-auth.module';
 // Phase 5
@@ -42,10 +43,11 @@ import { RbacModule } from './rbac/rbac.module';
     UsersModule,
     // Phase 3
     KeysModule,
+    DiscoveryModule,
     AuthorizeModule,
     TokenModule,
+    UserInfoModule,
     RevokeModule,
-    DiscoveryModule,
     // Phase 4
     AdminAuthModule,
     // Phase 5
