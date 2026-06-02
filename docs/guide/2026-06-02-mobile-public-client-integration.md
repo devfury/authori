@@ -116,7 +116,7 @@ GET {authorization_endpoint}
   &code_challenge_method=S256
 ```
 
-> `Accept` 헤더를 직접 지정하지 않습니다. 시스템 브라우저는 `Accept: text/html`로 요청하므로 Authori가 호스팅 로그인 페이지로 리다이렉트합니다. (`nonce`는 `id_token` 구현 전까지 무시됩니다 — 구현 예정 절 참조.)
+> `Accept` 헤더를 직접 지정하지 않습니다. 시스템 브라우저는 `Accept: text/html`로 요청하므로 Authori가 호스팅 로그인 페이지로 리다이렉트합니다. `nonce`를 전달하면 발급된 `id_token`에 포함되어 반환됩니다.
 
 `authorization_endpoint`는 OIDC 디스커버리 문서에서 가져옵니다 (아래 디스커버리 절 참조).
 
@@ -158,7 +158,7 @@ grant_type=authorization_code
 &code_verifier={code_verifier}
 ```
 
-**성공 응답**:
+**성공 응답** (`scope=openid email profile`인 경우):
 
 ```json
 {
@@ -166,11 +166,12 @@ grant_type=authorization_code
   "token_type": "Bearer",
   "expires_in": 3600,
   "refresh_token": "...",
-  "scope": "openid email profile"
+  "scope": "openid email profile",
+  "id_token": "eyJ..."
 }
 ```
 
-> **`id_token` 현재 미포함**: 사용자 정보가 필요하면 userinfo 엔드포인트를 호출하세요. `id_token` 발급 기능 추가 후 이 응답에 포함될 예정입니다 (구현 예정 절 참조).
+> `scope`에 `openid`가 포함된 경우 `id_token`이 함께 발급됩니다. `id_token` 클레임에서 `sub`, `email`, `email_verified`, `nonce`를 직접 추출할 수 있습니다.
 
 ### 단계 (4): 토큰 보안 저장
 
@@ -316,7 +317,7 @@ Authorization: Bearer {access_token}
 | `sub` | 항상 | ✅ 지원 |
 | `tenant_id` | 항상 | ✅ 지원 |
 | `email` | `email` | ✅ 지원 |
-| `email_verified` | `email` | ⏳ 추가 예정 (ACTIVE 사용자 = `true`) |
+| `email_verified` | `email` | ✅ 지원 (ACTIVE 사용자 = `true`) |
 | `name` | `profile` | 🔶 프로필 스키마 등록 필요 |
 | `picture` | `profile` | 🔶 프로필 스키마 등록 필요 |
 
@@ -394,31 +395,6 @@ GET {issuer}/.well-known/openid-configuration
 - **state 검증**: 콜백의 `state`를 반드시 검증해 CSRF를 방지하세요.
 - **토큰 보안 저장**: Keychain/Keystore 사용. `refresh_token`은 디바이스 바인딩 권장.
 - **HTTPS claimed URL 우선**: 커스텀 스킴보다 Universal Links / App Links가 안전합니다.
-
----
-
-## 구현 예정 사항
-
-### id_token 발급 (⏳ 구현 예정)
-
-토큰 교환 응답에 `id_token`이 추가될 예정입니다. 추가 후 앱은 userinfo 호출 없이 `id_token`에서 사용자 정보를 추출하고 `nonce`를 검증할 수 있으며, 표준 OIDC/AppAuth 라이브러리를 그대로 사용할 수 있습니다.
-
-```json
-{
-  "sub": "{user_uuid}",
-  "iss": "{issuer}",
-  "aud": "{client_id}",
-  "exp": 1748880000,
-  "iat": 1748876400,
-  "nonce": "{nonce_from_authorize_request}",
-  "email": "user@example.com",
-  "email_verified": true
-}
-```
-
-### email_verified 클레임 (⏳ 구현 예정)
-
-`userinfo` 응답에 `email_verified: true` (ACTIVE 상태 사용자 기준)가 추가됩니다.
 
 ---
 

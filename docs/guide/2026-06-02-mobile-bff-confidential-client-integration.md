@@ -162,7 +162,7 @@ grant_type=authorization_code
 &code_verifier={pkce_verifier}
 ```
 
-**성공 응답**:
+**성공 응답** (`scope=openid email profile`인 경우):
 
 ```json
 {
@@ -170,11 +170,29 @@ grant_type=authorization_code
   "token_type": "Bearer",
   "expires_in": 3600,
   "refresh_token": "...",
-  "scope": "openid email profile"
+  "scope": "openid email profile",
+  "id_token": "eyJ..."
 }
 ```
 
-> **`id_token` 현재 미포함**: 사용자 정보는 단계 (5)의 userinfo 호출로 획득하세요. `id_token` 발급 기능 추가 후에는 이 응답에 포함됩니다. 8절 참조.
+> `scope`에 `openid`가 포함된 경우 `id_token`이 함께 발급됩니다. `refresh_token` grant로는 `id_token`이 발급되지 않습니다.
+
+**`id_token` JWT 클레임** (`scope=openid email` 기준):
+
+```json
+{
+  "sub": "{user_uuid}",
+  "iss": "{issuer}",
+  "aud": "{client_id}",
+  "exp": 1748880000,
+  "iat": 1748876400,
+  "nonce": "{nonce_from_authorize_request}",
+  "email": "user@example.com",
+  "email_verified": true
+}
+```
+
+`nonce`는 인가 요청 시 전달한 경우에만 포함됩니다. `email`, `email_verified`는 `scope=email`인 경우에 포함됩니다. `email_verified`는 사용자 상태가 ACTIVE이면 `true`입니다.
 
 **`access_token` JWT 클레임**:
 
@@ -230,14 +248,15 @@ Authori 로그인 성공 후 userinfo로 받은 정보를 기반으로 서비스
 
 **Authori의 `sub` 특성**: `users` 테이블의 UUID PK로 영구 불변입니다. `access_token.sub`와 `userinfo.sub`는 항상 동일합니다.
 
-**JIT 프로비저닝 로직** (`email_verified` 클레임 추가 전 기준):
+**JIT 프로비저닝 로직**:
 
 ```text
 1. userinfo.sub로 기존 서비스 계정 조회
    → 있으면: 해당 계정으로 로그인 처리
 
-2. userinfo.email이 있으면 이메일로 기존 계정 연결
+2. userinfo.email_verified == true이면 이메일로 기존 계정 연결
    → authori_sub 컬럼에 sub 저장 후 로그인
+   (email_verified == false이면 이 단계 건너뜀)
 
 3. 신규 계정 생성
    → 식별자 = userinfo.email (없으면 sub 사용)
@@ -245,9 +264,7 @@ Authori 로그인 성공 후 userinfo로 받은 정보를 기반으로 서비스
    → 프로필 이미지 = userinfo.picture
 ```
 
-`email_verified` 클레임이 추가된 이후:
-
-- `email_verified == false`이면 이메일 매칭(2번)을 건너뛰고 `sub`만으로 연결합니다.
+> `id_token`이 발급된 경우 userinfo 호출 없이 `id_token` 클레임에서 직접 `sub`, `email`, `email_verified`를 추출할 수 있습니다.
 
 ---
 
@@ -285,7 +302,7 @@ token={stored_refresh_token}
 &token_type_hint=refresh_token
 ```
 
-> `Authorization: Basic` 헤더는 현재 검증하지 않으나, 향후 클라이언트 인증 추가를 대비해 미리 포함해 주세요.
+> Confidential Client는 revoke 요청에도 클라이언트 인증이 적용됩니다 (RFC 7009 §2.1). `Authorization: Basic` 헤더 또는 `client_id`/`client_secret` body 파라미터로 인증하세요. secret이 틀리면 `401 invalid_client`가 반환됩니다.
 
 **멱등성 보장**: RFC 7009 준수. 이미 폐기된 토큰 또는 존재하지 않는 토큰에 대해서도 항상 `200 OK`를 반환합니다.
 
@@ -300,7 +317,7 @@ token={stored_refresh_token}
 | `sub` | 항상 | ✅ 지원 |
 | `tenant_id` | 항상 | ✅ 지원 |
 | `email` | `email` | ✅ 지원 |
-| `email_verified` | `email` | ⏳ 추가 예정 (ACTIVE 사용자 = `true`) |
+| `email_verified` | `email` | ✅ 지원 (ACTIVE 사용자 = `true`) |
 | `name` | `profile` | 🔶 프로필 스키마 등록 필요 |
 | `picture` | `profile` | 🔶 프로필 스키마 등록 필요 |
 
@@ -366,46 +383,6 @@ GET {issuer}/.well-known/openid-configuration
 ```
 
 > 모든 엔드포인트가 `/t/{tenant-slug}/` prefix를 포함하므로, 반드시 discovery 문서에서 URL을 가져와 사용하세요. 표준 경로(`/oauth/authorize`)와 다릅니다.
-
----
-
-## 구현 예정 사항
-
-### id_token 발급 (⏳ 구현 예정)
-
-토큰 교환 응답에 `id_token`이 추가될 예정입니다:
-
-```json
-{
-  "access_token": "eyJ...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "refresh_token": "...",
-  "scope": "openid email profile",
-  "id_token": "eyJ..."
-}
-```
-
-`id_token` 포함 클레임:
-
-```json
-{
-  "sub": "{user_uuid}",
-  "iss": "{issuer}",
-  "aud": "{client_id}",
-  "exp": 1748880000,
-  "iat": 1748876400,
-  "nonce": "{nonce_from_authorize_request}",
-  "email": "user@example.com",
-  "email_verified": true
-}
-```
-
-구현 완료 후에는 userinfo 추가 호출 없이 `id_token`에서 직접 사용자 정보를 추출할 수 있으며, `nonce` 검증도 가능합니다.
-
-### email_verified 클레임 (⏳ 구현 예정)
-
-`userinfo` 응답에 `email_verified: true` (ACTIVE 상태 사용자 기준)가 추가됩니다.
 
 ---
 
