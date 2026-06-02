@@ -20,6 +20,8 @@ import {
   RefreshToken,
   Tenant,
   TenantSettings,
+  User,
+  UserStatus,
 } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { resolveTenantIssuer } from '../../common/tenant/issuer.util';
@@ -34,6 +36,7 @@ export interface TokenResponse {
   expires_in: number;
   refresh_token?: string;
   scope: string;
+  id_token?: string;
 }
 
 interface AuditEvent {
@@ -148,6 +151,7 @@ export class TokenService {
 
       return this.issueTokenPairInTx(
         manager, tenantId, client.clientId, authCode.userId, authCode.scopes, accessTtl, refreshTtl,
+        { nonce: authCode.nonce },
       );
     });
 
@@ -244,6 +248,7 @@ export class TokenService {
     scopes: string[],
     accessTtl: number,
     refreshTtl: number | null,
+    options: { nonce?: string | null } = {},
   ): Promise<IssueResult> {
     const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
     const activeKey = await this.keysService.getActiveKey(null);
@@ -328,6 +333,25 @@ export class TokenService {
       });
 
       response.refresh_token = plainRefresh;
+    }
+
+    if (userId && scopes.includes('openid')) {
+      const user = await manager.findOne(User, { where: { id: userId } });
+      const idPayload: Record<string, unknown> = {
+        sub: userId,
+        ...(options.nonce ? { nonce: options.nonce } : {}),
+      };
+      if (scopes.includes('email') && user?.email) {
+        idPayload['email'] = user.email;
+        idPayload['email_verified'] = user.status === UserStatus.ACTIVE;
+      }
+      response.id_token = sign(idPayload, activeKey.privateKeyPem, {
+        algorithm: 'RS256',
+        issuer,
+        audience: clientId,
+        expiresIn: accessTtl,
+        keyid: activeKey.kid,
+      });
     }
 
     return { response, auditEvents };

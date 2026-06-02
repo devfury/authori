@@ -132,6 +132,7 @@ export class AuthorizeService {
       state: query.state,
       codeChallenge: query.code_challenge,
       codeChallengeMethod: query.code_challenge_method,
+      nonce: query.nonce,
     });
 
     return {
@@ -555,6 +556,7 @@ export class AuthorizeService {
       codeChallenge: pending.codeChallenge ?? null,
       codeChallengeMethod:
         (pending.codeChallengeMethod as CodeChallengeMethod) ?? null,
+      nonce: pending.nonce ?? null,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 

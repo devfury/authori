@@ -9,6 +9,7 @@ export interface PendingAuthRequest {
   state?: string;
   codeChallenge?: string;
   codeChallengeMethod?: string;
+  nonce?: string;
   expiresAt: number;
 }
 

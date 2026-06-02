@@ -37,4 +37,9 @@ export class AuthorizeQueryDto {
   @IsOptional()
   @IsString()
   code_challenge_method?: string;
+
+  @ApiPropertyOptional({ example: 'random_nonce_value' })
+  @IsOptional()
+  @IsString()
+  nonce?: string;
 }

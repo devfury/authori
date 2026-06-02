@@ -29,6 +29,7 @@ export class TypeOrmPendingRequestStore implements IPendingRequestStore {
       state: request.state ?? null,
       codeChallenge: request.codeChallenge ?? null,
       codeChallengeMethod: request.codeChallengeMethod ?? null,
+      nonce: request.nonce ?? null,
       expiresAt: new Date(Date.now() + this.TTL_MS),
     });
     return id;
@@ -52,6 +53,7 @@ export class TypeOrmPendingRequestStore implements IPendingRequestStore {
       ...(row.codeChallengeMethod != null && {
         codeChallengeMethod: row.codeChallengeMethod,
       }),
+      ...(row.nonce != null && { nonce: row.nonce }),
       expiresAt: row.expiresAt.getTime(),
     };
   }

@@ -13,7 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { User, UserProfile } from '../../database/entities';
+import { User, UserProfile, UserStatus } from '../../database/entities';
 import { UsersService } from '../../users/users.service';
 import { SelfUpdateUserDto } from '../../users/dto/self-update-user.dto';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
@@ -57,7 +57,10 @@ export class UserInfoController {
       sub: user.id,
       tenant_id: tenant.tenantId,
     };
-    if (scopes.has('email')) claims['email'] = user.email;
+    if (scopes.has('email')) {
+      claims['email'] = user.email;
+      claims['email_verified'] = user.status === UserStatus.ACTIVE;
+    }
     if (scopes.has('profile') && profile) {
       Object.assign(claims, profile.profileJsonb);
     }
