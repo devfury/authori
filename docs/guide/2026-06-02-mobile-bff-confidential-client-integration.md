@@ -242,6 +242,109 @@ Authorization: Bearer {access_token}
 
 ---
 
+## 회원가입
+
+### 사전 조건 — 테넌트 설정
+
+공개 회원가입은 기본적으로 비활성화되어 있습니다. Authori 관리자 콘솔에서 테넌트 설정을 변경해야 합니다.
+
+| 설정 항목 | 설명 |
+| --------- | ---- |
+| `allowRegistration` | `true`로 설정해야 `/oauth/register` 엔드포인트가 활성화됩니다. |
+| `autoActivateRegistration` | `true`이면 가입 즉시 ACTIVE 상태로 생성됩니다. `false`(기본)이면 INACTIVE로 생성되며, 관리자 활성화가 필요합니다. |
+
+### 회원가입 흐름
+
+BFF 패턴에서 회원가입은 두 가지 방식으로 처리할 수 있습니다.
+
+#### 방식 A: 가입 후 즉시 로그인 (autoActivateRegistration = true)
+
+```text
+모바일 앱                      백엔드 서비스 (BFF)             Authori
+    |                              |                          |
+    |-- (1) 회원가입 요청 --------> |                          |
+    |   (email + password)         |                          |
+    |                              |-- (2) POST /register --> |
+    |                              |<-- { id, email } --------|
+    |                              |                          |
+    |                              |   [이후 로그인 플로우 수행]  |
+    |                              |   (단계 2~6과 동일)        |
+    |<-- (3) 서비스 세션 토큰 ------- |                          |
+```
+
+#### 방식 B: 가입 후 활성화 대기 (autoActivateRegistration = false)
+
+```text
+모바일 앱                      백엔드 서비스 (BFF)             Authori
+    |                              |                          |
+    |-- (1) 회원가입 요청 --------> |                          |
+    |                              |-- (2) POST /register --> |
+    |                              |<-- { id, email } --------|
+    |<-- (3) "활성화 대기" 안내 ----- |                          |
+    |                              |                          |
+    |   [관리자 계정 활성화 후]      |                          |
+    |-- (4) 로그인 시도 ----------> |                          |
+    |                              |   [로그인 플로우 수행]      |
+```
+
+### 단계 (2): 백엔드 서비스 → Authori 회원가입
+
+```http
+POST {issuer}/oauth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "user_password",
+  "profile": {
+    "name": "홍길동"
+  }
+}
+```
+
+`issuer`에서 `/oauth/register` 경로를 사용합니다. discovery 문서의 `issuer` 값을 기반으로 구성하세요.
+
+> `profile` 필드는 선택 사항입니다. 테넌트 프로필 스키마에 정의된 필드만 허용됩니다.
+
+**Rate Limit**: 분당 5회 (IP 기준)
+
+**성공 응답** (`201 Created`):
+
+```json
+{
+  "message": "registered",
+  "id": "{user_uuid}",
+  "email": "user@example.com"
+}
+```
+
+**오류 응답**:
+
+| 상황 | HTTP | message | 처리 방안 |
+| ------ | ------ | --------- | --------- |
+| 회원가입 기능 비활성화 | `403` | `registration_disabled` | 서비스 정책 안내 |
+| 이미 가입된 이메일 | `409` | `email_already_exists` | 로그인 유도 또는 안내 |
+| 비밀번호 최소 길이 미달 | `400` | `password_too_short` + `minLength` 필드 | 최소 길이 안내 |
+
+**`autoActivateRegistration = false`인 경우**: 생성된 사용자는 INACTIVE 상태입니다. 로그인 시도 시 `403 user_inactive`가 반환됩니다. 관리자가 계정을 활성화하기 전까지 로그인할 수 없음을 사용자에게 안내하세요.
+
+### OAuth 흐름과 연속 처리 (선택)
+
+회원가입 직후 바로 OAuth 인가 코드 발급을 이어가야 하는 경우, 단계 (2)에서 미리 인가 요청(`GET /oauth/authorize`)을 만들어 두고 `requestId`와 `clientId`를 함께 전달할 수 있습니다.
+
+```json
+{
+  "email": "user@example.com",
+  "password": "user_password",
+  "requestId": "550e8400-...",
+  "clientId": "{client_id}"
+}
+```
+
+단, `autoActivateRegistration = true`인 경우에만 의미가 있습니다. INACTIVE 상태로 생성된 경우 이후 로그인(`POST /oauth/authorize`)이 실패하므로 이 방식을 사용하지 마세요.
+
+---
+
 ## 사용자 계정 연동 (JIT 프로비저닝)
 
 Authori 로그인 성공 후 userinfo로 받은 정보를 기반으로 서비스 계정을 자동 생성/연결하는 패턴입니다.

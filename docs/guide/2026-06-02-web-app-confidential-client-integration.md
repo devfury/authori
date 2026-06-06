@@ -175,6 +175,103 @@ Set-Cookie: session=...; HttpOnly; Secure; SameSite=Lax; Path=/
 
 ---
 
+## 회원가입
+
+### 사전 조건 — 테넌트 설정
+
+공개 회원가입은 기본적으로 비활성화되어 있습니다. Authori 관리자 콘솔에서 테넌트 설정을 변경해야 합니다.
+
+| 설정 항목 | 설명 |
+| --------- | ---- |
+| `allowRegistration` | `true`로 설정해야 `/oauth/register` 엔드포인트가 활성화됩니다. |
+| `autoActivateRegistration` | `true`이면 가입 즉시 ACTIVE 상태로 생성됩니다. `false`(기본)이면 INACTIVE로 생성되며, 관리자 활성화가 필요합니다. |
+
+### 회원가입 흐름
+
+웹 앱의 회원가입은 B/E가 자체 회원가입 페이지(F/E)를 제공하고, 사용자가 입력한 정보를 B/E가 Authori에 전달하는 방식으로 처리합니다.
+
+#### 방식 A: 가입 후 즉시 로그인 (autoActivateRegistration = true)
+
+```text
+브라우저 (웹 F/E)              웹 B/E                           Authori
+     |                              |                          |
+     |-- (1) 회원가입 폼 제출 ------>|                          |
+     |   (email + password)         |                          |
+     |                              |-- (2) POST /register --> |
+     |                              |<-- { id, email } --------|
+     |                              |                          |
+     |                              |   [인가 요청 → 토큰 교환]  |
+     |                              |   (단계 1~7과 동일)        |
+     |<-- (3) Set-Cookie: session --|                          |
+```
+
+#### 방식 B: 가입 후 활성화 대기 (autoActivateRegistration = false)
+
+```text
+브라우저 (웹 F/E)              웹 B/E                           Authori
+     |                              |                          |
+     |-- (1) 회원가입 폼 제출 ------>|                          |
+     |                              |-- (2) POST /register --> |
+     |                              |<-- { id, email } --------|
+     |<-- (3) "활성화 대기" 안내 ----|                          |
+     |                              |                          |
+     |   [관리자 계정 활성화 후]      |                          |
+     |-- (4) 로그인 클릭 ----------->|                          |
+     |<-- (5) 302 → /authorize -----|                          |
+     |                              (표준 로그인 플로우 진행)
+```
+
+### 단계 (2): B/E → Authori 회원가입
+
+```http
+POST {issuer}/oauth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "user_password",
+  "profile": {
+    "name": "홍길동"
+  }
+}
+```
+
+`issuer`에서 `/oauth/register` 경로를 사용합니다. discovery 문서의 `issuer` 값을 기반으로 구성하세요.
+
+> `profile` 필드는 선택 사항입니다. 테넌트 프로필 스키마에 정의된 필드만 허용됩니다.
+
+**Rate Limit**: 분당 5회 (IP 기준)
+
+**성공 응답** (`201 Created`):
+
+```json
+{
+  "message": "registered",
+  "id": "{user_uuid}",
+  "email": "user@example.com"
+}
+```
+
+**오류 응답**:
+
+| 상황 | HTTP | message | 처리 방안 |
+| ------ | ------ | --------- | --------- |
+| 회원가입 기능 비활성화 | `403` | `registration_disabled` | 서비스 정책 안내 |
+| 이미 가입된 이메일 | `409` | `email_already_exists` | 로그인 유도 또는 안내 |
+| 비밀번호 최소 길이 미달 | `400` | `password_too_short` + `minLength` 필드 | 최소 길이 안내 |
+
+**`autoActivateRegistration = false`인 경우**: 생성된 사용자는 INACTIVE 상태입니다. 로그인 시도 시 Authori 호스팅 로그인 페이지에서 오류가 표시됩니다. 관리자가 계정을 활성화하기 전까지 로그인할 수 없음을 사용자에게 안내하세요.
+
+### 가입 후 즉시 로그인 처리 (선택)
+
+`autoActivateRegistration = true`인 경우, 가입 완료 후 B/E가 곧바로 인가 요청(`GET /oauth/authorize`으로 302 리다이렉트)을 이어갈 수 있습니다. 이때 Authori 호스팅 로그인 페이지에서 사용자가 다시 자격증명을 입력해야 합니다.
+
+자격증명 재입력 없이 즉시 세션을 수립하려면, B/E가 프로그램 방식으로 인가 코드를 발급받는 [모바일 BFF Confidential 연동 가이드](2026-06-02-mobile-bff-confidential-client-integration.md)의 `POST /authorize` 방식도 참고할 수 있습니다.
+
+> `autoActivateRegistration = false`인 경우에는 가입 직후 로그인을 이어가지 마세요. INACTIVE 상태로 생성된 계정은 로그인이 실패합니다.
+
+---
+
 ## 세션 ↔ 토큰 관리
 
 - **세션 만료 정책**: B/E 세션 수명은 자체 정책으로 정하되, access token 만료 시 보관 중인 refresh token으로 갱신합니다 (아래 절).
