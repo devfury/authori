@@ -398,6 +398,149 @@ GET {issuer}/.well-known/openid-configuration
 
 ---
 
+## RBAC (역할 기반 접근 제어)
+
+### 구조
+
+Authori의 RBAC는 테넌트 단위로 관리됩니다.
+
+- **역할(Role)**: 테넌트에 정의된 권한 묶음. `name`(slug), `displayName`, `isDefault` 속성을 가집니다.
+- **권한(Permission)**: 역할에 할당할 수 있는 개별 권한. `name`(slug), `displayName` 속성을 가집니다.
+- **사용자 역할**: 한 사용자에게 복수의 역할을 할당할 수 있습니다.
+
+```
+테넌트
+  └─ 역할 (role)
+       ├─ name: "member"
+       ├─ isDefault: true
+       └─ 권한 (permission)
+            ├─ "document:read"
+            └─ "comment:write"
+```
+
+### Access Token의 RBAC 클레임
+
+사용자 토큰(`authorization_code` / `refresh_token` grant)의 access token JWT에 해당 사용자의 역할과 권한이 포함됩니다.
+
+```json
+{
+  "sub": "{user_uuid}",
+  "iss": "{issuer}",
+  "aud": "{client_id}",
+  "exp": 1748880000,
+  "iat": 1748876400,
+  "jti": "{uuid}",
+  "tenant_id": "{tenant_uuid}",
+  "scope": "openid email profile",
+  "roles": ["member", "editor"],
+  "permissions": ["document:read", "document:write", "comment:write"]
+}
+```
+
+- `roles`: 사용자에게 할당된 역할 이름 목록
+- `permissions`: 해당 역할들이 보유한 권한 이름 목록 (중복 제거)
+- 역할/권한이 없으면 빈 배열(`[]`)로 포함됩니다.
+
+모바일 앱이 Bearer 토큰으로 API를 호출할 때 모바일 API 서비스(리소스 서버)가 이 클레임을 파싱해 접근 제어에 활용합니다.
+
+### 기본 역할 (isDefault)
+
+역할을 `isDefault: true`로 설정하면 **신규 가입 사용자에게 자동으로 부여**됩니다. 예를 들어 `member` 역할을 기본 역할로 설정하면, 회원가입 즉시 해당 역할을 보유한 상태로 첫 토큰이 발급됩니다.
+
+기본 역할은 Authori 관리자 콘솔에서 설정합니다.
+
+### 역할/권한 등록
+
+역할과 권한은 Authori 관리자 콘솔에서 테넌트별로 등록합니다.
+
+| 관리 항목 | 위치 |
+| --------- | ---- |
+| 역할 등록/수정/삭제 | 관리자 콘솔 → 테넌트 → RBAC → 역할 |
+| 권한 등록/수정/삭제 | 관리자 콘솔 → 테넌트 → RBAC → 권한 |
+| 역할에 권한 할당 | 관리자 콘솔 → 역할 → 권한 설정 |
+| 사용자에 역할 할당 | 관리자 콘솔 → 사용자 → 역할 설정 |
+
+### M2M API로 사용자 역할 프로그램 관리
+
+모바일 API 서비스가 사용자 역할을 프로그램 방식으로 조회·변경해야 하는 경우(예: 관리자 승인 후 역할 부여, JIT 역할 프로비저닝), M2M RBAC API를 사용합니다.
+
+> **Public 클라이언트에는 `client_secret`이 없으므로** M2M API는 앱이 아닌 **모바일 API 서비스(서버)** 가 직접 호출해야 합니다. 이를 위해 Authori 관리자 콘솔에서 `client_credentials` grant를 허용한 **별도의 Confidential 클라이언트**를 등록하고, 서버 환경변수로 보관하세요.
+
+**M2M 액세스 토큰 발급** (모바일 API 서비스에서 수행):
+
+```http
+POST {token_endpoint}
+Authorization: Basic Base64({m2m_client_id}:{m2m_client_secret})
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&scope=rbac:read rbac:write
+```
+
+**역할 목록 조회**:
+
+```http
+GET {issuer}/api/roles
+Authorization: Bearer {m2m_access_token}
+```
+
+```json
+[
+  {
+    "id": "{role_uuid}",
+    "name": "member",
+    "displayName": "일반 회원",
+    "isDefault": true,
+    "rolePermissions": [
+      { "permission": { "name": "document:read", "displayName": "문서 읽기" } }
+    ]
+  }
+]
+```
+
+**사용자 역할 추가**:
+
+```http
+POST {issuer}/api/users/{userId}/roles/{roleId}
+Authorization: Bearer {m2m_access_token}
+```
+
+**사용자 역할 제거**:
+
+```http
+DELETE {issuer}/api/users/{userId}/roles/{roleId}
+Authorization: Bearer {m2m_access_token}
+```
+
+**사용자 역할 전체 교체**:
+
+```http
+PUT {issuer}/api/users/{userId}/roles
+Authorization: Bearer {m2m_access_token}
+Content-Type: application/json
+
+{ "roleIds": ["{role_uuid_1}", "{role_uuid_2}"] }
+```
+
+> `{issuer}/api` 경로 예시: `https://auth.example.com/api/t/my-service/api/users/{userId}/roles`
+
+### 모바일 API 서비스(리소스 서버)에서 RBAC 적용
+
+access token의 `roles`/`permissions` 클레임을 JWKS 오프라인 검증 또는 `/oauth/verify` 응답에서 파싱하여 API 접근 제어에 활용합니다. 토큰 검증 방법은 위 **리소스 서버의 토큰 검증** 절을 참조하세요.
+
+```javascript
+// access token JWT 검증 후
+const { roles, permissions } = decodedAccessToken;
+
+// 역할 기반 제어
+if (!roles.includes('editor')) throw new ForbiddenError();
+
+// 권한 기반 제어 (더 세밀한 제어 가능)
+if (!permissions.includes('document:write')) throw new ForbiddenError();
+```
+
+---
+
 ## 스코프 등록
 
 연동에 필요한 스코프는 관리자 콘솔에서 해당 테넌트에 사전 등록되어 있어야 합니다. 미등록 스코프 요청 시 `400 invalid_scope`가 반환됩니다.
