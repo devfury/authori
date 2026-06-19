@@ -94,21 +94,21 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
         tenantId,
         name: 'openid',
         displayName: 'OpenID',
-        description: 'Authenticate the user and issue an OpenID Connect subject.',
+        description: '사용자를 인증하고 OpenID Connect 식별자를 발행합니다.',
         isDefault: true,
       },
       {
         tenantId,
         name: 'profile',
         displayName: 'Profile',
-        description: 'Read the user profile claims.',
+        description: '사용자의 프로필 정보를 조회합니다.',
         isDefault: true,
       },
       {
         tenantId,
         name: 'profile:write',
         displayName: 'Profile (Write)',
-        description: 'Update the authenticated user profile.',
+        description: '인증된 사용자 프로필을 업데이트합니다.',
         isDefault: false,
       },
     ]);
@@ -161,17 +161,17 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
       {
         name: 'openid',
         displayName: 'OpenID',
-        description: 'Authenticate the user and issue an OpenID Connect subject.',
+        description: '사용자를 인증하고 OpenID Connect 식별자를 발행합니다.',
       },
       {
         name: 'profile',
         displayName: 'Profile',
-        description: 'Read the user profile claims.',
+        description: '사용자의 프로필 정보를 조회합니다.',
       },
       {
         name: 'profile:write',
         displayName: 'Profile (Write)',
-        description: 'Update the authenticated user profile.',
+        description: '인증된 사용자 프로필을 업데이트합니다.',
       },
     ]);
   });
