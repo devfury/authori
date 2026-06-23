@@ -6,6 +6,8 @@
 > - 모바일 앱이 직접 클라이언트가 되는 방식 → [Public Client 연동 가이드](2026-06-02-mobile-public-client-integration.md)
 > - 모바일 앱 네이티브 폼 + 백엔드 자격증명 대행 방식 → [모바일 BFF Confidential 연동 가이드](2026-06-02-mobile-bff-confidential-client-integration.md)
 
+마지막 업데이트: 2026-06-02
+
 ---
 
 ## 연동 방식 개요
@@ -175,6 +177,103 @@ Set-Cookie: session=...; HttpOnly; Secure; SameSite=Lax; Path=/
 
 ---
 
+## 회원가입
+
+### 사전 조건 — 테넌트 설정
+
+공개 회원가입은 기본적으로 비활성화되어 있습니다. Authori 관리자 콘솔에서 테넌트 설정을 변경해야 합니다.
+
+| 설정 항목 | 설명 |
+| --------- | ---- |
+| `allowRegistration` | `true`로 설정해야 `/oauth/register` 엔드포인트가 활성화됩니다. |
+| `autoActivateRegistration` | `true`이면 가입 즉시 ACTIVE 상태로 생성됩니다. `false`(기본)이면 INACTIVE로 생성되며, 관리자 활성화가 필요합니다. |
+
+### 회원가입 흐름
+
+웹 앱의 회원가입은 B/E가 자체 회원가입 페이지(F/E)를 제공하고, 사용자가 입력한 정보를 B/E가 Authori에 전달하는 방식으로 처리합니다.
+
+#### 방식 A: 가입 후 즉시 로그인 (autoActivateRegistration = true)
+
+```text
+브라우저 (웹 F/E)              웹 B/E                           Authori
+     |                              |                          |
+     |-- (1) 회원가입 폼 제출 ------>|                          |
+     |   (email + password)         |                          |
+     |                              |-- (2) POST /register --> |
+     |                              |<-- { id, email } --------|
+     |                              |                          |
+     |                              |   [인가 요청 → 토큰 교환]  |
+     |                              |   (단계 1~7과 동일)        |
+     |<-- (3) Set-Cookie: session --|                          |
+```
+
+#### 방식 B: 가입 후 활성화 대기 (autoActivateRegistration = false)
+
+```text
+브라우저 (웹 F/E)              웹 B/E                           Authori
+     |                              |                          |
+     |-- (1) 회원가입 폼 제출 ------>|                          |
+     |                              |-- (2) POST /register --> |
+     |                              |<-- { id, email } --------|
+     |<-- (3) "활성화 대기" 안내 ----|                          |
+     |                              |                          |
+     |   [관리자 계정 활성화 후]      |                          |
+     |-- (4) 로그인 클릭 ----------->|                          |
+     |<-- (5) 302 → /authorize -----|                          |
+     |                              (표준 로그인 플로우 진행)
+```
+
+### 단계 (2): B/E → Authori 회원가입
+
+```http
+POST {issuer}/oauth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "user_password",
+  "profile": {
+    "name": "홍길동"
+  }
+}
+```
+
+`issuer`에서 `/oauth/register` 경로를 사용합니다. discovery 문서의 `issuer` 값을 기반으로 구성하세요.
+
+> `profile` 필드는 선택 사항입니다. 테넌트 프로필 스키마에 정의된 필드만 허용됩니다.
+
+**Rate Limit**: 분당 5회 (IP 기준)
+
+**성공 응답** (`201 Created`):
+
+```json
+{
+  "message": "registered",
+  "id": "{user_uuid}",
+  "email": "user@example.com"
+}
+```
+
+**오류 응답**:
+
+| 상황 | HTTP | message | 처리 방안 |
+| ------ | ------ | --------- | --------- |
+| 회원가입 기능 비활성화 | `403` | `registration_disabled` | 서비스 정책 안내 |
+| 이미 가입된 이메일 | `409` | `email_already_exists` | 로그인 유도 또는 안내 |
+| 비밀번호 최소 길이 미달 | `400` | `password_too_short` + `minLength` 필드 | 최소 길이 안내 |
+
+**`autoActivateRegistration = false`인 경우**: 생성된 사용자는 INACTIVE 상태입니다. 로그인 시도 시 Authori 호스팅 로그인 페이지에서 오류가 표시됩니다. 관리자가 계정을 활성화하기 전까지 로그인할 수 없음을 사용자에게 안내하세요.
+
+### 가입 후 즉시 로그인 처리 (선택)
+
+`autoActivateRegistration = true`인 경우, 가입 완료 후 B/E가 곧바로 인가 요청(`GET /oauth/authorize`으로 302 리다이렉트)을 이어갈 수 있습니다. 이때 Authori 호스팅 로그인 페이지에서 사용자가 다시 자격증명을 입력해야 합니다.
+
+자격증명 재입력 없이 즉시 세션을 수립하려면, B/E가 프로그램 방식으로 인가 코드를 발급받는 [모바일 BFF Confidential 연동 가이드](2026-06-02-mobile-bff-confidential-client-integration.md)의 `POST /authorize` 방식도 참고할 수 있습니다.
+
+> `autoActivateRegistration = false`인 경우에는 가입 직후 로그인을 이어가지 마세요. INACTIVE 상태로 생성된 계정은 로그인이 실패합니다.
+
+---
+
 ## 세션 ↔ 토큰 관리
 
 - **세션 만료 정책**: B/E 세션 수명은 자체 정책으로 정하되, access token 만료 시 보관 중인 refresh token으로 갱신합니다 (아래 절).
@@ -326,6 +425,149 @@ GET {issuer}/.well-known/openid-configuration
 - **세션 쿠키 속성**: `HttpOnly`, `Secure`, `SameSite=Lax`(또는 `Strict`)를 설정하세요.
 - **redirect_uri 정확 일치**: 와일드카드/부분 일치에 의존하지 말고 환경별 정확한 콜백 URL을 등록하세요.
 - **HTTPS 전구간**: 콜백·토큰 엔드포인트 통신은 모두 HTTPS를 사용하세요.
+
+---
+
+## RBAC (역할 기반 접근 제어)
+
+### 구조
+
+Authori의 RBAC는 테넌트 단위로 관리됩니다.
+
+- **역할(Role)**: 테넌트에 정의된 권한 묶음. `name`(slug), `displayName`, `isDefault` 속성을 가집니다.
+- **권한(Permission)**: 역할에 할당할 수 있는 개별 권한. `name`(slug), `displayName` 속성을 가집니다.
+- **사용자 역할**: 한 사용자에게 복수의 역할을 할당할 수 있습니다.
+
+```
+테넌트
+  └─ 역할 (role)
+       ├─ name: "member"
+       ├─ isDefault: true
+       └─ 권한 (permission)
+            ├─ "document:read"
+            └─ "comment:write"
+```
+
+### Access Token의 RBAC 클레임
+
+사용자 토큰(`authorization_code` / `refresh_token` grant)의 access token JWT에 해당 사용자의 역할과 권한이 포함됩니다.
+
+```json
+{
+  "sub": "{user_uuid}",
+  "iss": "{issuer}",
+  "aud": "{client_id}",
+  "exp": 1748880000,
+  "iat": 1748876400,
+  "jti": "{uuid}",
+  "tenant_id": "{tenant_uuid}",
+  "scope": "openid email profile",
+  "roles": ["member", "editor"],
+  "permissions": ["document:read", "document:write", "comment:write"]
+}
+```
+
+- `roles`: 사용자에게 할당된 역할 이름 목록
+- `permissions`: 해당 역할들이 보유한 권한 이름 목록 (중복 제거)
+- 역할/권한이 없으면 빈 배열(`[]`)로 포함됩니다.
+
+> M2M(`client_credentials` grant) 토큰에는 `roles`/`permissions` 클레임이 포함되지 않습니다.
+
+### 기본 역할 (isDefault)
+
+역할을 `isDefault: true`로 설정하면 **신규 가입 사용자에게 자동으로 부여**됩니다. 예를 들어 `member` 역할을 기본 역할로 설정하면, 회원가입 즉시 해당 역할을 보유한 상태로 첫 토큰이 발급됩니다.
+
+기본 역할은 Authori 관리자 콘솔에서 설정합니다.
+
+### 역할/권한 등록
+
+역할과 권한은 Authori 관리자 콘솔에서 테넌트별로 등록합니다.
+
+| 관리 항목 | 위치 |
+| --- | --- |
+| 역할 등록/수정/삭제 | 관리자 콘솔 → 테넌트 → RBAC → 역할 |
+| 권한 등록/수정/삭제 | 관리자 콘솔 → 테넌트 → RBAC → 권한 |
+| 역할에 권한 할당 | 관리자 콘솔 → 역할 → 권한 설정 |
+| 사용자에 역할 할당 | 관리자 콘솔 → 사용자 → 역할 설정 |
+
+### M2M API로 사용자 역할 프로그램 관리
+
+B/E가 사용자 역할을 프로그램 방식으로 조회·변경해야 하는 경우(예: 관리자 승인 후 역할 부여, JIT 역할 프로비저닝), M2M RBAC API를 사용합니다. 이 API는 `client_credentials` grant로 발급한 M2M 액세스 토큰으로 호출합니다.
+
+**M2M 액세스 토큰 발급** (`rbac:read` / `rbac:write` 스코프 필요):
+
+```http
+POST {token_endpoint}
+Authorization: Basic Base64({client_id}:{client_secret})
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&scope=rbac:read rbac:write
+```
+
+> 동일한 Confidential 클라이언트에 `client_credentials` grant와 `rbac:read`/`rbac:write` 스코프가 허용되어 있어야 합니다.
+
+**역할 목록 조회**:
+
+```http
+GET {issuer}/api/roles
+Authorization: Bearer {m2m_access_token}
+```
+
+```json
+[
+  {
+    "id": "{role_uuid}",
+    "name": "member",
+    "displayName": "일반 회원",
+    "isDefault": true,
+    "rolePermissions": [
+      { "permission": { "name": "document:read", "displayName": "문서 읽기" } }
+    ]
+  }
+]
+```
+
+**사용자 역할 추가**:
+
+```http
+POST {issuer}/api/users/{userId}/roles/{roleId}
+Authorization: Bearer {m2m_access_token}
+```
+
+**사용자 역할 제거**:
+
+```http
+DELETE {issuer}/api/users/{userId}/roles/{roleId}
+Authorization: Bearer {m2m_access_token}
+```
+
+**사용자 역할 전체 교체**:
+
+```http
+PUT {issuer}/api/users/{userId}/roles
+Authorization: Bearer {m2m_access_token}
+Content-Type: application/json
+
+{ "roleIds": ["{role_uuid_1}", "{role_uuid_2}"] }
+```
+
+> `{issuer}/api` 경로 예시: `https://auth.example.com/api/t/my-service/api/users/{userId}/roles`
+
+### B/E에서 RBAC 적용
+
+단계 (6) 토큰 교환 후 B/E가 세션에 보관 중인 access token JWT를 복호화하거나, `/oauth/verify`로 검증한 응답에서 역할/권한을 읽어 API 접근 제어에 활용합니다. 토큰은 브라우저에 노출되지 않으므로 B/E가 단독으로 권한 판단을 수행합니다.
+
+```javascript
+// access token JWT 검증 후
+const { roles, permissions } = decodedAccessToken;
+
+// 역할 기반 제어
+if (!roles.includes('editor')) throw new ForbiddenError();
+
+// 권한 기반 제어 (더 세밀한 제어 가능)
+if (!permissions.includes('document:write')) throw new ForbiddenError();
+```
 
 ---
 

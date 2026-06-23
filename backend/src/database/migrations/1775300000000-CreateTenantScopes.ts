@@ -33,9 +33,9 @@ export class CreateTenantScopes1775300000000 implements MigrationInterface {
       FROM "tenants" t
       CROSS JOIN (
         VALUES
-          ('openid', 'OpenID', 'Authenticate the user and issue an OpenID Connect subject.'),
-          ('profile', 'Profile', 'Read the user profile claims.'),
-          ('email', 'Email', 'Read the user email address.')
+          ('openid', 'OpenID', '사용자를 인증하고 OpenID Connect 식별자를 발행합니다.'),
+          ('profile', 'Profile', '사용자의 프로필 정보를 조회합니다.'),
+          ('email', 'Email', '사용자의 이메일 주소를 조회합니다.')
       ) AS s("name", "display_name", "description")
     `);
 
