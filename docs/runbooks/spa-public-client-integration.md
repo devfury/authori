@@ -6,6 +6,8 @@
 > - 백엔드가 있는 웹 앱 → [웹 앱 Confidential Client 연동 가이드](2026-06-02-web-app-confidential-client-integration.md) **(가능하면 이 방식 권장 — 아래 참조)**
 > - 모바일 앱 직접 연동 → [모바일 Public Client 연동 가이드](2026-06-02-mobile-public-client-integration.md)
 
+마지막 업데이트: 2026-06-02
+
 ---
 
 ## ⚠️ 먼저 검토: 백엔드가 있다면 Confidential을 쓰세요

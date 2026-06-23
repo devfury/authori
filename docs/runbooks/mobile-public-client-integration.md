@@ -4,6 +4,8 @@
 >
 > 백엔드 서비스가 `client_secret`을 보관하고 OAuth 플로우를 대행하는 방식은 별도 문서 [모바일 앱 백엔드 서비스의 Confidential Client 연동 가이드](2026-06-02-mobile-bff-confidential-client-integration.md)를 참고하세요.
 
+마지막 업데이트: 2026-06-02
+
 ---
 
 ## 연동 방식 개요

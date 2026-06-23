@@ -6,6 +6,8 @@
 > - 모바일 앱이 직접 클라이언트가 되는 방식 → [Public Client 연동 가이드](2026-06-02-mobile-public-client-integration.md)
 > - 모바일 앱 네이티브 폼 + 백엔드 자격증명 대행 방식 → [모바일 BFF Confidential 연동 가이드](2026-06-02-mobile-bff-confidential-client-integration.md)
 
+마지막 업데이트: 2026-06-02
+
 ---
 
 ## 연동 방식 개요
