@@ -61,9 +61,21 @@ async function load() {
   }
 }
 
+// 이메일 인증과 자동 활성화는 상호배타. 이메일 인증을 켜면 자동 활성화를 끈다.
+function onEmailVerificationChange() {
+  if (!tenant.value) return
+  if (tenant.value.settings.emailVerificationRequired) {
+    tenant.value.settings.autoActivateRegistration = false
+  }
+}
+
 async function saveSettings() {
   if (!tenant.value) return
   if (!tenant.value.settings.allowRegistration) {
+    tenant.value.settings.autoActivateRegistration = false
+    tenant.value.settings.emailVerificationRequired = false
+  }
+  if (tenant.value.settings.emailVerificationRequired) {
     tenant.value.settings.autoActivateRegistration = false
   }
   saving.value = true
@@ -79,6 +91,7 @@ async function saveSettings() {
         refreshTokenRotation: tenant.value.settings.refreshTokenRotation,
         allowRegistration: tenant.value.settings.allowRegistration,
         autoActivateRegistration: tenant.value.settings.autoActivateRegistration,
+        emailVerificationRequired: tenant.value.settings.emailVerificationRequired,
       },
     })
     tenant.value = data
@@ -213,11 +226,24 @@ onMounted(load)
                 v-model="tenant.settings.autoActivateRegistration"
                 type="checkbox"
                 class="rounded disabled:opacity-50"
-                :disabled="!tenant.settings.allowRegistration"
+                :disabled="!tenant.settings.allowRegistration || tenant.settings.emailVerificationRequired"
               />
               <span class="text-sm text-gray-700">자동 활성화</span>
             </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                v-model="tenant.settings.emailVerificationRequired"
+                type="checkbox"
+                class="rounded disabled:opacity-50"
+                :disabled="!tenant.settings.allowRegistration"
+                @change="onEmailVerificationChange"
+              />
+              <span class="text-sm text-gray-700">이메일 인증</span>
+            </label>
           </div>
+          <p v-if="tenant.settings.emailVerificationRequired" class="text-xs text-gray-400 -mt-2">
+            회원가입 시 입력한 이메일로 인증 링크를 발송하며, 링크 클릭 후 계정이 활성화됩니다.
+          </p>
 
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
           <p v-if="successMsg" class="text-sm text-green-600">{{ successMsg }}</p>

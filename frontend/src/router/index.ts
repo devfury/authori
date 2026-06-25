@@ -30,6 +30,12 @@ const router = createRouter({
       component: () => import('@/views/oauth/OAuthProfileView.vue'),
       meta: { layout: 'auth', public: true },
     },
+    {
+      path: '/verify-email',
+      name: 'oauth-verify-email',
+      component: () => import('@/views/oauth/VerifyEmailView.vue'),
+      meta: { layout: 'auth', public: true },
+    },
     // ── 인증 ──────────────────────────────────────────
     {
       path: '/admin/login',

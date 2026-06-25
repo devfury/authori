@@ -76,6 +76,15 @@ export class CreateTenantSettingsDto {
   @IsOptional()
   @IsBoolean()
   autoActivateRegistration?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'OAuth 공개 회원가입 시 이메일 인증 요구 여부 (켜지면 자동 활성화보다 우선)',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  emailVerificationRequired?: boolean;
 }
 
 export class CreateTenantDto {

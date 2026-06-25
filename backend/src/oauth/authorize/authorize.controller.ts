@@ -17,6 +17,7 @@ import { AuthorizeService } from './authorize.service';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
 import { RegisterDto } from './dto/register.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
 import type { TenantContext } from '../../common/tenant/tenant-context';
@@ -94,7 +95,26 @@ export class AuthorizeController {
     @Body() dto: RegisterDto,
     @Req() req: Request,
   ) {
-    return this.authorizeService.register(tenant.tenantId, dto, {
+    return this.authorizeService.register(tenant.tenantId, tenant.tenantSlug, dto, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      requestId: req.requestId,
+    });
+  }
+
+  @Post('verify-email')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary: '회원가입 이메일 인증 확인',
+    description:
+      '인증 메일 링크의 토큰을 검증하고 사용자를 활성화한다. 인증 불필요.',
+  })
+  verifyEmail(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() dto: VerifyEmailDto,
+    @Req() req: Request,
+  ) {
+    return this.authorizeService.verifyEmail(tenant.tenantId, dto.token, {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
       requestId: req.requestId,

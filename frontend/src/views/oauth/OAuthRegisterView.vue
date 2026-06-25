@@ -25,6 +25,8 @@ const branding = ref<LoginBranding>({})
 const clientName = ref('')
 const allowRegistration = ref(true)
 const autoActivateRegistration = ref(false)
+// 가입 응답 기준으로 결정되는 실제 인증 메일 발송 여부
+const verificationEmailSent = ref(false)
 
 // ── 스키마 기반 프로필 ──────────────────────────────────
 type FieldType = 'string' | 'number' | 'integer' | 'boolean' | 'enum'
@@ -193,13 +195,14 @@ async function submit() {
   try {
     const profile = Object.keys(builtProfile.value).length > 0 ? builtProfile.value : undefined
     
-    await oauthApi.register(tenantSlug, {
+    const { data } = await oauthApi.register(tenantSlug, {
       email: email.value,
       password: password.value,
       profile,
       requestId,
       clientId,
     })
+    verificationEmailSent.value = data.emailVerificationRequired
     success.value = true
   } catch (e: any) {
     const data = e.response?.data ?? {}
@@ -246,7 +249,11 @@ const loginRoute = computed(() => ({
         </div>
       </div>
       <h2 class="text-xl font-bold text-gray-800 mb-2">가입 신청 완료</h2>
-      <p class="text-gray-600 mb-6">
+      <p v-if="verificationEmailSent" class="text-gray-600 mb-6">
+        입력하신 이메일로 인증 링크를 보냈습니다.<br />
+        메일의 인증 버튼을 클릭하면 계정이 활성화됩니다.
+      </p>
+      <p v-else class="text-gray-600 mb-6">
         {{ autoActivateRegistration ? '바로 로그인하실 수 있습니다.' : '관리자 승인 후 로그인하실 수 있습니다.' }}
       </p>
       <RouterLink

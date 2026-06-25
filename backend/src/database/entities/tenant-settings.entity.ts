@@ -57,6 +57,14 @@ export class TenantSettings {
   @Column({ name: 'auto_activate_registration', default: false })
   autoActivateRegistration: boolean;
 
+  /**
+   * 공개 회원가입 시 이메일 인증을 요구할지 여부.
+   * true이면 가입자는 INACTIVE로 생성되고 인증 메일의 링크를 클릭해야 활성화된다.
+   * 이 설정이 켜지면 autoActivateRegistration보다 우선한다.
+   */
+  @Column({ name: 'email_verification_required', default: false })
+  emailVerificationRequired: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

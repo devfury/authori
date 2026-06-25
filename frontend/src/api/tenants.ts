@@ -13,6 +13,7 @@ export interface TenantSettings {
   passwordMinLength: number
   allowRegistration: boolean
   autoActivateRegistration: boolean
+  emailVerificationRequired: boolean
 }
 
 export interface Tenant {
@@ -43,6 +44,7 @@ export interface UpdateTenantPayload {
     passwordMinLength?: number
     allowRegistration?: boolean
     autoActivateRegistration?: boolean
+    emailVerificationRequired?: boolean
   }
 }
 

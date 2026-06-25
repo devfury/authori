@@ -3,10 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   AuthorizationCode,
   Consent,
+  EmailVerificationToken,
   OAuthClient,
   OAuthClientRedirectUri,
   PendingOAuthRequest,
   ProfileSchemaVersion,
+  Tenant,
   TenantSettings,
   User,
   UserProfile,
@@ -17,6 +19,7 @@ import { RbacModule } from '../../rbac/rbac.module';
 import { UsersModule } from '../../users/users.module';
 import { ScopesModule } from '../scopes/scopes.module';
 import { AuthorizeService } from './authorize.service';
+import { EmailVerificationService } from './email-verification.service';
 import { AuthorizeController } from './authorize.controller';
 import { TypeOrmPendingRequestStore } from './typeorm-pending-request.store';
 import { PendingRequestCleanupService } from './pending-request-cleanup.service';
@@ -34,6 +37,8 @@ import { PENDING_REQUEST_STORE } from './pending-request.store';
       Consent,
       TenantSettings,
       PendingOAuthRequest,
+      EmailVerificationToken,
+      Tenant,
     ]),
     AuditModule,
     ExternalAuthModule,
@@ -44,6 +49,7 @@ import { PENDING_REQUEST_STORE } from './pending-request.store';
   controllers: [AuthorizeController],
   providers: [
     AuthorizeService,
+    EmailVerificationService,
     { provide: PENDING_REQUEST_STORE, useClass: TypeOrmPendingRequestStore },
     PendingRequestCleanupService,
   ],

@@ -46,6 +46,7 @@ describe('OAuthRegisterView', () => {
         branding: null,
         allowRegistration: true,
         autoActivateRegistration: false,
+        emailVerificationRequired: false,
         activeSchema: null,
       },
       status: 200,
@@ -78,6 +79,7 @@ describe('OAuthRegisterView', () => {
         branding: null,
         allowRegistration: true,
         autoActivateRegistration: true,
+        emailVerificationRequired: false,
         activeSchema: null,
       },
       status: 200,
@@ -86,7 +88,7 @@ describe('OAuthRegisterView', () => {
       config: { headers: new AxiosHeaders() },
     })
     mockedOAuthApi.register.mockResolvedValue({
-      data: { message: 'registered' },
+      data: { message: 'registered', id: 'user-1', email: 'user@example.com', emailVerificationRequired: false },
       status: 201,
       statusText: 'Created',
       headers: {},
@@ -106,5 +108,43 @@ describe('OAuthRegisterView', () => {
     expect(mockedOAuthApi.register).toHaveBeenCalledOnce()
     expect(wrapper.text()).not.toContain('관리자 승인 후 로그인하실 수 있습니다.')
     expect(wrapper.text()).toContain('바로 로그인하실 수 있습니다.')
+  })
+
+  it('shows the email verification notice when verification email is sent', async () => {
+    mockedOAuthApi.getLoginConfig.mockResolvedValueOnce({
+      data: {
+        clientName: 'Test Client',
+        branding: null,
+        allowRegistration: true,
+        autoActivateRegistration: false,
+        emailVerificationRequired: true,
+        activeSchema: null,
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    })
+    mockedOAuthApi.register.mockResolvedValue({
+      data: { message: 'registered', id: 'user-1', email: 'user@example.com', emailVerificationRequired: true },
+      status: 201,
+      statusText: 'Created',
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    })
+
+    const wrapper = mountRegisterView()
+    await flushPromises()
+
+    const passwordInputs = wrapper.findAll('input[type="password"]')
+    await wrapper.find('input[type="email"]').setValue('user@example.com')
+    await passwordInputs[0].setValue('password123')
+    await passwordInputs[1].setValue('password123')
+    await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockedOAuthApi.register).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain('인증 링크를 보냈습니다')
+    expect(wrapper.text()).not.toContain('관리자 승인 후 로그인하실 수 있습니다.')
   })
 })
