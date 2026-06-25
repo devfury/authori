@@ -18,8 +18,8 @@ usage() {
 Usage: ${0##*/} [OPTIONS] [TARGET...]
 
 TARGETS (default: all)
-  frontend  Authori frontend image
-  backend   Authori backend image
+  web   Authori web (frontend) image  -> apps/web/Dockerfile
+  api   Authori api (backend) image   -> apps/api/Dockerfile
 
 OPTIONS
   -p, --push              Push images after building (requires REGISTRY)
@@ -39,8 +39,8 @@ ENVIRONMENT
   TAG          Default tag when -t is not provided (default: latest)
 
 EXAMPLES
-  ${0##*/}                                 Build frontend + backend :latest locally
-  ${0##*/} backend                         Build backend only
+  ${0##*/}                                 Build web + api :latest locally
+  ${0##*/} api                             Build api only
   ${0##*/} -t v1.2.3,latest -p            Build with two tags, then push
   REGISTRY=registry.example.com ${0##*/} -p
   ENGINE=podman ${0##*/} -t v1.2.3 -p
@@ -58,7 +58,7 @@ while [[ $# -gt 0 ]]; do
     --engine)           ENGINE="$2";     shift 2 ;;
     --platform)         PLATFORM="$2";   shift 2 ;;
     -h|--help)          usage; exit 0 ;;
-    frontend|backend)   TARGETS+=("$1"); shift ;;
+    web|api)            TARGETS+=("$1"); shift ;;
     --)                 shift; break ;;
     -*)
       echo "Unknown option: $1" >&2
@@ -66,14 +66,14 @@ while [[ $# -gt 0 ]]; do
       exit 2
       ;;
     *)
-      echo "Unknown target: $1 (expected 'frontend' or 'backend')" >&2
+      echo "Unknown target: $1 (expected 'web' or 'api')" >&2
       usage >&2
       exit 2
       ;;
   esac
 done
 
-[[ ${#TARGETS[@]} -eq 0 ]] && TARGETS=(frontend backend)
+[[ ${#TARGETS[@]} -eq 0 ]] && TARGETS=(web api)
 
 # 쉼표로 구분된 태그를 배열로 변환
 IFS=',' read -ra TAGS <<< "${TAG_ARG:-${DEFAULT_TAG}}"
@@ -110,8 +110,9 @@ image_ref() {
 
 build_target() {
   local name="$1"
-  local context_dir="${ROOT_DIR}/${name}"
-  local dockerfile="${context_dir}/Dockerfile"
+  # 모노레포: build context 는 저장소 루트, Dockerfile 은 apps/<name>/Dockerfile
+  local context_dir="${ROOT_DIR}"
+  local dockerfile="${ROOT_DIR}/apps/${name}/Dockerfile"
 
   if [[ ! -f "${dockerfile}" ]]; then
     echo "Error: ${dockerfile} not found" >&2

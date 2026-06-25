@@ -29,19 +29,19 @@
 
 ### 2-1. 백엔드
 
-- `backend/src/users/users.service.ts`
-- `backend/src/tenants/tenants.controller.ts`
-- `backend/src/common/audit/audit.service.ts`
-- `backend/src/oauth/clients/clients.service.ts`
-- `backend/src/admin/auth/admin-auth.controller.ts`
+- `apps/api/src/users/users.service.ts`
+- `apps/api/src/tenants/tenants.controller.ts`
+- `apps/api/src/common/audit/audit.service.ts`
+- `apps/api/src/oauth/clients/clients.service.ts`
+- `apps/api/src/admin/auth/admin-auth.controller.ts`
 
 ### 2-2. 프론트엔드
 
-- `frontend/src/api/http.ts`
-- `frontend/src/router/index.ts`
-- `frontend/src/stores/auth.store.ts`
-- `frontend/src/views/tenant/users/UserListView.vue`
-- `frontend/src/views/oauth/OAuthLoginView.vue`
+- `apps/web/src/api/http.ts`
+- `apps/web/src/router/index.ts`
+- `apps/web/src/stores/auth.store.ts`
+- `apps/web/src/views/tenant/users/UserListView.vue`
+- `apps/web/src/views/oauth/OAuthLoginView.vue`
 
 ---
 
@@ -69,7 +69,7 @@
 
 ### 3-4. 포매팅
 
-- 백엔드는 `backend/.prettierrc`와 `backend/eslint.config.mjs`를 따른다.
+- 백엔드는 `apps/api/.prettierrc`와 `apps/api/eslint.config.mjs`를 따른다.
 - 백엔드 기본 포맷 규칙: single quote, trailing comma.
 - 포맷 차이보다 기존 파일의 줄바꿈/배치 패턴을 먼저 맞춘다.
 
@@ -160,7 +160,7 @@ return this.dataSource.transaction(async (manager) => {
 
 ### 5-3. 라우팅 규칙
 
-- 라우트 정의는 `frontend/src/router/index.ts` 패턴을 따른다.
+- 라우트 정의는 `apps/web/src/router/index.ts` 패턴을 따른다.
 - 인증/레이아웃/권한 여부는 route meta로 표현한다.
 
 예:
@@ -174,7 +174,7 @@ return this.dataSource.transaction(async (manager) => {
 
 ### 5-4. API 클라이언트 규칙
 
-- 일반적인 관리자 API 호출은 `frontend/src/api/http.ts`의 공통 axios 인스턴스를 사용한다.
+- 일반적인 관리자 API 호출은 `apps/web/src/api/http.ts`의 공통 axios 인스턴스를 사용한다.
 - 새 API 모듈은 도메인별로 분리하고, typed request/response를 함께 정의한다.
 - API 함수 이름은 `findAll`, `findOne`, `create`, `update`, `delete`, `activate`, `deactivate` 등 기존 패턴을 우선 사용한다.
 
@@ -211,7 +211,7 @@ export const usersApi = {
 
 ### 6-1. OAuth 로그인 화면의 별도 axios 인스턴스
 
-`frontend/src/views/oauth/OAuthLoginView.vue`는 일반 관리자 API 흐름과 다르게 **별도 axios 인스턴스**를 사용할 수 있다.
+`apps/web/src/views/oauth/OAuthLoginView.vue`는 일반 관리자 API 흐름과 다르게 **별도 axios 인스턴스**를 사용할 수 있다.
 
 이 예외는 다음 목적을 가진다.
 

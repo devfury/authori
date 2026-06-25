@@ -2,10 +2,23 @@
 
 멀티테넌트 OAuth2 인증 서비스다. NestJS 백엔드와 Vue 3 프론트엔드로 구성되어 있으며, 테넌트별 사용자/클라이언트/스키마/감사 로그를 관리할 수 있다.
 
+저장소는 **Bun 워크스페이스 + Turborepo** 기반 모노레포로 구성되어 있다.
+
 ## 구성
 
-- `backend/` — NestJS + TypeORM 기반 OAuth2/OIDC 서버
-- `frontend/` — Vue 3 + Pinia + Vue Router 기반 관리자 UI / 로그인 UI
+```
+authori/
+├── apps/
+│   ├── api/   — NestJS + TypeORM 기반 OAuth2/OIDC 서버 (@authori/api)
+│   └── web/   — Vue 3 + Pinia + Vue Router 기반 관리자 UI / 로그인 UI (@authori/web)
+├── docs/      — 설계 문서, 화면 규칙, 코딩 컨벤션
+├── example/   — 연동 테스트용 예제 앱과 외부 인증 프로바이더 예제 서버
+├── turbo.json — Turborepo 태스크 파이프라인
+└── package.json — 루트 워크스페이스 (bun workspaces)
+```
+
+- `apps/api/` — NestJS + TypeORM 기반 OAuth2/OIDC 서버
+- `apps/web/` — Vue 3 + Pinia + Vue Router 기반 관리자 UI / 로그인 UI
 - `docs/` — 설계 문서, 화면 규칙, 코딩 컨벤션
 - `example/` — 연동 테스트용 예제 앱과 외부 인증 프로바이더 예제 서버
 
@@ -26,41 +39,62 @@
 
 ### 1. 환경 변수 준비
 
-백엔드:
+API 서버:
 
 ```bash
-cp backend/.env.example backend/.env
+cp apps/api/.env.example apps/api/.env
 ```
 
-프론트엔드:
+Web 앱:
 
 ```bash
-cp frontend/.env.example frontend/.env
+cp apps/web/.env.example apps/web/.env
 ```
 
 기본값:
 
-- Backend API: `http://localhost:3000`
-- Frontend: `http://localhost:5173`
-- Frontend API base URL: `VITE_API_BASE_URL=http://localhost:3000`
+- API: `http://localhost:3000`
+- Web: `http://localhost:5173`
+- Web API base URL: `VITE_API_BASE_URL=http://localhost:3000`
 
 ### 2. 의존성 설치
 
-이 저장소는 `bun` 기준으로 명령이 정리되어 있다.
+이 저장소는 Bun 워크스페이스 모노레포다. **루트에서 한 번만** 설치하면 모든 앱의 의존성이 함께 설치된다.
 
 ```bash
-cd backend && bun install
-cd ../frontend && bun install
+bun install
 ```
 
-예제 앱도 필요하면 각 디렉터리에서 `bun install`을 실행한다.
+예제 앱(`example/`)은 워크스페이스에 포함되지 않으므로 필요한 경우 각 디렉터리에서 별도로 `bun install`을 실행한다.
 
 ## 실행 방법
 
-### Backend (`backend/`)
+### 모노레포 전체 (Turborepo)
+
+루트에서 Turborepo 태스크로 모든 앱을 한 번에 다룰 수 있다.
 
 ```bash
-bun run start:dev
+bun run dev          # api + web 개발 서버 동시 실행
+bun run build        # 전체 빌드
+bun run lint         # 전체 lint
+bun run test         # 전체 단위 테스트
+bun run typecheck    # 전체 타입 체크
+```
+
+특정 앱만 실행하려면:
+
+```bash
+bun run dev:api      # API 개발 서버만
+bun run dev:web      # Web 개발 서버만
+bun run build:api    # API만 빌드
+bun run build:web    # Web만 빌드
+```
+
+### API (`apps/api/`)
+
+```bash
+cd apps/api
+bun run dev          # = nest start --watch
 ```
 
 - 개발 서버: `http://localhost:3000`
@@ -77,9 +111,10 @@ bun run migration:run
 bun run migration:revert
 ```
 
-### Frontend (`frontend/`)
+### Web (`apps/web/`)
 
 ```bash
+cd apps/web
 bun run dev
 ```
 
@@ -155,7 +190,7 @@ bun run start:dev
 
 중요:
 
-- 일반 API 호출은 `frontend/src/api/http.ts`의 공통 axios 인스턴스를 사용
+- 일반 API 호출은 `apps/web/src/api/http.ts`의 공통 axios 인스턴스를 사용
 - OAuth 로그인 관련 엔드포인트는 별도 axios 인스턴스를 사용해야 함
   - 관리자 401 인터셉터와 분리하기 위함
 
@@ -171,7 +206,7 @@ Refresh token은 rotation + family 추적 방식이며, 재사용 감지 시 동
 
 ## 환경 변수
 
-### Backend (`backend/.env.example`)
+### API (`apps/api/.env.example`)
 
 주요 항목:
 
@@ -186,7 +221,7 @@ Refresh token은 rotation + family 추적 방식이며, 재사용 감지 시 동
 - `JWT_ADMIN_EXPIRY`
 - `CORS_ORIGINS`
 
-### Frontend (`frontend/.env.example`)
+### Web (`apps/web/.env.example`)
 
 - `VITE_API_BASE_URL`
 
@@ -210,7 +245,7 @@ Refresh token은 rotation + family 추적 방식이며, 재사용 감지 시 동
 
 - 새 목록 화면은 `docs/guidelines-list-view.md`를 먼저 확인하는 것이 좋다.
 - 새 코드 작성 전 `docs/conventions.md`를 기준으로 기존 패턴을 맞춘다.
-- 백엔드 변경 후에는 `bun run build`, 프론트엔드 변경 후에는 `bun run build`로 최소 검증을 권장한다.
+- 변경 후에는 루트에서 `bun run build`(전체) 또는 `bun run build:api` / `bun run build:web`로 최소 검증을 권장한다.
 
 ## 참고
 

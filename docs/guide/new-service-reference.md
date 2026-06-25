@@ -50,7 +50,7 @@
 
 ```
 <service-root>/
-├── backend/          # NestJS 백엔드
+├── apps/api/         # NestJS 백엔드
 │   ├── src/
 │   │   ├── app.module.ts
 │   │   ├── main.ts
@@ -74,7 +74,7 @@
 │   ├── .env.example
 │   ├── nest-cli.json
 │   └── package.json
-├── frontend/         # Vue 3 프론트엔드
+├── apps/web/         # Vue 3 프론트엔드
 │   ├── src/
 │   │   ├── api/            # axios 기반 API 모듈
 │   │   ├── assets/
@@ -174,7 +174,7 @@
 `/t/:tenantSlug/*` 경로에 적용. slug → tenantId resolve 후 `req.tenantContext`에 주입.
 
 ```typescript
-// backend/src/common/tenant/tenant.middleware.ts 패턴
+// apps/api/src/common/tenant/tenant.middleware.ts 패턴
 
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
@@ -1367,10 +1367,10 @@ CMD ["node", "dist/main"]
 
 ```bash
 # 백엔드
-cd backend && bun run start:dev   # port 3000
+cd apps/api && bun run dev        # port 3000
 
 # 프론트엔드
-cd frontend && bun run dev        # port 5173
+cd apps/web && bun run dev        # port 5173
 
 # DB (Docker)
 docker compose up postgres -d

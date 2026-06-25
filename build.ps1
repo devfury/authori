@@ -27,10 +27,10 @@ $DoPush          = [bool] $Push
 
 $Tags = if ($Tag -and $Tag.Count -gt 0) { $Tag } else { @($DefaultTag) }
 
-$ValidTargets = @('frontend', 'backend')
+$ValidTargets = @('web', 'api')
 foreach ($t in $Targets) {
   if ($t -notin $ValidTargets) {
-    Write-Error "Unknown target: $t (expected 'frontend' or 'backend')"
+    Write-Error "Unknown target: $t (expected 'web' or 'api')"
   }
 }
 $BuildTargets = if ($Targets -and $Targets.Count -gt 0) { $Targets } else { $ValidTargets }
@@ -61,8 +61,9 @@ function Get-ImageRef {
 function Invoke-Build {
   param([string] $Name)
 
-  $contextDir = Join-Path $RootDir $Name
-  $dockerfile = Join-Path $contextDir "Dockerfile"
+  # 모노레포: build context 는 저장소 루트, Dockerfile 은 apps/<name>/Dockerfile
+  $contextDir = $RootDir
+  $dockerfile = Join-Path $RootDir "apps/$Name/Dockerfile"
 
   if (-not (Test-Path $dockerfile)) {
     Write-Error "Error: $dockerfile not found"
