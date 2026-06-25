@@ -1,0 +1,40 @@
+# Git / CI
+.git
+.github
+.gitignore
+.gitattributes
+
+# Dependencies & build output (reinstalled/rebuilt inside the image)
+**/node_modules
+**/dist
+**/dist-ssr
+**/.turbo
+.turbo
+
+# Tests
+**/coverage
+**/playwright-report
+**/test-results
+
+# Local env files (never bake secrets into images)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs & OS cruft
+**/*.log
+**/.DS_Store
+
+# Editor / agent config
+.vscode
+.codex
+.gemini
+.opencode
+.claude
+
+# Docs & examples not needed at build time
+docs
+example
+
+# Local lockfiles from other package managers
+**/package-lock.json

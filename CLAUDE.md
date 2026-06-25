@@ -4,13 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Authori** — 멀티테넌트 OAuth2 인증 서비스. NestJS 백엔드 + Vue 3 프론트엔드 구조.
+**Authori** — 멀티테넌트 OAuth2 인증 서비스. NestJS 백엔드(`apps/api`) + Vue 3 프론트엔드(`apps/web`) 구조.
+
+**모노레포**: Bun 워크스페이스 + Turborepo. 루트 `package.json`의 `workspaces: ["apps/*"]`로 `@authori/api`, `@authori/web` 두 워크스페이스를 관리한다. 의존성은 루트에서 `bun install` 한 번으로 설치되며 단일 `bun.lock`을 사용한다. 태스크 파이프라인은 `turbo.json`에 정의된다.
 
 ## Commands
 
-### Backend (`backend/`)
+### 루트 (Turborepo, 전체 앱 대상)
 ```bash
-bun run start:dev          # 개발 서버 (port 3000, watch 모드)
+bun install                # 전체 워크스페이스 의존성 설치 (루트에서 한 번)
+bun run dev                # api + web 개발 서버 동시 실행
+bun run build              # 전체 빌드
+bun run lint               # 전체 lint
+bun run typecheck          # 전체 타입 체크
+bun run test               # 전체 단위 테스트
+bun run dev:api / dev:web  # 특정 앱 개발 서버만 (build:api / build:web 도 동일 패턴)
+```
+
+### API (`apps/api/`)
+```bash
+cd apps/api
+bun run dev                # 개발 서버 (port 3000, watch 모드, = nest start --watch)
 bun run build              # 프로덕션 빌드
 bun run test               # 단위 테스트
 bun run test:e2e           # E2E 테스트
@@ -19,8 +33,9 @@ bun run migration:run      # 마이그레이션 실행
 bun run migration:revert   # 마이그레이션 롤백
 ```
 
-### Frontend (`frontend/`)
+### Web (`apps/web/`)
 ```bash
+cd apps/web
 bun run dev                # Vite 개발 서버 (port 5173)
 bun run build              # 프로덕션 빌드
 bun run preview            # 빌드 결과 미리보기
@@ -29,6 +44,14 @@ bun run preview            # 빌드 결과 미리보기
 ### Example server (`example/test_websvr/`)
 ```bash
 bun run start:dev          # port 3001, Swagger at /docs
+```
+
+### Docker 이미지 빌드
+```bash
+./build.sh                 # web + api 이미지 모두 빌드 (build context = 저장소 루트)
+./build.sh api             # api 만 (apps/api/Dockerfile)
+./build.sh web             # web 만 (apps/web/Dockerfile)
+# Windows: build.ps1 / build.bat 동일 인자
 ```
 
 ## Architecture
@@ -92,7 +115,7 @@ Refresh token은 rotation + family 추적 방식. 재사용 감지 시 동일 fa
 
 ### DB / 마이그레이션
 
-TypeORM DataSource 설정: `backend/src/database/data-source.ts`. 엔티티: `src/database/entities/`. 마이그레이션: `src/database/migrations/`.
+TypeORM DataSource 설정: `apps/api/src/database/data-source.ts`. 엔티티: `apps/api/src/database/entities/`. 마이그레이션: `apps/api/src/database/migrations/`.
 
 환경변수: `.env` 파일 (DB 접속 정보, JWT_SECRET, JWT_ISSUER, API_PREFIX, LOGIN_PAGE_URL 등).
 
