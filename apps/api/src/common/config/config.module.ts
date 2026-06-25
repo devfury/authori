@@ -7,7 +7,8 @@ import { appConfig, dbConfig } from './app.config';
     NestConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, dbConfig],
-      envFilePath: ['.env.local', '.env'],
+      // 모노레포: env 파일은 저장소 루트에 중앙집중되어 있다 (cwd=apps/api 기준 ../../).
+      envFilePath: ['../../.env.local', '../../.env'],
     }),
   ],
 })

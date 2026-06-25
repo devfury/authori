@@ -19,7 +19,13 @@
     "dev:api": "turbo run dev --filter=@authori/api",
     "dev:web": "turbo run dev --filter=@authori/web",
     "build:api": "turbo run build --filter=@authori/api",
-    "build:web": "turbo run build --filter=@authori/web"
+    "build:web": "turbo run build --filter=@authori/web",
+    "migration:show": "turbo run migration:show --filter=@authori/api",
+    "migration:show:dev": "turbo run migration:show:dev --filter=@authori/api",
+    "migration:show:prd": "turbo run migration:show:prd --filter=@authori/api",
+    "migration:run": "turbo run migration:run --filter=@authori/api",
+    "migration:run:dev": "turbo run migration:run:dev --filter=@authori/api",
+    "migration:run:prd": "turbo run migration:run:prd --filter=@authori/api"
   },
   "devDependencies": {
     "turbo": "^2.5.6"

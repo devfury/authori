@@ -30,6 +30,24 @@
     },
     "format": {
       "cache": false
+    },
+    "migration:show": {
+      "cache": false
+    },
+    "migration:show:dev": {
+      "cache": false
+    },
+    "migration:show:prd": {
+      "cache": false
+    },
+    "migration:run": {
+      "cache": false
+    },
+    "migration:run:dev": {
+      "cache": false
+    },
+    "migration:run:prd": {
+      "cache": false
     }
   }
 }

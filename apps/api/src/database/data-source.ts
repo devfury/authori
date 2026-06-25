@@ -26,7 +26,8 @@ import {
   UserRole,
 } from './entities';
 
-config({ path: '.env' });
+// 모노레포: env 파일은 저장소 루트에 중앙집중되어 있다 (cwd=apps/api 기준 ../../).
+config({ path: '../../.env' });
 
 /**
  * TypeORM CLI 마이그레이션용 DataSource
