@@ -32,6 +32,7 @@ import {
   ExternalAuthService,
 } from '../../external-auth/external-auth.service';
 import { RbacService } from '../../rbac/rbac.service';
+import { EmailVerificationService } from './email-verification.service';
 import { UsersService } from '../../users/users.service';
 import {
   DEFAULT_TENANT_SCOPES,
@@ -76,6 +77,7 @@ export class AuthorizeService {
     private readonly usersService: UsersService,
     private readonly scopesService: ScopesService,
     private readonly rbacService: RbacService,
+    private readonly emailVerificationService: EmailVerificationService,
     @Inject(PENDING_REQUEST_STORE)
     private readonly pendingStore: IPendingRequestStore,
   ) {}
@@ -189,6 +191,7 @@ export class AuthorizeService {
       scopes,
       allowRegistration: settings?.allowRegistration ?? false,
       autoActivateRegistration: settings?.autoActivateRegistration ?? false,
+      emailVerificationRequired: settings?.emailVerificationRequired ?? false,
       activeSchema: activeSchema
         ? {
             schemaJsonb: activeSchema.schemaJsonb,
@@ -199,9 +202,15 @@ export class AuthorizeService {
 
   async register(
     tenantId: string,
+    tenantSlug: string,
     dto: RegisterDto,
     ctx: AuditContext = {},
-  ): Promise<{ message: 'registered'; id: string; email: string }> {
+  ): Promise<{
+    message: 'registered';
+    id: string;
+    email: string;
+    emailVerificationRequired: boolean;
+  }> {
     const settings = await this.settingsRepo.findOne({ where: { tenantId } });
     if (!settings?.allowRegistration) {
       throw new ForbiddenException('registration_disabled');
@@ -214,12 +223,16 @@ export class AuthorizeService {
       });
     }
 
-    let savedUser: User;
-    try {
-      const initialStatus = settings.autoActivateRegistration
+    // 이메일 인증이 켜져 있으면 자동 활성화보다 우선한다.
+    // 가입자는 INACTIVE로 생성되고 메일 링크 클릭으로 활성화된다.
+    const emailVerificationRequired = settings.emailVerificationRequired;
+    const initialStatus =
+      !emailVerificationRequired && settings.autoActivateRegistration
         ? UserStatus.ACTIVE
         : UserStatus.INACTIVE;
 
+    let savedUser: User;
+    try {
       savedUser = await this.usersService.create(
         tenantId,
         {
@@ -242,7 +255,45 @@ export class AuthorizeService {
 
     await this.rbacService.assignDefaultRolesToUser(tenantId, savedUser.id);
 
-    return { message: 'registered', id: savedUser.id, email: savedUser.email };
+    if (emailVerificationRequired) {
+      let serviceName: string | undefined;
+      let brandColor: string | null | undefined;
+      if (dto.clientId) {
+        const client = await this.clientRepo.findOne({
+          where: { tenantId, clientId: dto.clientId },
+        });
+        serviceName = client?.name;
+        brandColor = client?.branding?.primaryColor ?? null;
+      }
+      // 메일 발송 실패가 가입 자체를 막지 않도록 격리한다.
+      try {
+        await this.emailVerificationService.issueAndSend(
+          tenantId,
+          tenantSlug,
+          savedUser,
+          { serviceName, brandColor },
+        );
+      } catch (error) {
+        this.logger.error(
+          `인증 메일 발송 실패 userId=${savedUser.id}: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    return {
+      message: 'registered',
+      id: savedUser.id,
+      email: savedUser.email,
+      emailVerificationRequired,
+    };
+  }
+
+  async verifyEmail(
+    tenantId: string,
+    token: string,
+    ctx: AuditContext = {},
+  ): Promise<{ message: 'verified'; email: string }> {
+    return this.emailVerificationService.confirm(tenantId, token, ctx);
   }
 
   async loginAndAuthorize(

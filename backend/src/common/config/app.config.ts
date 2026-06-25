@@ -31,6 +31,18 @@ export const appConfig = registerAs('app', () => ({
     return origins.length > 0 ? origins : getDefaultCorsOrigins();
   })(),
   loginPageUrl: process.env.LOGIN_PAGE_URL ?? 'http://localhost:5173/login',
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+    secure: (process.env.SMTP_SECURE ?? 'false') === 'true',
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+    from: process.env.SMTP_FROM ?? 'Authori <no-reply@authori.local>',
+  },
+  emailVerificationTtl: parseInt(
+    process.env.EMAIL_VERIFICATION_TTL ?? '86400',
+    10,
+  ),
 }));
 
 export const dbConfig = registerAs('db', () => ({

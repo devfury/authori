@@ -33,3 +33,4 @@ export type {
 } from './external-auth-provider.entity';
 export type { LoginBranding } from './oauth-client.entity';
 export { PendingOAuthRequest } from './pending-oauth-request.entity';
+export { EmailVerificationToken } from './email-verification-token.entity';

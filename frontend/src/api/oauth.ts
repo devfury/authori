@@ -12,6 +12,7 @@ export interface LoginConfigResponse {
   scopes?: Array<{ name: string; displayName: string; description: string | null }>
   allowRegistration: boolean
   autoActivateRegistration: boolean
+  emailVerificationRequired: boolean
   activeSchema?: {
     schemaJsonb: Record<string, any>
   } | null
@@ -44,7 +45,16 @@ export const oauthApi = {
     })
   },
   register(tenantSlug: string, payload: RegisterPayload) {
-    return oauthHttp.post<{ message: string }>(`/t/${tenantSlug}/oauth/register`, payload)
+    return oauthHttp.post<{ message: string; id: string; email: string; emailVerificationRequired: boolean }>(
+      `/t/${tenantSlug}/oauth/register`,
+      payload,
+    )
+  },
+  verifyEmail(tenantSlug: string, token: string) {
+    return oauthHttp.post<{ message: string; email: string }>(
+      `/t/${tenantSlug}/oauth/verify-email`,
+      { token },
+    )
   },
   authorize(tenantSlug: string, payload: {
     requestId: string
