@@ -52,4 +52,9 @@ export const dbConfig = registerAs('db', () => ({
   username: process.env.DB_USERNAME ?? 'authori',
   password: process.env.DB_PASSWORD ?? '',
   name: process.env.DB_NAME ?? 'authori_db',
+  /** 쿼리 로깅 여부. 미설정 시 개발환경에서만 켜진다. DB_LOGGING=false 로 강제로 끌 수 있다 */
+  logging:
+    process.env.DB_LOGGING !== undefined
+      ? process.env.DB_LOGGING === 'true'
+      : (process.env.NODE_ENV ?? 'development') === 'development',
 }));

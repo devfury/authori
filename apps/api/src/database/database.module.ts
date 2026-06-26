@@ -63,7 +63,7 @@ import {
         ],
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         synchronize: false,
-        logging: config.get<string>('app.nodeEnv') === 'development',
+        logging: config.get<boolean>('db.logging') ?? false,
       }),
     }),
   ],
