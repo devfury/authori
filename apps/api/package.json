@@ -1,6 +1,6 @@
 {
   "name": "@authori/api",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Authori OAuth2 인증 API 서버 (NestJS)",
   "author": "",
   "private": true,
