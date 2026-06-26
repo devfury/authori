@@ -15,6 +15,7 @@ const type = ref<'PUBLIC' | 'CONFIDENTIAL'>('PUBLIC')
 const availableScopes = ref<TenantScope[]>([])
 const selectedScopes = ref<string[]>([])
 const redirectUrisInput = ref('http://localhost:8080/callback')
+const postVerificationRedirectUri = ref('')
 
 const GRANT_OPTIONS = [
   { value: 'authorization_code', label: 'Authorization Code', description: '사용자 로그인 플로우 (PKCE 포함)' },
@@ -57,6 +58,7 @@ async function submit() {
       allowedScopes: selectedScopes.value,
       allowedGrants: selectedGrants.value,
       redirectUris: redirectUrisInput.value.split('\n').map((s) => s.trim()).filter(Boolean),
+      postVerificationRedirectUri: postVerificationRedirectUri.value.trim() || undefined,
     })
     if (data.plainSecret) {
       plainSecret.value = data.plainSecret
@@ -178,6 +180,22 @@ async function submit() {
             rows="3"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            인증 후 리다이렉트 URL
+            <span class="text-xs font-normal text-gray-400">(선택)</span>
+          </label>
+          <input
+            v-model="postVerificationRedirectUri"
+            type="text"
+            placeholder="https://app.example.com/login"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          <p class="mt-1 text-xs text-gray-400">
+            이메일 인증 완료 후 사용자를 보낼 기본 목적지. 등록한 Redirect URI와 같은 origin이어야 합니다.
+          </p>
         </div>
 
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

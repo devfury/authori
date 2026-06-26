@@ -27,6 +27,7 @@ const editType = ref<'PUBLIC' | 'CONFIDENTIAL'>('CONFIDENTIAL')
 const editScopes = ref<string[]>([])
 const editGrants = ref<string[]>([])
 const editRedirectUris = ref('')
+const editPostVerificationRedirectUri = ref('')
 const editBranding = ref<LoginBranding>({})
 const saving = ref(false)
 const saveError = ref('')
@@ -44,6 +45,7 @@ function startEdit() {
   editScopes.value = [...client.value.allowedScopes]
   editGrants.value = [...client.value.allowedGrants]
   editRedirectUris.value = client.value.redirectUris.map((r) => r.uri).join('\n')
+  editPostVerificationRedirectUri.value = client.value.postVerificationRedirectUri ?? ''
   editBranding.value = client.value.branding ? { ...client.value.branding } : {}
   saveError.value = ''
   editing.value = true
@@ -68,6 +70,8 @@ async function saveEdit() {
       allowedGrants: editGrants.value,
       redirectUris: editRedirectUris.value.split('\n').map((s) => s.trim()).filter(Boolean),
       branding: Object.keys(editBranding.value).length > 0 ? editBranding.value : null,
+      // 빈 문자열은 서버에서 null로 변환(emptyToNull)되어 초기화된다.
+      postVerificationRedirectUri: editPostVerificationRedirectUri.value.trim(),
     })
     client.value = data.client
     if (data.plainSecret) newSecret.value = data.plainSecret
@@ -161,6 +165,10 @@ onMounted(load)
                   class="text-gray-800 font-mono text-xs"
                 >{{ r.uri }}</p>
                 <p v-if="client.redirectUris.length === 0" class="text-gray-400 text-xs">—</p>
+              </div>
+              <div class="col-span-2">
+                <p class="text-xs text-gray-400 mb-1">인증 후 리다이렉트 URL</p>
+                <p class="text-gray-800 font-mono text-xs">{{ client.postVerificationRedirectUri || '—' }}</p>
               </div>
               <div v-if="client.branding && Object.keys(client.branding).length > 0" class="col-span-2">
                 <p class="text-xs text-gray-400 mb-1">로그인 브랜딩</p>
@@ -294,6 +302,21 @@ onMounted(load)
                 />
               </div>
 
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  인증 후 리다이렉트 URL
+                  <span class="text-xs font-normal text-gray-400">(선택)</span>
+                </label>
+                <input
+                  v-model="editPostVerificationRedirectUri"
+                  type="text"
+                  placeholder="https://app.example.com/login"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                <p class="mt-1 text-xs text-gray-400">
+                  이메일 인증 완료 후 사용자를 보낼 기본 목적지. 등록한 Redirect URI와 같은 origin이어야 합니다. 비우면 초기화됩니다.
+                </p>
+              </div>
 
               <div class="border-t border-gray-100 pt-4">
                 <label class="block text-sm font-medium text-gray-700 mb-3">로그인 화면 브랜딩 <span class="text-xs font-normal text-gray-400">(선택)</span></label>

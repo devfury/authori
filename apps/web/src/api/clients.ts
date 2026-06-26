@@ -17,6 +17,7 @@ export interface OAuthClient {
   allowedGrants: string[]
   redirectUris: { uri: string }[]
   branding: LoginBranding | null
+  postVerificationRedirectUri: string | null
   tenantId: string
   createdAt: string
 }
@@ -27,6 +28,7 @@ export interface CreateClientPayload {
   allowedScopes: string[]
   allowedGrants: string[]
   redirectUris: string[]
+  postVerificationRedirectUri?: string
 }
 
 export interface UpdateClientPayload {
@@ -36,6 +38,7 @@ export interface UpdateClientPayload {
   allowedGrants?: string[]
   redirectUris?: string[]
   branding?: LoginBranding | null
+  postVerificationRedirectUri?: string | null
 }
 
 export interface ClientUpdatedResponse {

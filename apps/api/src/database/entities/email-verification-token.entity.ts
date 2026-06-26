@@ -20,6 +20,14 @@ export class EmailVerificationToken {
   @Column({ name: 'token_hash' })
   tokenHash: string;
 
+  /** 가입을 트리거한 OAuth 클라이언트. 인증 후 목적지 해석에 사용 */
+  @Column({ name: 'client_id', type: 'varchar', nullable: true })
+  clientId: string | null;
+
+  /** 요청별 동적 복귀 목적지(allowlist 검증을 통과한 값만 저장) */
+  @Column({ name: 'continue_uri', type: 'varchar', nullable: true })
+  continueUri: string | null;
+
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
 

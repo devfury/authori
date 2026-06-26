@@ -24,6 +24,7 @@ export interface RegisterPayload {
   profile?: Record<string, any>
   requestId?: string
   clientId?: string
+  continueUri?: string
 }
 
 export interface UserinfoResponse {
@@ -51,7 +52,7 @@ export const oauthApi = {
     )
   },
   verifyEmail(tenantSlug: string, token: string) {
-    return oauthHttp.post<{ message: string; email: string }>(
+    return oauthHttp.post<{ message: string; email: string; continueUrl?: string }>(
       `/t/${tenantSlug}/oauth/verify-email`,
       { token },
     )

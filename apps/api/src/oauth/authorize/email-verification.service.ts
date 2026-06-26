@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import {
   AuditAction,
   EmailVerificationToken,
+  OAuthClient,
   Tenant,
   User,
   UserStatus,
@@ -12,12 +13,17 @@ import {
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { MailService } from '../../common/mail/mail.service';
+import { RedirectUriValidator } from '../../common/redirect/redirect-uri.validator';
 
 interface IssueOptions {
   /** 메일 헤더/제목에 노출할 이름. 없으면 테넌트 이름 사용 */
   serviceName?: string;
   /** 버튼 색상 (클라이언트 브랜딩) */
   brandColor?: string | null;
+  /** 가입을 트리거한 클라이언트. 인증 후 목적지 해석에 사용 */
+  clientId?: string | null;
+  /** 요청별 동적 복귀 목적지(호출부에서 allowlist 검증을 마친 값) */
+  continueUri?: string | null;
 }
 
 @Injectable()
@@ -31,9 +37,12 @@ export class EmailVerificationService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Tenant)
     private readonly tenantRepo: Repository<Tenant>,
+    @InjectRepository(OAuthClient)
+    private readonly clientRepo: Repository<OAuthClient>,
     private readonly config: ConfigService,
     private readonly mailService: MailService,
     private readonly auditService: AuditService,
+    private readonly redirectUriValidator: RedirectUriValidator,
   ) {}
 
   /**
@@ -59,6 +68,8 @@ export class EmailVerificationService {
         tokenHash,
         expiresAt,
         usedAt: null,
+        clientId: opts.clientId ?? null,
+        continueUri: opts.continueUri ?? null,
       }),
     );
 
@@ -84,7 +95,7 @@ export class EmailVerificationService {
     tenantId: string,
     rawToken: string,
     ctx: AuditContext = {},
-  ): Promise<{ message: 'verified'; email: string }> {
+  ): Promise<{ message: 'verified'; email: string; continueUrl?: string }> {
     if (!rawToken) throw new BadRequestException('invalid_token');
 
     const tokenHash = CryptoUtil.sha256Hex(rawToken);
@@ -101,7 +112,8 @@ export class EmailVerificationService {
 
     // 이미 인증/활성화된 경우 멱등 처리
     if (record.usedAt) {
-      return { message: 'verified', email: user.email };
+      const continueUrl = await this.resolveContinueUrl(record);
+      return { message: 'verified', email: user.email, continueUrl };
     }
 
     if (record.expiresAt.getTime() < Date.now()) {
@@ -129,7 +141,42 @@ export class EmailVerificationService {
       ...ctx,
     });
 
-    return { message: 'verified', email: user.email };
+    const continueUrl = await this.resolveContinueUrl(record);
+    return { message: 'verified', email: user.email, continueUrl };
+  }
+
+  /**
+   * 인증 완료 후 이동할 목적지를 우선순위 체인으로 해석한다.
+   * 1) 토큰에 저장된 동적 continueUri (allowlist 통과 시)
+   * 2) 클라이언트 기본 postVerificationRedirectUri (allowlist 통과 시)
+   * 3) undefined → 프론트가 기본 안내 페이지로 폴백
+   *
+   * allowlist 미통과는 에러가 아니라 다음 순위로 넘어가는 안전한 폴백으로 처리한다.
+   */
+  private async resolveContinueUrl(record: EmailVerificationToken): Promise<string | undefined> {
+    const clientId = record.clientId;
+
+    // 1) 요청별 동적 목적지
+    if (
+      record.continueUri &&
+      (await this.redirectUriValidator.isAllowed(clientId, record.continueUri))
+    ) {
+      return record.continueUri;
+    }
+
+    // 2) 클라이언트 기본 목적지
+    if (clientId) {
+      const client = await this.clientRepo.findOne({
+        where: { tenantId: record.tenantId, clientId },
+      });
+      const candidate = client?.postVerificationRedirectUri;
+      if (candidate && (await this.redirectUriValidator.isAllowed(clientId, candidate))) {
+        return candidate;
+      }
+    }
+
+    // 3) 폴백
+    return undefined;
   }
 
   /** loginPageUrl의 origin 기준으로 프론트 /verify-email 링크를 만든다 */

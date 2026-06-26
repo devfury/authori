@@ -27,6 +27,7 @@ import {
 } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
+import { RedirectUriValidator } from '../../common/redirect/redirect-uri.validator';
 import { ExternalAuthResult, ExternalAuthService } from '../../external-auth/external-auth.service';
 import { RbacService } from '../../rbac/rbac.service';
 import { EmailVerificationService } from './email-verification.service';
@@ -72,6 +73,7 @@ export class AuthorizeService {
     private readonly scopesService: ScopesService,
     private readonly rbacService: RbacService,
     private readonly emailVerificationService: EmailVerificationService,
+    private readonly redirectUriValidator: RedirectUriValidator,
     @Inject(PENDING_REQUEST_STORE)
     private readonly pendingStore: IPendingRequestStore,
   ) {}
@@ -244,11 +246,20 @@ export class AuthorizeService {
         serviceName = client?.name;
         brandColor = client?.branding?.primaryColor ?? null;
       }
+      // 동적 목적지는 open redirect 방지를 위해 등록 redirect_uri origin allowlist로
+      // 검증하고, 통과한 값만 토큰에 저장한다(미통과는 무시 → 클라이언트 기본값/폴백).
+      const continueUri =
+        dto.continueUri &&
+        (await this.redirectUriValidator.isAllowed(dto.clientId, dto.continueUri))
+          ? dto.continueUri
+          : null;
       // 메일 발송 실패가 가입 자체를 막지 않도록 격리한다.
       try {
         await this.emailVerificationService.issueAndSend(tenantId, tenantSlug, savedUser, {
           serviceName,
           brandColor,
+          clientId: dto.clientId ?? null,
+          continueUri,
         });
       } catch (error) {
         this.logger.error(
@@ -269,7 +280,7 @@ export class AuthorizeService {
     tenantId: string,
     token: string,
     ctx: AuditContext = {},
-  ): Promise<{ message: 'verified'; email: string }> {
+  ): Promise<{ message: 'verified'; email: string; continueUrl?: string }> {
     return this.emailVerificationService.confirm(tenantId, token, ctx);
   }
 
