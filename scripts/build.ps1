@@ -16,7 +16,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$RootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+# scripts/ 하위에 위치하므로 저장소 루트는 한 단계 위
+$RootDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
 $Registry        = if ($env:REGISTRY) { $env:REGISTRY } else { 'registry.ezcaretech.com' }
 $Namespace       = if ($env:NAMESPACE) { $env:NAMESPACE } else { 'authori' }

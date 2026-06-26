@@ -48,10 +48,10 @@ bun run start:dev          # port 3001, Swagger at /docs
 
 ### Docker 이미지 빌드
 ```bash
-./build.sh                 # web + api 이미지 모두 빌드 (build context = 저장소 루트)
-./build.sh api             # api 만 (apps/api/Dockerfile)
-./build.sh web             # web 만 (apps/web/Dockerfile)
-# Windows: build.ps1 / build.bat 동일 인자
+./scripts/build.sh                 # web + api 이미지 모두 빌드 (build context = 저장소 루트)
+./scripts/build.sh api             # api 만 (apps/api/Dockerfile)
+./scripts/build.sh web             # web 만 (apps/web/Dockerfile)
+# Windows: scripts/build.ps1 / scripts/build.bat 동일 인자
 ```
 
 ## Architecture

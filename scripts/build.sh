@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# scripts/ 하위에 위치하므로 저장소 루트는 한 단계 위
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 REGISTRY="${REGISTRY:-registry.ezcaretech.com}"
 NAMESPACE="${NAMESPACE:-authori}"
