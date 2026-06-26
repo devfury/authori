@@ -40,6 +40,8 @@ export const appConfig = registerAs('app', () => ({
     from: process.env.SMTP_FROM ?? 'Authori <no-reply@authori.local>',
     /** 개발환경 전용 — 설정 시 모든 수신자를 이 주소로 강제 변경한다 */
     devRedirectTo: process.env.SMTP_DEV_REDIRECT_TO ?? '',
+    /** TLS 인증서 검증 여부. false 로 두면 자체 서명 인증서를 허용한다(개발용). 기본 true */
+    tlsRejectUnauthorized: (process.env.SMTP_TLS_REJECT_UNAUTHORIZED ?? 'true') !== 'false',
   },
   emailVerificationTtl: parseInt(process.env.EMAIL_VERIFICATION_TTL ?? '86400', 10),
 }));
