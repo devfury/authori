@@ -38,6 +38,8 @@ export const appConfig = registerAs('app', () => ({
     user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? '',
     from: process.env.SMTP_FROM ?? 'Authori <no-reply@authori.local>',
+    /** 개발환경 전용 — 설정 시 모든 수신자를 이 주소로 강제 변경한다 */
+    devRedirectTo: process.env.SMTP_DEV_REDIRECT_TO ?? '',
   },
   emailVerificationTtl: parseInt(process.env.EMAIL_VERIFICATION_TTL ?? '86400', 10),
 }));
