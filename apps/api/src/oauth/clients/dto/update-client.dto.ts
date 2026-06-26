@@ -78,4 +78,13 @@ export class UpdateClientDto {
   @ValidateNested()
   @Type(() => LoginBrandingDto)
   branding?: LoginBrandingDto | null;
+
+  @ApiPropertyOptional({
+    description: '이메일 인증 완료 후 기본 리다이렉트 URL. 빈 문자열로 보내면 초기화',
+    example: 'https://app.example.com/login',
+  })
+  @emptyToNull()
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  postVerificationRedirectUri?: string | null;
 }

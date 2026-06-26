@@ -15,6 +15,8 @@ const tenantSlug = getQueryValue(route.query.tenantSlug)
 type State = 'loading' | 'success' | 'error'
 const state = ref<State>('loading')
 const errorMessage = ref('')
+// 인증 후 서버가 결정한 복귀 목적지(BFF 자체 로그인 / 앱 진입 / 딥링크). 없으면 기본 안내.
+const continueUrl = ref<string | null>(null)
 
 onMounted(async () => {
   if (!token || !tenantSlug) {
@@ -24,8 +26,15 @@ onMounted(async () => {
   }
 
   try {
-    await oauthApi.verifyEmail(tenantSlug, token)
+    const { data } = await oauthApi.verifyEmail(tenantSlug, token)
     state.value = 'success'
+    if (data.continueUrl) {
+      continueUrl.value = data.continueUrl
+      // 짧은 안내 노출 후 자동 이동. 수동 폴백 링크도 함께 제공한다.
+      window.setTimeout(() => {
+        if (continueUrl.value) window.location.href = continueUrl.value
+      }, 1200)
+    }
   } catch (e: any) {
     const msg = e.response?.data?.message ?? ''
     if (msg === 'token_expired') {
@@ -62,14 +71,30 @@ const loginRoute = { name: 'oauth-login', query: tenantSlug ? { tenantSlug } : {
         </div>
       </div>
       <h2 class="text-xl font-bold text-gray-800 mb-2">이메일 인증 완료</h2>
-      <p class="text-gray-600 mb-6">계정이 활성화되었습니다. 이제 로그인하실 수 있습니다.</p>
-      <RouterLink
-        :to="loginRoute"
-        class="inline-block py-2 px-6 text-white text-sm font-medium rounded-lg transition-colors"
-        style="background-color: var(--auth-primary-color, #4f46e5)"
-      >
-        로그인하러 가기
-      </RouterLink>
+
+      <!-- 서버가 복귀 목적지를 지정한 경우: 자동 이동 + 수동 폴백 -->
+      <template v-if="continueUrl">
+        <p class="text-gray-600 mb-6">계정이 활성화되었습니다. 로그인 화면으로 이동합니다...</p>
+        <a
+          :href="continueUrl"
+          class="inline-block py-2 px-6 text-white text-sm font-medium rounded-lg transition-colors"
+          style="background-color: var(--auth-primary-color, #4f46e5)"
+        >
+          지금 이동하기
+        </a>
+      </template>
+
+      <!-- 목적지가 없는 경우: 기존 안내 + 테넌트 로그인 링크 -->
+      <template v-else>
+        <p class="text-gray-600 mb-6">계정이 활성화되었습니다. 이제 로그인하실 수 있습니다.</p>
+        <RouterLink
+          :to="loginRoute"
+          class="inline-block py-2 px-6 text-white text-sm font-medium rounded-lg transition-colors"
+          style="background-color: var(--auth-primary-color, #4f46e5)"
+        >
+          로그인하러 가기
+        </RouterLink>
+      </template>
     </template>
 
     <!-- 실패 -->

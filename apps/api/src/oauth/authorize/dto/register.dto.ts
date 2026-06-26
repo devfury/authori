@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsObject, IsOptional, IsString, IsUrl } from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -27,4 +27,12 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   clientId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '인증 완료 후 복귀할 동적 목적지 URL (clientId의 등록 redirect_uri origin allowlist로 검증됨)',
+  })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  continueUri?: string;
 }

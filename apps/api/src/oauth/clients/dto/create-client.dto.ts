@@ -32,4 +32,13 @@ export class CreateClientDto {
   @IsArray()
   @IsString({ each: true })
   allowedGrants?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      '이메일 인증 완료 후 기본 리다이렉트 URL (등록 redirect_uri origin allowlist로 검증됨)',
+    example: 'https://app.example.com/login',
+  })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  postVerificationRedirectUri?: string;
 }

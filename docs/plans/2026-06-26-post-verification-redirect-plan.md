@@ -53,36 +53,36 @@
 ## 작업 단계 체크리스트
 
 ### 데이터 모델
-- [ ] `oauth-client.entity.ts`에 `postVerificationRedirectUri` 컬럼 추가
-- [ ] `email-verification-token.entity.ts`에 `clientId`, `continueUri` 컬럼 추가
-- [ ] 마이그레이션 생성 및 검토 (`migration:generate`)
+- [x] `oauth-client.entity.ts`에 `postVerificationRedirectUri` 컬럼 추가
+- [x] `email-verification-token.entity.ts`에 `clientId`, `continueUri` 컬럼 추가
+- [x] 마이그레이션 생성 및 검토 (`migration:generate`)
 
 ### Allowlist 검증기
-- [ ] `RedirectUriValidator` 구현 (origin 일치 검증, 파싱 실패 안전 처리)
-- [ ] `redirect-uri.validator.spec.ts` 단위 테스트 (등록 origin 일치/불일치/잘못된 URL)
+- [x] `RedirectUriValidator` 구현 (origin 일치 검증, 파싱 실패 안전 처리)
+- [x] `redirect-uri.validator.spec.ts` 단위 테스트 (등록 origin 일치/불일치/잘못된 URL)
 
 ### 인증 토큰 컨텍스트 영속화
-- [ ] `EmailVerificationService.issueAndSend` 시그니처에 `clientId`, `continueUri` 추가 및 저장
-- [ ] `AuthorizeService.register`: `continueUri` allowlist 검증 후 통과 시 전달, `clientId` 전달
-- [ ] `RegisterDto.continueUri` 필드 추가
+- [x] `EmailVerificationService.issueAndSend` 시그니처에 `clientId`, `continueUri` 추가 및 저장
+- [x] `AuthorizeService.register`: `continueUri` allowlist 검증 후 통과 시 전달, `clientId` 전달
+- [x] `RegisterDto.continueUri` 필드 추가
 
 ### 목적지 해석 체인
-- [ ] `EmailVerificationService.resolveContinueUrl` 구현 (동적 → 클라이언트 기본 → null)
-- [ ] `confirm`이 `continueUrl` 포함하여 반환
-- [ ] `AuthorizeService.verifyEmail` 반환 타입 확장
-- [ ] `email-verification.service.spec.ts`: 우선순위/폴백/allowlist 미통과 테스트
+- [x] `EmailVerificationService.resolveContinueUrl` 구현 (동적 → 클라이언트 기본 → null)
+- [x] `confirm`이 `continueUrl` 포함하여 반환
+- [x] `AuthorizeService.verifyEmail` 반환 타입 확장
+- [x] `email-verification.service.spec.ts`: 우선순위/폴백/allowlist 미통과 테스트
 
 ### 클라이언트 설정 (API)
-- [ ] `CreateClientDto` / `UpdateClientDto`에 `postVerificationRedirectUri` 추가
-- [ ] `clients.service.ts` 저장/수정 매핑 확인
+- [x] `CreateClientDto` / `UpdateClientDto`에 `postVerificationRedirectUri` 추가
+- [x] `clients.service.ts` 저장/수정 매핑 확인
 
 ### Frontend
-- [ ] `oauth.ts` 타입 확장 (`continueUri`, `continueUrl`)
-- [ ] `VerifyEmailView.vue` 성공 시 자동 이동 + 수동 폴백 링크
-- [ ] `clients.ts` 타입 + 클라이언트 생성/상세 뷰 입력 필드
+- [x] `oauth.ts` 타입 확장 (`continueUri`, `continueUrl`)
+- [x] `VerifyEmailView.vue` 성공 시 자동 이동 + 수동 폴백 링크
+- [x] `clients.ts` 타입 + 클라이언트 생성/상세 뷰 입력 필드
 
 ### 문서
-- [ ] README 또는 스펙에 "verified 힌트는 인증 증명 아님" 명시 (NFR-2)
+- [x] README 또는 스펙에 "verified 힌트는 인증 증명 아님" 명시 (NFR-2)
 
 ## 검증 명령과 기대 결과
 
