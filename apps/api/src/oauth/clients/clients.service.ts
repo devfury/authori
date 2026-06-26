@@ -79,6 +79,7 @@ export class ClientsService {
       clientSecretHash: secretHash,
       allowedScopes,
       allowedGrants: dto.allowedGrants ?? ['authorization_code', 'refresh_token'],
+      postVerificationRedirectUri: dto.postVerificationRedirectUri ?? null,
     });
 
     const uris = dto.redirectUris.map((uri) =>
@@ -154,6 +155,9 @@ export class ClientsService {
     }
     if (dto.allowedGrants) client.allowedGrants = dto.allowedGrants;
     if (dto.branding !== undefined) client.branding = dto.branding ?? null;
+    if (dto.postVerificationRedirectUri !== undefined) {
+      client.postVerificationRedirectUri = dto.postVerificationRedirectUri ?? null;
+    }
 
     let plainSecret: string | null = null;
     if (dto.type && dto.type !== client.type) {

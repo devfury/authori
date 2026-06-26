@@ -71,6 +71,10 @@ export class OAuthClient {
   @Column({ type: 'jsonb', nullable: true })
   branding: LoginBranding | null;
 
+  /** 이메일 인증 완료 후 기본 리다이렉트 목적지. allowlist(등록 redirect_uri origin) 검증 후에만 사용 */
+  @Column({ name: 'post_verification_redirect_uri', type: 'varchar', nullable: true })
+  postVerificationRedirectUri: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

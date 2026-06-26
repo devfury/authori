@@ -13,6 +13,8 @@ function getQueryValue(value: LocationQueryValue | LocationQueryValue[] | undefi
 const requestId = getQueryValue(route.query.requestId)
 const tenantSlug = getQueryValue(route.query.tenantSlug)
 const clientId = getQueryValue(route.query.clientId)
+// 연동 서비스가 인증 후 복귀 목적지를 지정한 경우 전달(서버에서 allowlist 검증)
+const continueUri = getQueryValue(route.query.continueUri)
 
 const email = ref('')
 const password = ref('')
@@ -201,6 +203,7 @@ async function submit() {
       profile,
       requestId,
       clientId,
+      continueUri,
     })
     verificationEmailSent.value = data.emailVerificationRequired
     success.value = true
