@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User, UserProfile } from '../database/entities';
+import { AccessToken, RefreshToken, Tenant, User, UserProfile } from '../database/entities';
 import { ProfileSchemaModule } from '../profile-schema/profile-schema.module';
 import { AuditModule } from '../common/audit/audit.module';
 import { AdminAuthModule } from '../admin/auth/admin-auth.module';
@@ -9,7 +9,7 @@ import { UsersController } from './users.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserProfile]),
+    TypeOrmModule.forFeature([User, UserProfile, Tenant, AccessToken, RefreshToken]),
     ProfileSchemaModule,
     AuditModule,
     AdminAuthModule,

@@ -863,7 +863,7 @@ git commit -m "feat: 비밀번호 재설정 공개 엔드포인트 추가"
 - Consumes: `MailService.sendAccountDeactivatedEmail`(Task 5), `User.deactivatedAt`(Task 2).
 - Produces: `deactivate()`가 `deactivatedAt` 기록 + 토큰 폐기 + 조건부 메일 발송; `activate()`/`unlock()`가 `deactivatedAt`을 null로 초기화.
 
-- [ ] **Step 1: 실패 테스트 작성** — `users.service.spec.ts` (핵심 동작만; repo는 목):
+- [x] **Step 1: 실패 테스트 작성** — `users.service.spec.ts` (핵심 동작만; repo는 목):
 
 ```ts
 import { UsersService } from './users.service';
@@ -915,12 +915,12 @@ describe('UsersService.activate', () => {
 });
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd apps/api && bun run test -- users.service.spec`
 Expected: FAIL
 
-- [ ] **Step 3: 구현** — `users.service.ts`:
+- [x] **Step 3: 구현** — `users.service.ts`:
 
 (a) 생성자에 주입 추가 — `MailService`, `Tenant`, `AccessToken`, `RefreshToken` repo. import 갱신:
 
@@ -991,14 +991,15 @@ import { MailService } from '../common/mail/mail.service';
 
 (d) `unlock()`에도 동일하게 `user.deactivatedAt = null;` 추가(`user.lockedUntil = null;` 다음).
 
-- [ ] **Step 4: 모듈 배선** — `users.module.ts`의 `TypeOrmModule.forFeature([User, UserProfile])`를 `[User, UserProfile, Tenant, AccessToken, RefreshToken]`로 확장하고, `imports`에 `MailModule` 추가(`import { MailModule } from '../common/mail/mail.module';`). MailModule 경로/이름은 기존 정의를 확인한다.
+- [x] **Step 4: 모듈 배선** — `users.module.ts`의 `TypeOrmModule.forFeature([User, UserProfile])`를 `[User, UserProfile, Tenant, AccessToken, RefreshToken]`로 확장하고, `imports`에 `MailModule` 추가(`import { MailModule } from '../common/mail/mail.module';`). MailModule 경로/이름은 기존 정의를 확인한다.
+  > 실제로는 `MailModule`이 `app.module.ts`에서 `@Global()`로 이미 등록되어 있어 `UsersModule`에 재-import하지 않았다(다른 전역 모듈 소비 패턴과 동일).
 
-- [ ] **Step 5: 테스트 통과 + 타입체크**
+- [x] **Step 5: 테스트 통과 + 타입체크**
 
 Run: `cd apps/api && bun run typecheck && bun run test -- users.service.spec`
 Expected: PASS
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/api/src/users/users.service.ts apps/api/src/users/users.module.ts apps/api/src/users/users.service.spec.ts docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md

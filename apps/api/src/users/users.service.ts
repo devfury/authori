@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -7,12 +7,14 @@ import {
   AccessToken,
   Consent,
   RefreshToken,
+  Tenant,
   User,
   UserProfile,
   UserStatus,
 } from '../database/entities';
 import { CryptoUtil } from '../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../common/audit/audit.service';
+import { MailService } from '../common/mail/mail.service';
 import { ProfileSchemaService } from '../profile-schema/profile-schema.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -34,6 +36,8 @@ export interface UserPage {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -43,6 +47,13 @@ export class UsersService {
     private readonly dataSource: DataSource,
     private readonly profileSchemaService: ProfileSchemaService,
     private readonly auditService: AuditService,
+    @InjectRepository(Tenant)
+    private readonly tenantRepo: Repository<Tenant>,
+    @InjectRepository(AccessToken)
+    private readonly accessTokenRepo: Repository<AccessToken>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepo: Repository<RefreshToken>,
+    private readonly mailService: MailService,
   ) {}
 
   async create(tenantId: string, dto: CreateUserDto, ctx?: AuditContext): Promise<User> {
@@ -234,6 +245,7 @@ export class UsersService {
   async activate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {
     const user = await this.findOne(tenantId, id);
     user.status = UserStatus.ACTIVE;
+    user.deactivatedAt = null;
     await this.userRepo.save(user);
     await this.auditService.record({
       tenantId,
@@ -247,7 +259,14 @@ export class UsersService {
   async deactivate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {
     const user = await this.findOne(tenantId, id);
     user.status = UserStatus.INACTIVE;
-    await this.userRepo.save(user);
+    user.deactivatedAt = new Date();
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(User, user);
+      await manager.update(AccessToken, { tenantId, userId: id }, { revoked: true });
+      await manager.update(RefreshToken, { tenantId, userId: id }, { revoked: true });
+    });
+
     await this.auditService.record({
       tenantId,
       action: AuditAction.USER_DEACTIVATED,
@@ -255,6 +274,24 @@ export class UsersService {
       targetId: id,
       ...ctx,
     });
+
+    // 이메일 인증 옵션이 켜진 테넌트는 비활성화 안내 메일 발송(best-effort, 실패해도 탈퇴 자체는 성공)
+    const tenant = await this.tenantRepo.findOne({
+      where: { id: tenantId },
+      relations: ['settings'],
+    });
+    if (tenant?.settings?.emailVerificationRequired) {
+      try {
+        await this.mailService.sendAccountDeactivatedEmail({
+          to: user.email,
+          serviceName: tenant.name ?? '계정',
+          from: tenant.settings.mailFrom ?? null,
+          devRedirectTo: tenant.settings.mailDevRedirectTo ?? null,
+        });
+      } catch (error) {
+        this.logger.error(`비활성화 안내 메일 실패 userId=${id}: ${(error as Error).message}`);
+      }
+    }
   }
 
   async lock(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {
@@ -275,6 +312,7 @@ export class UsersService {
     user.status = UserStatus.ACTIVE;
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
+    user.deactivatedAt = null;
     await this.userRepo.save(user);
     await this.auditService.record({
       tenantId,
