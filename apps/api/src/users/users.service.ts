@@ -276,21 +276,24 @@ export class UsersService {
     });
 
     // 이메일 인증 옵션이 켜진 테넌트는 비활성화 안내 메일 발송(best-effort, 실패해도 탈퇴 자체는 성공)
-    const tenant = await this.tenantRepo.findOne({
-      where: { id: tenantId },
-      relations: ['settings'],
-    });
-    if (tenant?.settings?.emailVerificationRequired) {
-      try {
+    // 발송 여부를 가리는 테넌트 조회도 이 블록 안에 포함한다: 조회 자체가 실패해도
+    // (이미 커밋·감사 완료된) deactivate()가 거부되어 클라이언트가 재시도하면
+    // deactivatedAt이 새 시각으로 덮여 자동 삭제 예정일이 계속 뒤로 밀리는 문제를 막는다.
+    try {
+      const tenant = await this.tenantRepo.findOne({
+        where: { id: tenantId },
+        relations: ['settings'],
+      });
+      if (tenant?.settings?.emailVerificationRequired) {
         await this.mailService.sendAccountDeactivatedEmail({
           to: user.email,
           serviceName: tenant.name ?? '계정',
           from: tenant.settings.mailFrom ?? null,
           devRedirectTo: tenant.settings.mailDevRedirectTo ?? null,
         });
-      } catch (error) {
-        this.logger.error(`비활성화 안내 메일 실패 userId=${id}: ${(error as Error).message}`);
       }
+    } catch (error) {
+      this.logger.error(`비활성화 안내 메일 처리 실패 userId=${id}: ${(error as Error).message}`);
     }
   }
 

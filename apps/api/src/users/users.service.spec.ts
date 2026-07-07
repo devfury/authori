@@ -620,6 +620,18 @@ describe('UsersService', () => {
       await expect(service.deactivate(tenantId, userId)).resolves.toBeUndefined();
     });
 
+    it('does not throw when the tenant lookup for mail-gating fails (best-effort)', async () => {
+      // 트랜잭션 커밋·감사 기록이 끝난 뒤 발송 여부를 가리는 테넌트 조회가 실패해도
+      // deactivate() 자체는 성공해야 한다(재시도로 deactivatedAt이 갱신되는 것을 방지).
+      tenantRepoMock.findOne.mockRejectedValue(new Error('db timeout'));
+
+      await expect(service.deactivate(tenantId, userId)).resolves.toBeUndefined();
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_DEACTIVATED }),
+      );
+      expect(mailServiceMock.sendAccountDeactivatedEmail).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundException when user does not exist', async () => {
       userRepoMock.findOne.mockResolvedValue(null);
 
