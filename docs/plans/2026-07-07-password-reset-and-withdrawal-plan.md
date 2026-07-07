@@ -43,7 +43,7 @@ cd apps/api && bun run test -- <spec-file>
 **Interfaces:**
 - Produces: `PasswordResetToken` 엔티티 — 컬럼 `id, tenantId, userId, tokenHash, expiresAt, usedAt, createdAt`. 테이블 `password_reset_tokens`.
 
-- [ ] **Step 1: 엔티티 작성** — `password-reset-token.entity.ts`:
+- [x] **Step 1: 엔티티 작성** — `password-reset-token.entity.ts`:
 
 ```ts
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
@@ -79,13 +79,13 @@ export class PasswordResetToken {
 }
 ```
 
-- [ ] **Step 2: barrel export 추가** — `index.ts` 끝(30번 줄 아래)에 추가:
+- [x] **Step 2: barrel export 추가** — `index.ts` 끝(30번 줄 아래)에 추가:
 
 ```ts
 export { PasswordResetToken } from './password-reset-token.entity';
 ```
 
-- [ ] **Step 3: 마이그레이션 작성** — `1780800000000-AddPasswordResetTokens.ts`:
+- [x] **Step 3: 마이그레이션 작성** — `1780800000000-AddPasswordResetTokens.ts`:
 
 ```ts
 import { MigrationInterface, QueryRunner } from 'typeorm';
@@ -123,12 +123,12 @@ export class AddPasswordResetTokens1780800000000 implements MigrationInterface {
 ```
 > `uuid_generate_v4()`는 기존 마이그레이션에서 이미 uuid-ossp 확장을 사용하므로 그대로 사용 가능하다. 확장 관련 오류가 나면 기존 초기 마이그레이션의 `CREATE EXTENSION` 사용 방식을 따른다.
 
-- [ ] **Step 4: 타입체크로 검증**
+- [x] **Step 4: 타입체크로 검증**
 
 Run: `cd apps/api && bun run typecheck`
 Expected: PASS (신규 엔티티/배럴 참조 오류 없음)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/api/src/database/entities/password-reset-token.entity.ts apps/api/src/database/entities/index.ts apps/api/src/database/migrations/1780800000000-AddPasswordResetTokens.ts docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md
