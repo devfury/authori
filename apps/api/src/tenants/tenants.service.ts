@@ -1,10 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuditAction, Tenant, TenantSettings, TenantStatus } from '../database/entities';
 import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { ScopesService } from '../oauth/scopes/scopes.service';
-import { CreateTenantDto } from './dto/create-tenant.dto';
+import { CreateTenantDto, CreateTenantSettingsDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
 export interface TenantListQuery {
@@ -32,7 +33,18 @@ export class TenantsService {
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
     private readonly scopesService: ScopesService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * production 환경에서는 설정할 수 없는 필드를 제거한다.
+   * mailDevRedirectTo는 개발 전용이므로 NODE_ENV=production일 때 저장 요청을 무시한다.
+   */
+  private stripProductionOnlySettings(settings: CreateTenantSettingsDto): void {
+    if (this.config.get<string>('app.nodeEnv') === 'production') {
+      delete settings.mailDevRedirectTo;
+    }
+  }
 
   async create(dto: CreateTenantDto, ctx?: AuditContext): Promise<Tenant> {
     const exists = await this.tenantRepo.findOne({ where: { slug: dto.slug } });
@@ -40,6 +52,7 @@ export class TenantsService {
       throw new ConflictException(`Slug '${dto.slug}' is already taken`);
     }
 
+    if (dto.settings) this.stripProductionOnlySettings(dto.settings);
     const settings = this.settingsRepo.create(dto.settings ?? {});
     const tenant = this.tenantRepo.create({
       slug: dto.slug,
@@ -105,6 +118,7 @@ export class TenantsService {
 
     return this.dataSource.transaction(async (manager) => {
       if (dto.settings) {
+        this.stripProductionOnlySettings(dto.settings);
         Object.assign(tenant.settings, dto.settings);
         await manager.save(TenantSettings, tenant.settings);
       }

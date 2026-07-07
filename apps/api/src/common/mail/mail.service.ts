@@ -3,15 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 
+/** 테넌트에 발신자 주소가 설정되지 않은 경우 사용할 기본 발신자 */
+const DEFAULT_MAIL_FROM = 'Authori <no-reply@authori.local>';
+
 interface SmtpConfig {
   host: string;
   port: number;
   secure: boolean;
   user: string;
   pass: string;
-  from: string;
-  /** 개발환경 전용 — 설정 시 모든 수신자를 이 주소로 강제 변경한다 */
-  devRedirectTo: string;
   /** TLS 인증서 검증 여부. false 면 자체 서명 인증서 허용(개발용) */
   tlsRejectUnauthorized: boolean;
 }
@@ -25,6 +25,10 @@ export interface VerificationEmailParams {
   brandColor?: string | null;
   /** 링크 유효시간 (초) — 안내 문구용 */
   ttlSeconds: number;
+  /** 발신자 주소(테넌트별). falsy면 기본 발신자 사용 */
+  from?: string | null;
+  /** 개발용 강제 수신자(테넌트별). NODE_ENV=development에서만 적용 */
+  devRedirectTo?: string | null;
 }
 
 @Injectable()
@@ -41,8 +45,6 @@ export class MailService {
       secure: false,
       user: '',
       pass: '',
-      from: 'Authori <no-reply@authori.local>',
-      devRedirectTo: '',
       tlsRejectUnauthorized: true,
     };
     this.isDev = (this.config.get<string>('app.nodeEnv') ?? 'development') === 'development';
@@ -50,15 +52,13 @@ export class MailService {
 
   /**
    * 실제 발송할 수신자를 결정한다.
-   * 개발환경(NODE_ENV=development)에서 SMTP_DEV_REDIRECT_TO가 설정된 경우,
+   * 개발환경(NODE_ENV=development)에서 테넌트의 mailDevRedirectTo가 설정된 경우,
    * 원래 수신자 대신 해당 주소로 강제 변경한다(실 사용자에게 잘못 발송되는 것을 방지).
    */
-  private resolveRecipient(to: string): string {
-    if (this.isDev && this.smtp.devRedirectTo) {
-      this.logger.log(
-        `개발환경 메일 리디렉션: 원래 수신자=${to} → 강제 수신자=${this.smtp.devRedirectTo}`,
-      );
-      return this.smtp.devRedirectTo;
+  private resolveRecipient(to: string, devRedirectTo?: string | null): string {
+    if (this.isDev && devRedirectTo) {
+      this.logger.log(`개발환경 메일 리디렉션: 원래 수신자=${to} → 강제 수신자=${devRedirectTo}`);
+      return devRedirectTo;
     }
     return to;
   }
@@ -92,11 +92,11 @@ export class MailService {
       return;
     }
 
-    const recipient = this.resolveRecipient(params.to);
+    const recipient = this.resolveRecipient(params.to, params.devRedirectTo);
 
     try {
       await this.getTransporter().sendMail({
-        from: this.smtp.from,
+        from: params.from || DEFAULT_MAIL_FROM,
         to: recipient,
         subject,
         html,

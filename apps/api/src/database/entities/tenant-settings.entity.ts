@@ -65,6 +65,18 @@ export class TenantSettings {
   @Column({ name: 'email_verification_required', default: false })
   emailVerificationRequired: boolean;
 
+  /** 인증 메일 발신자 주소. 미설정 시 하드코딩 기본값 사용 (`Name <addr>` 형식 허용) */
+  @Column({ name: 'mail_from', type: 'varchar', nullable: true })
+  mailFrom: string | null;
+
+  /**
+   * 개발용 강제 수신자. NODE_ENV=development에서만 적용되며,
+   * 설정 시 모든 인증 메일 수신자를 이 주소로 강제 변경한다.
+   * production에서는 설정할 수 없다(저장 API에서 무시).
+   */
+  @Column({ name: 'mail_dev_redirect_to', type: 'varchar', nullable: true })
+  mailDevRedirectTo: string | null;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

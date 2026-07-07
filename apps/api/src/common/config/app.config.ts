@@ -37,9 +37,10 @@ export const appConfig = registerAs('app', () => ({
     secure: (process.env.SMTP_SECURE ?? 'false') === 'true',
     user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? '',
-    from: process.env.SMTP_FROM ?? 'Authori <no-reply@authori.local>',
-    /** 개발환경 전용 — 설정 시 모든 수신자를 이 주소로 강제 변경한다 */
-    devRedirectTo: process.env.SMTP_DEV_REDIRECT_TO ?? '',
+    /**
+     * 발신자 주소(from)와 개발용 강제 수신자(devRedirectTo)는 전역 환경변수가 아닌
+     * 테넌트별 설정(TenantSettings.mailFrom / mailDevRedirectTo)으로 관리한다.
+     */
     /** TLS 인증서 검증 여부. false 로 두면 자체 서명 인증서를 허용한다(개발용). 기본 true */
     tlsRejectUnauthorized: (process.env.SMTP_TLS_REJECT_UNAUTHORIZED ?? 'true') !== 'false',
   },

@@ -9,6 +9,7 @@ import {
   IsUrl,
   Matches,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -84,6 +85,24 @@ export class CreateTenantSettingsDto {
   @IsOptional()
   @IsBoolean()
   emailVerificationRequired?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      '인증 메일 발신자 주소 (예: "Acme <no-reply@acme.com>"). 미설정 시 기본 발신자 사용',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
+  mailFrom?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '개발용 강제 수신자. NODE_ENV=development에서만 적용되며 production에서는 저장되지 않는다',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
+  mailDevRedirectTo?: string;
 }
 
 export class CreateTenantDto {

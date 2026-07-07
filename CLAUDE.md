@@ -81,7 +81,7 @@ bun run start:dev          # port 3001, Swagger at /docs
 
 **엔티티 목록**: Tenant, TenantSettings, User, UserProfile, ProfileSchemaVersion, OAuthClient, OAuthClientRedirectUri, AuthorizationCode, AccessToken, RefreshToken, Consent, SigningKey, AuditLog, AdminUser, EmailVerificationToken
 
-**회원가입 활성화 정책**: 공개 회원가입(`allowRegistration`) 시 신규 사용자 상태는 `TenantSettings`로 결정된다. `emailVerificationRequired`가 켜지면 `autoActivateRegistration`보다 우선하며, 사용자는 INACTIVE로 생성되고 가입 이메일의 인증 링크(`/verify-email`)를 클릭하면 활성화된다. 메일 발송은 전역 SMTP 설정(`app.config.ts`의 `smtp`, `.env`의 `SMTP_*`)을 사용하는 `common/mail/MailService`가 담당하며, SMTP 미설정 시 인증 링크를 서버 로그로만 출력한다(개발용 폴백). 인증 토큰은 `EmailVerificationToken`에 sha256 해시로 저장된다(`oauth/authorize/email-verification.service.ts`).
+**회원가입 활성화 정책**: 공개 회원가입(`allowRegistration`) 시 신규 사용자 상태는 `TenantSettings`로 결정된다. `emailVerificationRequired`가 켜지면 `autoActivateRegistration`보다 우선하며, 사용자는 INACTIVE로 생성되고 가입 이메일의 인증 링크(`/verify-email`)를 클릭하면 활성화된다. 메일 발송은 전역 SMTP 접속 설정(`app.config.ts`의 `smtp`, `.env`의 `SMTP_HOST/PORT/USER/PASS/SECURE/TLS_REJECT_UNAUTHORIZED`)을 사용하는 `common/mail/MailService`가 담당하며, SMTP 미설정 시 인증 링크를 서버 로그로만 출력한다(개발용 폴백). 발신자 주소(`mailFrom`)와 개발용 강제 수신자(`mailDevRedirectTo`)는 환경변수가 아닌 **테넌트별 설정(`TenantSettings`)** 으로 관리한다: `mailFrom` 미설정 시 하드코딩 기본값을 쓰고, `mailDevRedirectTo`는 `NODE_ENV=development`에서만 설정·적용된다(production에서는 저장 API가 무시하고 관리 UI에도 노출되지 않음 — 서버가 내려주는 `mailDevRedirectEditable` 플래그로 판단). 인증 토큰은 `EmailVerificationToken`에 sha256 해시로 저장된다(`oauth/authorize/email-verification.service.ts`).
 
 ### Frontend
 

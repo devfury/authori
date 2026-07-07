@@ -25,19 +25,19 @@
 
 ## 작업 단계
 
-- [ ] 1. `TenantSettings` 엔티티에 `mailFrom`, `mailDevRedirectTo` 컬럼 추가
-- [ ] 2. 마이그레이션 `1780700000000-AddTenantMailSettings` 작성 (up/down)
-- [ ] 3. `app.config.ts`에서 `smtp.from`, `smtp.devRedirectTo` 제거
-- [ ] 4. `MailService`: `DEFAULT_MAIL_FROM` 상수, `SmtpConfig`/폴백 정리, `VerificationEmailParams`에 `from`/`devRedirectTo` 추가, `resolveRecipient` 시그니처 변경, 발송부 반영
-- [ ] 5. `EmailVerificationService.issueAndSend`: 테넌트 `settings` 로드 후 `from`/`devRedirectTo` 전달
-- [ ] 6. `CreateTenantSettingsDto`에 `mailFrom`, `mailDevRedirectTo` 필드 추가
-- [ ] 7. `TenantsService`: `ConfigService` 주입 + production에서 `mailDevRedirectTo` strip (create/update)
-- [ ] 8. `TenantsController`: `GET /:id` 응답에 `mailDevRedirectEditable` 플래그 병합
-- [ ] 9. 프론트 `api/tenants.ts` 타입 확장 (settings 2필드 + `mailDevRedirectEditable`)
-- [ ] 10. `TenantDetailView.vue`: 발신자 입력(항상), dev redirect 입력(플래그 조건), 저장 payload 반영
-- [ ] 11. `.env`/`.env.example`/`CLAUDE.md`에서 `SMTP_FROM`·`SMTP_DEV_REDIRECT_TO` 제거·설명 갱신
-- [ ] 12. 단위 테스트 작성/갱신 (MailService 폴백·dev 게이트, TenantsService strip)
-- [ ] 13. `bun run lint && bun run typecheck && bun run test && bun run build`
+- [x] 1. `TenantSettings` 엔티티에 `mailFrom`, `mailDevRedirectTo` 컬럼 추가
+- [x] 2. 마이그레이션 `1780700000000-AddTenantMailSettings` 작성 (up/down)
+- [x] 3. `app.config.ts`에서 `smtp.from`, `smtp.devRedirectTo` 제거
+- [x] 4. `MailService`: `DEFAULT_MAIL_FROM` 상수, `SmtpConfig`/폴백 정리, `VerificationEmailParams`에 `from`/`devRedirectTo` 추가, `resolveRecipient` 시그니처 변경, 발송부 반영
+- [x] 5. `EmailVerificationService.issueAndSend`: 테넌트 `settings` 로드 후 `from`/`devRedirectTo` 전달
+- [x] 6. `CreateTenantSettingsDto`에 `mailFrom`, `mailDevRedirectTo` 필드 추가
+- [x] 7. `TenantsService`: `ConfigService` 주입 + production에서 `mailDevRedirectTo` strip (create/update)
+- [x] 8. `TenantsController`: `GET /:id` 응답에 `mailDevRedirectEditable` 플래그 병합
+- [x] 9. 프론트 `api/tenants.ts` 타입 확장 (settings 2필드 + `mailDevRedirectEditable`)
+- [x] 10. `TenantDetailView.vue`: 발신자 입력(항상), dev redirect 입력(플래그 조건), 저장 payload 반영
+- [x] 11. `.env`/`.env.example`/`CLAUDE.md`에서 `SMTP_FROM`·`SMTP_DEV_REDIRECT_TO` 제거·설명 갱신
+- [x] 12. 단위 테스트 작성/갱신 (MailService 폴백·dev 게이트, TenantsService strip)
+- [x] 13. `bun run lint && bun run typecheck && bun run test && bun run build`
 
 ## 검증 명령과 기대 결과
 
