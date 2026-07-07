@@ -6,6 +6,7 @@ import { AuditModule } from '../common/audit/audit.module';
 import { AdminAuthModule } from '../admin/auth/admin-auth.module';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
+import { AccountDeletionSweepService } from './account-deletion-sweep.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { UsersController } from './users.controller';
     AdminAuthModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, AccountDeletionSweepService],
   exports: [UsersService],
 })
 export class UsersModule {}

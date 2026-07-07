@@ -1021,7 +1021,7 @@ git commit -m "feat: 비활성화 시 deactivatedAt 기록·토큰 폐기·안�
 - Consumes: `usersService.delete()`, `User.deactivatedAt`, `TenantSettings.accountDeletionGracePeriodDays`.
 - Produces: `sweep()`(크론), `runSweep(manager)`(락 획득 후 실제 삭제).
 
-- [ ] **Step 1: 실패 테스트 작성** — `account-deletion-sweep.service.spec.ts`:
+- [x] **Step 1: 실패 테스트 작성** — `account-deletion-sweep.service.spec.ts`:
 
 ```ts
 import { AccountDeletionSweepService } from './account-deletion-sweep.service';
@@ -1052,12 +1052,12 @@ describe('AccountDeletionSweepService.sweep', () => {
 });
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd apps/api && bun run test -- account-deletion-sweep.service.spec`
 Expected: FAIL
 
-- [ ] **Step 3: 구현** — `account-deletion-sweep.service.ts`:
+- [x] **Step 3: 구현** — `account-deletion-sweep.service.ts`:
 
 ```ts
 import { Injectable, Logger } from '@nestjs/common';
@@ -1127,14 +1127,14 @@ export class AccountDeletionSweepService {
 ```
 > `usersService.delete()`의 `ctx` 타입에 `metadata`가 없으면, `delete()`가 내부에서 기록하는 AuditLog metadata에 source를 넣도록 `delete()` 시그니처를 확장하거나, 세 번째 인자를 `{ actorType: 'system' }`만 전달한다. Task 실행 시 `delete()`의 실제 `AuditContext` 타입을 확인해 맞춘다.
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd apps/api && bun run test -- account-deletion-sweep.service.spec`
 Expected: PASS
 
-- [ ] **Step 5: 모듈 배선** — `users.module.ts` providers에 `AccountDeletionSweepService` 추가. `ScheduleModule`은 `app.module.ts`에서 이미 `forRoot()` 되어 있으므로 추가 import 불필요.
+- [x] **Step 5: 모듈 배선** — `users.module.ts` providers에 `AccountDeletionSweepService` 추가. `ScheduleModule`은 `app.module.ts`에서 이미 `forRoot()` 되어 있으므로 추가 import 불필요.
 
-- [ ] **Step 6: 타입체크 + 커밋**
+- [x] **Step 6: 타입체크 + 커밋**
 
 Run: `cd apps/api && bun run typecheck`
 Expected: PASS
