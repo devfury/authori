@@ -290,7 +290,7 @@ git commit -m "feat: passwordResetTtl 설정 추가"
   - `PasswordResetEmailParams { to; resetUrl; serviceName; brandColor?; ttlSeconds; from?; devRedirectTo? }`
   - `AccountDeactivatedEmailParams { to; serviceName; from?; devRedirectTo? }`
 
-- [ ] **Step 1: 실패 테스트 작성** — `mail.service.spec.ts`:
+- [x] **Step 1: 실패 테스트 작성** — `mail.service.spec.ts`:
 
 ```ts
 import { ConfigService } from '@nestjs/config';
@@ -330,12 +330,12 @@ describe('MailService.isConfigured', () => {
 });
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd apps/api && bun run test -- mail.service.spec`
 Expected: FAIL (`isConfigured` / `sendPasswordResetEmail` 미정의)
 
-- [ ] **Step 3: 구현** — `mail.service.ts` 수정:
+- [x] **Step 3: 구현** — `mail.service.ts` 수정:
 
 (a) `configured` getter를 public `isConfigured`로 노출(기존 private `get configured()` 이름을 `isConfigured`로 바꾸고 `sendVerificationEmail` 내부의 `this.configured` 참조도 `this.isConfigured`로 변경):
 
@@ -460,12 +460,12 @@ export interface AccountDeactivatedEmailParams {
   }
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd apps/api && bun run test -- mail.service.spec`
 Expected: PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/api/src/common/mail/mail.service.ts apps/api/src/common/mail/mail.service.spec.ts docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md
