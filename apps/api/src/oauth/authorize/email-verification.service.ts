@@ -73,7 +73,10 @@ export class EmailVerificationService {
       }),
     );
 
-    const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+    const tenant = await this.tenantRepo.findOne({
+      where: { id: tenantId },
+      relations: ['settings'],
+    });
     const serviceName = opts.serviceName || tenant?.name || '회원가입';
 
     const verifyUrl = this.buildVerifyUrl(rawToken, tenantSlug);
@@ -84,6 +87,8 @@ export class EmailVerificationService {
       serviceName,
       brandColor: opts.brandColor ?? null,
       ttlSeconds,
+      from: tenant?.settings?.mailFrom ?? null,
+      devRedirectTo: tenant?.settings?.mailDevRedirectTo ?? null,
     });
   }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { tenantsApi, type Tenant } from '@/api/tenants'
+import { tenantsApi, type Tenant, type UpdateTenantPayload } from '@/api/tenants'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
@@ -82,18 +82,22 @@ async function saveSettings() {
   error.value = ''
   successMsg.value = ''
   try {
-    const { data } = await tenantsApi.update(id, {
-      settings: {
-        accessTokenTtl: tenant.value.settings.accessTokenTtl,
-        refreshTokenTtl: tenant.value.settings.refreshTokenTtl,
-        requirePkce: tenant.value.settings.requirePkce,
-        passwordMinLength: tenant.value.settings.passwordMinLength,
-        refreshTokenRotation: tenant.value.settings.refreshTokenRotation,
-        allowRegistration: tenant.value.settings.allowRegistration,
-        autoActivateRegistration: tenant.value.settings.autoActivateRegistration,
-        emailVerificationRequired: tenant.value.settings.emailVerificationRequired,
-      },
-    })
+    const settings: NonNullable<UpdateTenantPayload['settings']> = {
+      accessTokenTtl: tenant.value.settings.accessTokenTtl,
+      refreshTokenTtl: tenant.value.settings.refreshTokenTtl,
+      requirePkce: tenant.value.settings.requirePkce,
+      passwordMinLength: tenant.value.settings.passwordMinLength,
+      refreshTokenRotation: tenant.value.settings.refreshTokenRotation,
+      allowRegistration: tenant.value.settings.allowRegistration,
+      autoActivateRegistration: tenant.value.settings.autoActivateRegistration,
+      emailVerificationRequired: tenant.value.settings.emailVerificationRequired,
+      mailFrom: tenant.value.settings.mailFrom ?? '',
+    }
+    // 개발용 강제 수신자는 편집 가능(비-production)할 때만 전송한다.
+    if (tenant.value.mailDevRedirectEditable) {
+      settings.mailDevRedirectTo = tenant.value.settings.mailDevRedirectTo ?? ''
+    }
+    const { data } = await tenantsApi.update(id, { settings })
     tenant.value = data
     successMsg.value = '설정이 저장됐습니다.'
   } catch {
@@ -244,6 +248,35 @@ onMounted(load)
           <p v-if="tenant.settings.emailVerificationRequired" class="text-xs text-gray-400 -mt-2">
             회원가입 시 입력한 이메일로 인증 링크를 발송하며, 링크 클릭 후 계정이 활성화됩니다.
           </p>
+
+          <!-- 메일 설정 -->
+          <div class="border-t border-gray-100 pt-4 space-y-4">
+            <h3 class="text-sm font-semibold text-gray-900">메일 설정</h3>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">발신자 주소</label>
+              <input
+                v-model="tenant.settings.mailFrom"
+                type="text"
+                placeholder="Acme <no-reply@acme.com>"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <p class="mt-1 text-xs text-gray-400">
+                인증 메일의 발신자 주소입니다. 비워두면 기본 발신자가 사용됩니다.
+              </p>
+            </div>
+            <div v-if="tenant.mailDevRedirectEditable">
+              <label class="block text-sm font-medium text-gray-700 mb-1">개발용 강제 수신자</label>
+              <input
+                v-model="tenant.settings.mailDevRedirectTo"
+                type="text"
+                placeholder="dev@acme.com"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <p class="mt-1 text-xs text-gray-400">
+                개발 환경 전용입니다. 설정 시 모든 인증 메일이 이 주소로만 발송됩니다.
+              </p>
+            </div>
+          </div>
 
           <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
           <p v-if="successMsg" class="text-sm text-green-600">{{ successMsg }}</p>

@@ -12,6 +12,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { TenantsService } from './tenants.service';
@@ -25,7 +26,10 @@ import { TenantStatus } from '../database/entities';
 @UseGuards(PlatformAdminGuard)
 @Controller('admin/tenants')
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) {}
+  constructor(
+    private readonly tenantsService: TenantsService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: '테넌트 생성' })
@@ -61,8 +65,12 @@ export class TenantsController {
 
   @Get(':id')
   @ApiOperation({ summary: '테넌트 단건 조회' })
-  findOne(@Param('id') id: string) {
-    return this.tenantsService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const tenant = await this.tenantsService.findOne(id);
+    // 개발용 강제 수신자(mailDevRedirectTo)는 production에서 편집 불가.
+    // 프론트가 입력 노출 여부를 판단할 수 있도록 서버 NODE_ENV 기준 플래그를 내려준다.
+    const mailDevRedirectEditable = this.config.get<string>('app.nodeEnv') !== 'production';
+    return { ...tenant, mailDevRedirectEditable };
   }
 
   @Patch(':id')

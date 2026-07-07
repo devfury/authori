@@ -14,6 +14,8 @@ export interface TenantSettings {
   allowRegistration: boolean
   autoActivateRegistration: boolean
   emailVerificationRequired: boolean
+  mailFrom: string | null
+  mailDevRedirectTo: string | null
 }
 
 export interface Tenant {
@@ -24,6 +26,8 @@ export interface Tenant {
   issuer: string | null
   settings: TenantSettings
   createdAt: string
+  /** 개발용 강제 수신자 입력 편집 가능 여부 (서버 NODE_ENV 기준, 단건 조회 응답에만 포함) */
+  mailDevRedirectEditable?: boolean
 }
 
 export interface CreateTenantPayload {
@@ -45,6 +49,8 @@ export interface UpdateTenantPayload {
     allowRegistration?: boolean
     autoActivateRegistration?: boolean
     emailVerificationRequired?: boolean
+    mailFrom?: string
+    mailDevRedirectTo?: string
   }
 }
 
