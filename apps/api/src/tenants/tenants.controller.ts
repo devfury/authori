@@ -63,20 +63,28 @@ export class TenantsController {
     });
   }
 
+  /**
+   * 개발용 강제 수신자(mailDevRedirectTo)는 production에서 편집 불가.
+   * 프론트가 입력 노출 여부를 판단할 수 있도록 서버 NODE_ENV 기준 플래그를 병합해 내려준다.
+   * 조회·수정 응답 모두 동일한 shape를 유지해야 저장 직후에도 플래그가 유실되지 않는다.
+   */
+  private withEnvFlags<T>(tenant: T): T & { mailDevRedirectEditable: boolean } {
+    return {
+      ...tenant,
+      mailDevRedirectEditable: this.config.get<string>('app.nodeEnv') !== 'production',
+    };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '테넌트 단건 조회' })
   async findOne(@Param('id') id: string) {
-    const tenant = await this.tenantsService.findOne(id);
-    // 개발용 강제 수신자(mailDevRedirectTo)는 production에서 편집 불가.
-    // 프론트가 입력 노출 여부를 판단할 수 있도록 서버 NODE_ENV 기준 플래그를 내려준다.
-    const mailDevRedirectEditable = this.config.get<string>('app.nodeEnv') !== 'production';
-    return { ...tenant, mailDevRedirectEditable };
+    return this.withEnvFlags(await this.tenantsService.findOne(id));
   }
 
   @Patch(':id')
   @ApiOperation({ summary: '테넌트 수정' })
-  update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
-    return this.tenantsService.update(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
+    return this.withEnvFlags(await this.tenantsService.update(id, dto));
   }
 
   @Delete(':id')
