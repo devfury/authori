@@ -167,7 +167,9 @@ export class MailService {
         html,
       });
     } catch (error) {
-      this.logger.error(`비활성화 안내 메일 발송 실패 to=${recipient}: ${(error as Error).message}`);
+      this.logger.error(
+        `비활성화 안내 메일 발송 실패 to=${recipient}: ${(error as Error).message}`,
+      );
       throw error;
     }
   }
