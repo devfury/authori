@@ -1,5 +1,6 @@
 .DS_Store
 graphify-out/
+.worktree/
 .worktrees/
 
 # Dependencies (Bun workspaces hoist to root)
