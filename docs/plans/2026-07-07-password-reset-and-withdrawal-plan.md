@@ -146,7 +146,7 @@ git commit -m "feat: PasswordResetToken 엔티티·마이그레이션 추가"
 **Interfaces:**
 - Produces: `User.deactivatedAt: Date | null` (컬럼 `deactivated_at`).
 
-- [ ] **Step 1: 컬럼 추가** — `user.entity.ts`의 `lastLoginAt` 정의 바로 아래에 삽입:
+- [x] **Step 1: 컬럼 추가** — `user.entity.ts`의 `lastLoginAt` 정의 바로 아래에 삽입:
 
 ```ts
   /** 비활성화(탈퇴) 시각. 유예기간 경과 시 자동 삭제 기준이자 미인증 INACTIVE와의 구분자 */
@@ -154,7 +154,7 @@ git commit -m "feat: PasswordResetToken 엔티티·마이그레이션 추가"
   deactivatedAt: Date | null;
 ```
 
-- [ ] **Step 2: 마이그레이션 작성** — `1780800100000-AddUserDeactivatedAt.ts`:
+- [x] **Step 2: 마이그레이션 작성** — `1780800100000-AddUserDeactivatedAt.ts`:
 
 ```ts
 import { MigrationInterface, QueryRunner } from 'typeorm';
@@ -172,12 +172,12 @@ export class AddUserDeactivatedAt1780800100000 implements MigrationInterface {
 }
 ```
 
-- [ ] **Step 3: 타입체크**
+- [x] **Step 3: 타입체크**
 
 Run: `cd apps/api && bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add apps/api/src/database/entities/user.entity.ts apps/api/src/database/migrations/1780800100000-AddUserDeactivatedAt.ts docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md

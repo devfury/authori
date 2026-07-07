@@ -55,6 +55,10 @@ export class User {
   @Column({ name: 'last_login_at', nullable: true, type: 'timestamptz' })
   lastLoginAt: Date | null;
 
+  /** 비활성화(탈퇴) 시각. 유예기간 경과 시 자동 삭제 기준이자 미인증 INACTIVE와의 구분자 */
+  @Column({ name: 'deactivated_at', nullable: true, type: 'timestamptz' })
+  deactivatedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
