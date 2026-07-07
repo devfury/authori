@@ -739,7 +739,7 @@ git commit -m "feat: PasswordResetService 구현"
 - Consumes: `PasswordResetService`(Task 6).
 - Produces: `POST /t/:tenantSlug/oauth/password-reset/request`, `POST /t/:tenantSlug/oauth/password-reset/confirm`.
 
-- [ ] **Step 1: DTO 작성** — `password-reset-request.dto.ts`:
+- [x] **Step 1: DTO 작성** — `password-reset-request.dto.ts`:
 
 ```ts
 import { ApiProperty } from '@nestjs/swagger';
@@ -770,7 +770,7 @@ export class PasswordResetConfirmDto {
 }
 ```
 
-- [ ] **Step 2: 컨트롤러에 주입 및 엔드포인트 추가** — `authorize.controller.ts`:
+- [x] **Step 2: 컨트롤러에 주입 및 엔드포인트 추가** — `authorize.controller.ts`:
 
 (a) import 추가:
 
@@ -822,7 +822,7 @@ import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
   }
 ```
 
-- [ ] **Step 3: 모듈 배선** — `authorize.module.ts`:
+- [x] **Step 3: 모듈 배선** — `authorize.module.ts`:
 
 (a) 엔티티 import에 `PasswordResetToken, AccessToken, RefreshToken` 추가(배럴에서), `TypeOrmModule.forFeature([...])` 배열에도 추가.
 
@@ -834,14 +834,14 @@ import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 
 (c) 상단에 `import { PasswordResetService } from './password-reset.service';` 추가.
 
-- [ ] **Step 4: 컨트롤러 스펙 확인/보강** — `authorize.controller.spec.ts`가 있으면 새 provider(`PasswordResetService`) mock을 추가해 DI가 깨지지 않게 한다. 없으면 이 단계는 생략하고 앱 부팅 테스트(아래)로 대체한다.
+- [x] **Step 4: 컨트롤러 스펙 확인/보강** — `authorize.controller.spec.ts`가 있으면 새 provider(`PasswordResetService`) mock을 추가해 DI가 깨지지 않게 한다. 없으면 이 단계는 생략하고 앱 부팅 테스트(아래)로 대체한다.
 
-- [ ] **Step 5: 타입체크 + 유닛테스트**
+- [x] **Step 5: 타입체크 + 유닛테스트**
 
 Run: `cd apps/api && bun run typecheck && bun run test -- authorize`
 Expected: PASS (또는 관련 스펙 없음 → 0 tests)
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/api/src/oauth/authorize/dto/password-reset-request.dto.ts apps/api/src/oauth/authorize/dto/password-reset-confirm.dto.ts apps/api/src/oauth/authorize/authorize.controller.ts apps/api/src/oauth/authorize/authorize.module.ts docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md
