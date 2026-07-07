@@ -1150,17 +1150,17 @@ git commit -m "feat: 유예기간 경과 계정 자동 삭제 스윕(advisory lo
 
 ### Task 10: 재설정 API 클라이언트 + 화면 + 라우트
 
-**Files:**
-- Create: `apps/web/src/api/passwordReset.ts`
-- Create: `apps/web/src/views/ForgotPasswordView.vue`
-- Create: `apps/web/src/views/ResetPasswordView.vue`
-- Modify: `apps/web/src/router/index.ts` (라우트 2개 추가)
-- Modify: `apps/web/src/views/OAuthLoginView.vue` ("비밀번호를 잊으셨나요?" 링크)
+**Files (실제 구현: 기존 코드베이스 관례를 따르기 위해 아래와 같이 변경됨 — `passwordReset.ts` 신규 생성 대신 기존 `oauth.ts`에 함수 추가, 뷰는 `src/views/oauth/` 하위에 배치):**
+- Modify: `apps/web/src/api/oauth.ts` (`requestPasswordReset`/`confirmPasswordReset` 함수 추가, 기존 `oauthHttp` 인스턴스 재사용)
+- Create: `apps/web/src/views/oauth/ForgotPasswordView.vue`
+- Create: `apps/web/src/views/oauth/ResetPasswordView.vue`
+- Modify: `apps/web/src/router/index.ts` (라우트 2개 추가: `oauth-forgot-password`, `oauth-reset-password`)
+- Modify: `apps/web/src/views/oauth/OAuthLoginView.vue` ("비밀번호를 잊으셨나요?" 링크)
 
 **Interfaces:**
 - Consumes: 백엔드 `password-reset/request`·`confirm`(Task 7).
 
-- [ ] **Step 1: API 클라이언트** — `passwordReset.ts` (OAuth 엔드포인트이므로 별도 axios 인스턴스; 기존 OAuth 클라이언트의 baseURL/prefix 규칙을 따른다. `verify-email` 호출부 파일을 참고해 동일 인스턴스·경로 규칙을 재사용한다):
+- [x] **Step 1: API 클라이언트** — `passwordReset.ts` (OAuth 엔드포인트이므로 별도 axios 인스턴스; 기존 OAuth 클라이언트의 baseURL/prefix 규칙을 따른다. `verify-email` 호출부 파일을 참고해 동일 인스턴스·경로 규칙을 재사용한다):
 
 ```ts
 import axios from 'axios';
@@ -1182,36 +1182,35 @@ export async function confirmPasswordReset(tenantSlug: string, token: string, ne
 ```
 > `VITE_API_BASE_URL`/prefix는 기존 OAuth 호출부(로그인/verify-email)에서 쓰는 방식과 반드시 일치시킨다. 실제 구현 시 해당 파일을 열어 baseURL 규칙을 복사한다.
 
-- [ ] **Step 2: ForgotPasswordView** — `ForgotPasswordView.vue`. `meta.layout:'auth', public:true`. 이메일 입력 → `requestPasswordReset` 호출 → 응답 분기:
+- [x] **Step 2: ForgotPasswordView** — `ForgotPasswordView.vue`. `meta.layout:'auth', public:true`. 이메일 입력 → `requestPasswordReset` 호출 → 응답 분기:
   - `sent` → "재설정 메일을 보냈습니다. 메일함을 확인해 주세요." (계정 유무 노출 금지 문구)
   - `mail_delivery_failed` → "현재 메일 발송이 불가하여 재설정을 진행할 수 없습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요."
   - `tenantSlug`는 쿼리스트링 또는 로그인 컨텍스트에서 취득(기존 로그인 뷰가 tenantSlug를 얻는 방식을 따른다).
 
-- [ ] **Step 3: ResetPasswordView** — `ResetPasswordView.vue`. `meta.layout:'auth', public:true`. 마운트 시 쿼리 `token`, `tenantSlug` 취득. 새 비밀번호·확인 입력 → `confirmPasswordReset` 호출 → 성공 시 "비밀번호가 변경되었습니다. 다시 로그인해 주세요." 후 `/login`으로 유도. 실패(`invalid_token`/`token_expired`/`password_too_short`) 시 메시지 표시. **마크업·상태 처리는 `VerifyEmailView.vue`(또는 `/verify-email` 뷰)를 그대로 참고해 동형으로 작성**한다.
+- [x] **Step 3: ResetPasswordView** — `ResetPasswordView.vue`. `meta.layout:'auth', public:true`. 마운트 시 쿼리 `token`, `tenantSlug` 취득. 새 비밀번호·확인 입력 → `confirmPasswordReset` 호출 → 성공 시 "비밀번호가 변경되었습니다. 다시 로그인해 주세요." 후 `/login`으로 유도. 실패(`invalid_token`/`token_expired`/`password_too_short`) 시 메시지 표시. **마크업·상태 처리는 `VerifyEmailView.vue`(또는 `/verify-email` 뷰)를 그대로 참고해 동형으로 작성**한다.
 
-- [ ] **Step 4: 라우트 추가** — `router/index.ts`에 추가:
+- [x] **Step 4: 라우트 추가** — `router/index.ts`에 추가 (실제로는 `oauth-verify-email` 라우트와 동일한 `meta` 형태·네이밍 규칙(`oauth-*` prefix)을 따름):
 
 ```ts
-{ path: '/forgot-password', name: 'forgot-password', component: () => import('../views/ForgotPasswordView.vue'), meta: { layout: 'auth', public: true } },
-{ path: '/reset-password', name: 'reset-password', component: () => import('../views/ResetPasswordView.vue'), meta: { layout: 'auth', public: true } },
+{ path: '/forgot-password', name: 'oauth-forgot-password', component: () => import('@/views/oauth/ForgotPasswordView.vue'), meta: { layout: 'auth', public: true } },
+{ path: '/reset-password', name: 'oauth-reset-password', component: () => import('@/views/oauth/ResetPasswordView.vue'), meta: { layout: 'auth', public: true } },
 ```
 
-- [ ] **Step 5: 로그인 페이지 링크** — `OAuthLoginView.vue`의 비밀번호 입력 근처에 추가:
+- [x] **Step 5: 로그인 페이지 링크** — `OAuthLoginView.vue`의 비밀번호 입력 근처에 추가 (실제로는 named route `oauth-forgot-password`로 이동하며, 기존 뷰의 `tenantSlug` 변수를 그대로 사용):
 
 ```html
-<router-link :to="{ path: '/forgot-password', query: { tenantSlug } }" class="text-sm text-indigo-600 hover:underline">비밀번호를 잊으셨나요?</router-link>
+<RouterLink :to="forgotPasswordRoute" class="text-xs font-medium hover:underline">비밀번호를 잊으셨나요?</RouterLink>
 ```
-> `tenantSlug` 바인딩은 해당 뷰의 기존 변수명을 확인해 맞춘다.
 
-- [ ] **Step 6: 빌드 검증**
+- [x] **Step 6: 빌드 검증**
 
 Run: `cd apps/web && bun run build`
-Expected: PASS (타입/템플릿 오류 없음)
+Result: PASS (vue-tsc -b && vite build 성공, 타입/템플릿 오류 없음)
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
-git add apps/web/src/api/passwordReset.ts apps/web/src/views/ForgotPasswordView.vue apps/web/src/views/ResetPasswordView.vue apps/web/src/router/index.ts apps/web/src/views/OAuthLoginView.vue docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md
+git add apps/web/src/api/oauth.ts apps/web/src/views/oauth/ForgotPasswordView.vue apps/web/src/views/oauth/ResetPasswordView.vue apps/web/src/router/index.ts apps/web/src/views/oauth/OAuthLoginView.vue docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md
 git commit -m "feat: 비밀번호 재설정 프론트 화면·라우트 추가"
 ```
 

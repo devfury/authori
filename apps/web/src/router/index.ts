@@ -36,6 +36,18 @@ const router = createRouter({
       component: () => import('@/views/oauth/VerifyEmailView.vue'),
       meta: { layout: 'auth', public: true },
     },
+    {
+      path: '/forgot-password',
+      name: 'oauth-forgot-password',
+      component: () => import('@/views/oauth/ForgotPasswordView.vue'),
+      meta: { layout: 'auth', public: true },
+    },
+    {
+      path: '/reset-password',
+      name: 'oauth-reset-password',
+      component: () => import('@/views/oauth/ResetPasswordView.vue'),
+      meta: { layout: 'auth', public: true },
+    },
     // ── 인증 ──────────────────────────────────────────
     {
       path: '/admin/login',
