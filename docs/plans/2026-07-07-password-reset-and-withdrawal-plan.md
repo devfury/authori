@@ -488,7 +488,7 @@ git commit -m "feat: MailService 재설정·비활성화 메일 및 isConfigured
   - `requestReset(tenantId, tenantSlug, email): Promise<{ status: 'sent' | 'mail_delivery_failed' }>`
   - `confirmReset(tenantId, rawToken, newPassword, ctx?): Promise<{ status: 'reset'; email: string }>`
 
-- [ ] **Step 1: 실패 테스트 작성** — `password-reset.service.spec.ts` (핵심 분기 검증, repo/mail은 목):
+- [x] **Step 1: 실패 테스트 작성** — `password-reset.service.spec.ts` (핵심 분기 검증, repo/mail은 목):
 
 ```ts
 import { PasswordResetService } from './password-reset.service';
@@ -546,12 +546,12 @@ describe('PasswordResetService.requestReset', () => {
 });
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `cd apps/api && bun run test -- password-reset.service.spec`
 Expected: FAIL (`PasswordResetService` 미정의)
 
-- [ ] **Step 3: 구현** — `password-reset.service.ts`:
+- [x] **Step 3: 구현** — `password-reset.service.ts`:
 
 ```ts
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -712,12 +712,12 @@ export class PasswordResetService {
 ```
 > `TenantSettings` import는 타입만 사용되나, `AccessToken`/`RefreshToken`/`Tenant`/`User`/`PasswordResetToken`/`AuditAction`은 런타임 참조된다. `TenantSettings`를 직접 참조하지 않으면 import에서 제외해도 된다(lint 확인).
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `cd apps/api && bun run test -- password-reset.service.spec`
 Expected: PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/api/src/oauth/authorize/password-reset.service.ts apps/api/src/oauth/authorize/password-reset.service.spec.ts docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md
