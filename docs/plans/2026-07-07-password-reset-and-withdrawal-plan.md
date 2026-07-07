@@ -195,7 +195,7 @@ git commit -m "feat: User.deactivatedAt 컬럼 추가"
 **Interfaces:**
 - Produces: `TenantSettings.accountDeletionGracePeriodDays: number` (기본 30, 컬럼 `account_deletion_grace_period_days`).
 
-- [ ] **Step 1: 컬럼 추가** — `tenant-settings.entity.ts`의 `mailDevRedirectTo` 정의 아래에 삽입:
+- [x] **Step 1: 컬럼 추가** — `tenant-settings.entity.ts`의 `mailDevRedirectTo` 정의 아래에 삽입:
 
 ```ts
   /** 계정 비활성화 후 자동 삭제까지의 유예 일수 */
@@ -203,7 +203,7 @@ git commit -m "feat: User.deactivatedAt 컬럼 추가"
   accountDeletionGracePeriodDays: number;
 ```
 
-- [ ] **Step 2: 마이그레이션 작성** — `1780800200000-AddAccountDeletionGracePeriod.ts`:
+- [x] **Step 2: 마이그레이션 작성** — `1780800200000-AddAccountDeletionGracePeriod.ts`:
 
 ```ts
 import { MigrationInterface, QueryRunner } from 'typeorm';
@@ -225,12 +225,12 @@ export class AddAccountDeletionGracePeriod1780800200000 implements MigrationInte
 }
 ```
 
-- [ ] **Step 3: 타입체크**
+- [x] **Step 3: 타입체크**
 
 Run: `cd apps/api && bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add apps/api/src/database/entities/tenant-settings.entity.ts apps/api/src/database/migrations/1780800200000-AddAccountDeletionGracePeriod.ts docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md

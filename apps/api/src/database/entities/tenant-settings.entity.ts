@@ -77,6 +77,10 @@ export class TenantSettings {
   @Column({ name: 'mail_dev_redirect_to', type: 'varchar', nullable: true })
   mailDevRedirectTo: string | null;
 
+  /** 계정 비활성화 후 자동 삭제까지의 유예 일수 */
+  @Column({ name: 'account_deletion_grace_period_days', default: 30 })
+  accountDeletionGracePeriodDays: number;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
