@@ -1225,7 +1225,7 @@ git commit -m "feat: 비밀번호 재설정 프론트 화면·라우트 추가"
 **Interfaces:**
 - Consumes: `TenantSettings.accountDeletionGracePeriodDays`(Task 3).
 
-- [ ] **Step 1: 백엔드 DTO 허용** — 테넌트 설정 수정 DTO(`tenants` 모듈의 update settings DTO)에 다음 필드를 추가한다:
+- [x] **Step 1: 백엔드 DTO 허용** — 테넌트 설정 수정 DTO(`tenants` 모듈의 update settings DTO)에 다음 필드를 추가한다:
 
 ```ts
   @ApiPropertyOptional({ description: '비활성화 후 자동 삭제까지의 유예 일수', minimum: 1 })
@@ -1236,14 +1236,14 @@ git commit -m "feat: 비밀번호 재설정 프론트 화면·라우트 추가"
 ```
 > 실제 DTO 파일 경로와 기존 필드 패턴(class-validator 데코레이터)을 확인해 동일 스타일로 추가한다. 서비스의 설정 저장 로직이 해당 필드를 반영하는지 확인한다.
 
-- [ ] **Step 2: 프론트 입력 추가** — 테넌트 설정 편집 폼에 숫자 입력(기본 30, 최소 1)을 추가하고 저장 페이로드에 포함한다. 라벨: "계정 삭제 유예기간(일)". 기존 설정 필드(예: `passwordMinLength`) 입력을 참고해 동형으로 작성한다.
+- [x] **Step 2: 프론트 입력 추가** — 테넌트 설정 편집 폼에 숫자 입력(기본 30, 최소 1)을 추가하고 저장 페이로드에 포함한다. 라벨: "계정 삭제 유예기간(일)". 기존 설정 필드(예: `passwordMinLength`) 입력을 참고해 동형으로 작성한다.
 
-- [ ] **Step 3: 빌드/타입체크**
+- [x] **Step 3: 빌드/타입체크**
 
 Run: `cd apps/api && bun run typecheck && cd ../web && bun run build`
 Expected: PASS
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add -A && git commit -m "feat: 테넌트 설정에 계정 삭제 유예기간 입력 추가"

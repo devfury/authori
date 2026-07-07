@@ -63,6 +63,16 @@ export class CreateTenantSettingsDto {
   passwordMinLength?: number;
 
   @ApiPropertyOptional({
+    description: '비활성화 후 자동 삭제까지의 유예 일수',
+    default: 30,
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  accountDeletionGracePeriodDays?: number;
+
+  @ApiPropertyOptional({
     description: 'OAuth 공개 회원가입 허용 여부',
     default: false,
   })
