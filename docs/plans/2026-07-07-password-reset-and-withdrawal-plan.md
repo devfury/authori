@@ -248,24 +248,24 @@ git commit -m "feat: TenantSettings.accountDeletionGracePeriodDays 추가"
 **Interfaces:**
 - Produces: `config.get<number>('app.passwordResetTtl')` (기본 3600).
 
-- [ ] **Step 1: 설정 추가** — `app.config.ts`의 `emailVerificationTtl` 줄 아래에 추가:
+- [x] **Step 1: 설정 추가** — `app.config.ts`의 `emailVerificationTtl` 줄 아래에 추가:
 
 ```ts
   passwordResetTtl: parseInt(process.env.PASSWORD_RESET_TTL ?? '3600', 10),
 ```
 
-- [ ] **Step 2: .env.example 갱신** — `apps/api/.env.example`에 SMTP/EMAIL 관련 항목 근처에 추가(파일이 있으면):
+- [x] **Step 2: .env.example 갱신** — `apps/api/.env.example`에 SMTP/EMAIL 관련 항목 근처에 추가(파일이 있으면):
 
 ```
 PASSWORD_RESET_TTL=3600
 ```
 
-- [ ] **Step 3: 타입체크**
+- [x] **Step 3: 타입체크**
 
 Run: `cd apps/api && bun run typecheck`
 Expected: PASS
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add apps/api/src/common/config/app.config.ts apps/api/.env.example docs/plans/2026-07-07-password-reset-and-withdrawal-plan.md
