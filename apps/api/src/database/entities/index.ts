@@ -28,3 +28,4 @@ export type {
 export type { LoginBranding } from './oauth-client.entity';
 export { PendingOAuthRequest } from './pending-oauth-request.entity';
 export { EmailVerificationToken } from './email-verification-token.entity';
+export { PasswordResetToken } from './password-reset-token.entity';

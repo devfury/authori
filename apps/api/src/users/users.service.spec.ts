@@ -57,6 +57,10 @@ describe('UsersService', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
     );
   });
 
@@ -159,6 +163,10 @@ describe('UsersService', () => {
         dataSource as never,
         profileSchemaService as never,
         auditService as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
       );
     });
 
@@ -247,6 +255,10 @@ describe('UsersService', () => {
         {} as never,
         {} as never,
         auditSvc as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
       );
     });
 
@@ -283,6 +295,7 @@ describe('UsersService', () => {
           status: UserStatus.LOCKED,
           failedLoginAttempts: 5,
           lockedUntil: new Date('2026-06-01'),
+          deactivatedAt: new Date('2026-05-01'),
           profile: { profileJsonb: {} },
         }),
         save: jest.fn().mockImplementation(async (u: unknown) => u),
@@ -294,6 +307,10 @@ describe('UsersService', () => {
         {} as never,
         {} as never,
         auditSvc as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
       );
     });
 
@@ -305,6 +322,13 @@ describe('UsersService', () => {
           failedLoginAttempts: 0,
           lockedUntil: null,
         }),
+      );
+    });
+
+    it('clears deactivatedAt (cancels scheduled deletion)', async () => {
+      await service.unlock(tenantId, userId);
+      expect(userRepoMock.save).toHaveBeenCalledWith(
+        expect.objectContaining({ deactivatedAt: null }),
       );
     });
 
@@ -360,6 +384,10 @@ describe('UsersService', () => {
         dataSource as never,
         {} as never,
         auditSvc as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
       );
     });
 
@@ -405,6 +433,209 @@ describe('UsersService', () => {
       userRepoMock.findOne.mockResolvedValue(null);
 
       await expect(service.delete(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('activate', () => {
+    let userRepoMock: { findOne: jest.Mock; save: jest.Mock };
+    let auditSvc: { record: jest.Mock };
+
+    beforeEach(() => {
+      userRepoMock = {
+        findOne: jest.fn().mockResolvedValue({
+          id: userId,
+          tenantId,
+          email: 'lee@example.com',
+          status: UserStatus.INACTIVE,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          deactivatedAt: new Date('2026-05-01'),
+          profile: { profileJsonb: {} },
+        }),
+        save: jest.fn().mockImplementation(async (u: unknown) => u),
+      };
+      auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
+      service = new UsersService(
+        userRepoMock as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        auditSvc as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      );
+    });
+
+    it('sets status to ACTIVE and clears deactivatedAt (cancels scheduled deletion)', async () => {
+      await service.activate(tenantId, userId);
+      expect(userRepoMock.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: UserStatus.ACTIVE, deactivatedAt: null }),
+      );
+    });
+
+    it('records USER_ACTIVATED audit action', async () => {
+      await service.activate(tenantId, userId);
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_ACTIVATED }),
+      );
+    });
+
+    it('throws NotFoundException when user not found', async () => {
+      userRepoMock.findOne.mockResolvedValue(null);
+      await expect(service.activate(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('deactivate', () => {
+    let userRepoMock: { findOne: jest.Mock };
+    let auditSvc: { record: jest.Mock };
+    let dataSource: { transaction: jest.Mock };
+    let managerMock: { save: jest.Mock; update: jest.Mock };
+    let tenantRepoMock: { findOne: jest.Mock };
+    let mailServiceMock: { sendAccountDeactivatedEmail: jest.Mock };
+
+    const userToDeactivate = {
+      id: userId,
+      tenantId,
+      email: 'lee@example.com',
+      status: UserStatus.ACTIVE,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      deactivatedAt: null,
+      profile: { profileJsonb: {} },
+    };
+
+    beforeEach(() => {
+      userRepoMock = {
+        findOne: jest.fn().mockResolvedValue(structuredClone(userToDeactivate)),
+      };
+      auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
+      managerMock = {
+        save: jest.fn().mockImplementation(async (_entity, value) => value),
+        update: jest.fn().mockResolvedValue(undefined),
+      };
+      dataSource = {
+        transaction: jest.fn().mockImplementation(async (cb) => cb(managerMock)),
+      };
+      tenantRepoMock = {
+        findOne: jest.fn().mockResolvedValue({
+          id: tenantId,
+          name: 'ACME',
+          settings: { emailVerificationRequired: false, mailFrom: null, mailDevRedirectTo: null },
+        }),
+      };
+      mailServiceMock = { sendAccountDeactivatedEmail: jest.fn().mockResolvedValue(undefined) };
+
+      service = new UsersService(
+        userRepoMock as never,
+        {} as never,
+        dataSource as never,
+        {} as never,
+        auditSvc as never,
+        tenantRepoMock as never,
+        {} as never,
+        {} as never,
+        mailServiceMock as never,
+      );
+    });
+
+    it('sets status to INACTIVE and records deactivatedAt', async () => {
+      await service.deactivate(tenantId, userId);
+
+      expect(managerMock.save).toHaveBeenCalledWith(
+        User,
+        expect.objectContaining({ status: UserStatus.INACTIVE, deactivatedAt: expect.any(Date) }),
+      );
+    });
+
+    it('revokes access and refresh tokens inside the transaction', async () => {
+      await service.deactivate(tenantId, userId);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(managerMock.update).toHaveBeenCalledWith(
+        AccessToken,
+        { tenantId, userId },
+        { revoked: true },
+      );
+      expect(managerMock.update).toHaveBeenCalledWith(
+        RefreshToken,
+        { tenantId, userId },
+        { revoked: true },
+      );
+    });
+
+    it('records USER_DEACTIVATED audit event after the transaction commits', async () => {
+      await service.deactivate(tenantId, userId, { actorId: 'admin-1' });
+
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId,
+          action: AuditAction.USER_DEACTIVATED,
+          targetType: 'user',
+          targetId: userId,
+          actorId: 'admin-1',
+        }),
+      );
+      const transactionOrder = dataSource.transaction.mock.invocationCallOrder[0];
+      const auditOrder = auditSvc.record.mock.invocationCallOrder[0];
+      expect(transactionOrder).toBeLessThan(auditOrder);
+    });
+
+    it('does not send a deactivation email when emailVerificationRequired is false', async () => {
+      await service.deactivate(tenantId, userId);
+      expect(mailServiceMock.sendAccountDeactivatedEmail).not.toHaveBeenCalled();
+    });
+
+    it('sends a deactivation email when the tenant requires email verification', async () => {
+      tenantRepoMock.findOne.mockResolvedValue({
+        id: tenantId,
+        name: 'ACME',
+        settings: {
+          emailVerificationRequired: true,
+          mailFrom: 'no-reply@acme.test',
+          mailDevRedirectTo: null,
+        },
+      });
+
+      await service.deactivate(tenantId, userId);
+
+      expect(mailServiceMock.sendAccountDeactivatedEmail).toHaveBeenCalledWith({
+        to: 'lee@example.com',
+        serviceName: 'ACME',
+        from: 'no-reply@acme.test',
+        devRedirectTo: null,
+      });
+    });
+
+    it('does not throw when the deactivation email fails to send (best-effort)', async () => {
+      tenantRepoMock.findOne.mockResolvedValue({
+        id: tenantId,
+        name: 'ACME',
+        settings: { emailVerificationRequired: true, mailFrom: null, mailDevRedirectTo: null },
+      });
+      mailServiceMock.sendAccountDeactivatedEmail.mockRejectedValue(new Error('smtp down'));
+
+      await expect(service.deactivate(tenantId, userId)).resolves.toBeUndefined();
+    });
+
+    it('does not throw when the tenant lookup for mail-gating fails (best-effort)', async () => {
+      // 트랜잭션 커밋·감사 기록이 끝난 뒤 발송 여부를 가리는 테넌트 조회가 실패해도
+      // deactivate() 자체는 성공해야 한다(재시도로 deactivatedAt이 갱신되는 것을 방지).
+      tenantRepoMock.findOne.mockRejectedValue(new Error('db timeout'));
+
+      await expect(service.deactivate(tenantId, userId)).resolves.toBeUndefined();
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_DEACTIVATED }),
+      );
+      expect(mailServiceMock.sendAccountDeactivatedEmail).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when user does not exist', async () => {
+      userRepoMock.findOne.mockResolvedValue(null);
+
+      await expect(service.deactivate(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

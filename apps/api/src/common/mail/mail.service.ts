@@ -31,6 +31,23 @@ export interface VerificationEmailParams {
   devRedirectTo?: string | null;
 }
 
+export interface PasswordResetEmailParams {
+  to: string;
+  resetUrl: string;
+  serviceName: string;
+  brandColor?: string | null;
+  ttlSeconds: number;
+  from?: string | null;
+  devRedirectTo?: string | null;
+}
+
+export interface AccountDeactivatedEmailParams {
+  to: string;
+  serviceName: string;
+  from?: string | null;
+  devRedirectTo?: string | null;
+}
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -63,8 +80,8 @@ export class MailService {
     return to;
   }
 
-  /** SMTP_HOST가 설정되지 않은 경우 메일을 보내지 않고 로그만 남긴다 (개발용 폴백) */
-  private get configured(): boolean {
+  /** SMTP_HOST 설정 여부. 미설정 시 메일을 보내지 않는다(개발용 폴백). */
+  get isConfigured(): boolean {
     return !!this.smtp.host;
   }
 
@@ -85,7 +102,7 @@ export class MailService {
     const subject = `[${params.serviceName}] 이메일 인증을 완료해 주세요`;
     const html = this.renderVerificationHtml(params);
 
-    if (!this.configured) {
+    if (!this.isConfigured) {
       this.logger.warn(
         `SMTP 미설정 — 인증 메일을 발송하지 않습니다. to=${params.to} link=${params.verifyUrl}`,
       );
@@ -103,6 +120,56 @@ export class MailService {
       });
     } catch (error) {
       this.logger.error(`인증 메일 발송 실패 to=${recipient}: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  async sendPasswordResetEmail(params: PasswordResetEmailParams): Promise<void> {
+    const subject = `[${params.serviceName}] 비밀번호 재설정 안내`;
+    const html = this.renderPasswordResetHtml(params);
+
+    if (!this.isConfigured) {
+      this.logger.warn(
+        `SMTP 미설정 — 재설정 메일을 발송하지 않습니다. to=${params.to} link=${params.resetUrl}`,
+      );
+      return;
+    }
+
+    const recipient = this.resolveRecipient(params.to, params.devRedirectTo);
+    try {
+      await this.getTransporter().sendMail({
+        from: params.from || DEFAULT_MAIL_FROM,
+        to: recipient,
+        subject,
+        html,
+      });
+    } catch (error) {
+      this.logger.error(`재설정 메일 발송 실패 to=${recipient}: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  async sendAccountDeactivatedEmail(params: AccountDeactivatedEmailParams): Promise<void> {
+    const subject = `[${params.serviceName}] 계정 비활성화 안내`;
+    const html = this.renderAccountDeactivatedHtml(params);
+
+    if (!this.isConfigured) {
+      this.logger.warn(`SMTP 미설정 — 비활성화 안내 메일을 발송하지 않습니다. to=${params.to}`);
+      return;
+    }
+
+    const recipient = this.resolveRecipient(params.to, params.devRedirectTo);
+    try {
+      await this.getTransporter().sendMail({
+        from: params.from || DEFAULT_MAIL_FROM,
+        to: recipient,
+        subject,
+        html,
+      });
+    } catch (error) {
+      this.logger.error(
+        `비활성화 안내 메일 발송 실패 to=${recipient}: ${(error as Error).message}`,
+      );
       throw error;
     }
   }
@@ -162,6 +229,43 @@ export class MailService {
     </table>
   </body>
 </html>`;
+  }
+
+  private renderPasswordResetHtml(params: PasswordResetEmailParams): string {
+    const color = params.brandColor || '#4f46e5';
+    const hours = Math.round(params.ttlSeconds / 3600);
+    const safeUrl = this.escapeHtml(params.resetUrl);
+    const safeName = this.escapeHtml(params.serviceName);
+    return `<!DOCTYPE html>
+<html lang="ko"><body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:32px 0;"><tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+      <tr><td style="padding:32px 32px 16px;"><h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#111827;">${safeName}</h1><h2 style="margin:0;font-size:16px;font-weight:600;color:#374151;">비밀번호 재설정</h2></td></tr>
+      <tr><td style="padding:0 32px 24px;">
+        <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#4b5563;">아래 버튼을 클릭해 새 비밀번호를 설정해 주세요. 이 링크는 ${hours}시간 동안 유효합니다.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;"><tr><td style="border-radius:8px;background:${color};">
+          <a href="${safeUrl}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#fff;text-decoration:none;border-radius:8px;">비밀번호 재설정</a>
+        </td></tr></table>
+        <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">버튼이 동작하지 않으면 아래 주소를 브라우저에 붙여넣어 주세요.</p>
+        <p style="margin:0;font-size:12px;color:#6b7280;word-break:break-all;"><a href="${safeUrl}" target="_blank" style="color:${color};">${safeUrl}</a></p>
+      </td></tr>
+      <tr><td style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.</p></td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+  }
+
+  private renderAccountDeactivatedHtml(params: AccountDeactivatedEmailParams): string {
+    const safeName = this.escapeHtml(params.serviceName);
+    return `<!DOCTYPE html>
+<html lang="ko"><body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:32px 0;"><tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+      <tr><td style="padding:32px 32px 16px;"><h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#111827;">${safeName}</h1><h2 style="margin:0;font-size:16px;font-weight:600;color:#374151;">계정 비활성화 안내</h2></td></tr>
+      <tr><td style="padding:0 32px 24px;"><p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;">요청에 따라 계정이 비활성화되었습니다. 일정 유예기간이 지나면 계정과 관련 데이터가 삭제됩니다. 계정을 다시 사용하려면 서비스 제공자에게 문의해 주세요.</p></td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
   }
 
   private escapeHtml(value: string): string {

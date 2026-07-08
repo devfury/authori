@@ -36,6 +36,11 @@ const registerRoute = computed(() => ({
   query: route.query,
 }))
 
+const forgotPasswordRoute = computed(() => ({
+  name: 'oauth-forgot-password',
+  query: tenantSlug ? { tenantSlug } : {},
+}))
+
 function applyBranding(b: LoginBranding) {
   const root = document.documentElement
   if (b.bgColor) {
@@ -198,6 +203,15 @@ async function submit() {
           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent"
           :style="branding.primaryColor ? { '--tw-ring-color': branding.primaryColor } : {}"
         />
+        <div class="text-right mt-1">
+          <RouterLink
+            :to="forgotPasswordRoute"
+            class="text-xs font-medium hover:underline"
+            style="color: var(--auth-primary-color, #4f46e5)"
+          >
+            비밀번호를 잊으셨나요?
+          </RouterLink>
+        </div>
       </div>
 
       <p v-if="error" class="text-sm text-red-600 text-center">{{ error }}</p>

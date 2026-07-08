@@ -1,7 +1,20 @@
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { MailService, VerificationEmailParams } from './mail.service';
 
 jest.mock('nodemailer');
+
+function makeService(host: string): MailService {
+  const config = {
+    get: (key: string) => {
+      if (key === 'app.smtp')
+        return { host, port: 587, secure: false, user: '', pass: '', tlsRejectUnauthorized: true };
+      if (key === 'app.nodeEnv') return 'development';
+      return undefined;
+    },
+  } as unknown as ConfigService;
+  return new MailService(config);
+}
 
 describe('MailService', () => {
   const sendMail = jest.fn();
@@ -76,5 +89,26 @@ describe('MailService', () => {
     await service.sendVerificationEmail({ ...baseParams, devRedirectTo: null });
 
     expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@example.com' }));
+  });
+});
+
+describe('MailService.isConfigured', () => {
+  it('SMTP host 미설정이면 false', () => {
+    expect(makeService('').isConfigured).toBe(false);
+  });
+
+  it('SMTP host 설정이면 true', () => {
+    expect(makeService('smtp.example.com').isConfigured).toBe(true);
+  });
+
+  it('미설정 상태에서 재설정 메일은 throw 없이 반환한다', async () => {
+    await expect(
+      makeService('').sendPasswordResetEmail({
+        to: 'u@e.com',
+        resetUrl: 'https://x/reset?token=t',
+        serviceName: 'svc',
+        ttlSeconds: 3600,
+      }),
+    ).resolves.toBeUndefined();
   });
 });
