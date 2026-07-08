@@ -19,7 +19,6 @@ TARGETS=(
   "package.json"
   "apps/api/package.json"
   "apps/web/package.json"
-  "packages/shared/package.json"
 )
 
 for rel in "${TARGETS[@]}"; do

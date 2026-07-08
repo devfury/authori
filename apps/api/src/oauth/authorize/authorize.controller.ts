@@ -4,10 +4,13 @@ import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AuthorizeService } from './authorize.service';
+import { PasswordResetService } from './password-reset.service';
 import { AuthorizeQueryDto } from './dto/authorize-query.dto';
 import { LoginAuthorizeDto } from './dto/login-authorize.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
+import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
 import type { TenantContext } from '../../common/tenant/tenant-context';
@@ -20,6 +23,7 @@ export class AuthorizeController {
   constructor(
     private readonly authorizeService: AuthorizeService,
     private readonly configService: ConfigService,
+    private readonly passwordResetService: PasswordResetService,
   ) {}
 
   @Get('authorize')
@@ -95,6 +99,39 @@ export class AuthorizeController {
     @Req() req: Request,
   ) {
     return this.authorizeService.verifyEmail(tenant.tenantId, dto.token, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      requestId: req.requestId,
+    });
+  }
+
+  @Post('password-reset/request')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({
+    summary: '비밀번호 재설정 요청',
+    description:
+      '이메일로 재설정 링크를 발송한다. 계정 존재 여부는 노출하지 않는다(정상 인프라 기준 항상 sent). 메일 발송 불가 시 mail_delivery_failed를 반환한다.',
+  })
+  passwordResetRequest(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() dto: PasswordResetRequestDto,
+  ) {
+    return this.passwordResetService.requestReset(tenant.tenantId, tenant.tenantSlug, dto.email);
+  }
+
+  @Post('password-reset/confirm')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary: '비밀번호 재설정 확정',
+    description:
+      '재설정 토큰을 검증하고 새 비밀번호로 변경한다. 성공 시 기존 세션 토큰을 폐기한다.',
+  })
+  passwordResetConfirm(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() dto: PasswordResetConfirmDto,
+    @Req() req: Request,
+  ) {
+    return this.passwordResetService.confirmReset(tenant.tenantId, dto.token, dto.newPassword, {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
       requestId: req.requestId,

@@ -74,5 +74,17 @@ export const oauthApi = {
     return oauthHttp.patch<UserinfoResponse>(`/t/${tenantSlug}/oauth/userinfo`, payload, {
       headers: { Authorization: `Bearer ${token}` },
     })
-  }
+  },
+  requestPasswordReset(tenantSlug: string, email: string) {
+    return oauthHttp.post<{ status: 'sent' | 'mail_delivery_failed' }>(
+      `/t/${tenantSlug}/oauth/password-reset/request`,
+      { email },
+    )
+  },
+  confirmPasswordReset(tenantSlug: string, token: string, newPassword: string) {
+    return oauthHttp.post<{ status: 'reset'; email: string }>(
+      `/t/${tenantSlug}/oauth/password-reset/confirm`,
+      { token, newPassword },
+    )
+  },
 }

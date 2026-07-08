@@ -16,6 +16,7 @@ export interface TenantSettings {
   emailVerificationRequired: boolean
   mailFrom: string | null
   mailDevRedirectTo: string | null
+  accountDeletionGracePeriodDays: number
 }
 
 export interface Tenant {
@@ -51,6 +52,7 @@ export interface UpdateTenantPayload {
     emailVerificationRequired?: boolean
     mailFrom?: string
     mailDevRedirectTo?: string
+    accountDeletionGracePeriodDays?: number
   }
 }
 

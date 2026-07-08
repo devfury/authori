@@ -87,6 +87,7 @@ async function saveSettings() {
       refreshTokenTtl: tenant.value.settings.refreshTokenTtl,
       requirePkce: tenant.value.settings.requirePkce,
       passwordMinLength: tenant.value.settings.passwordMinLength,
+      accountDeletionGracePeriodDays: tenant.value.settings.accountDeletionGracePeriodDays,
       refreshTokenRotation: tenant.value.settings.refreshTokenRotation,
       allowRegistration: tenant.value.settings.allowRegistration,
       autoActivateRegistration: tenant.value.settings.autoActivateRegistration,
@@ -207,6 +208,15 @@ onMounted(load)
                 type="number"
                 min="6"
                 max="128"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">계정 삭제 유예기간(일)</label>
+              <input
+                v-model.number="tenant.settings.accountDeletionGracePeriodDays"
+                type="number"
+                min="1"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>

@@ -45,6 +45,7 @@ export const appConfig = registerAs('app', () => ({
     tlsRejectUnauthorized: (process.env.SMTP_TLS_REJECT_UNAUTHORIZED ?? 'true') !== 'false',
   },
   emailVerificationTtl: parseInt(process.env.EMAIL_VERIFICATION_TTL ?? '86400', 10),
+  passwordResetTtl: parseInt(process.env.PASSWORD_RESET_TTL ?? '3600', 10),
 }));
 
 export const dbConfig = registerAs('db', () => ({
