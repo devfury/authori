@@ -90,6 +90,25 @@ describe('MailService', () => {
 
     expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@example.com' }));
   });
+
+  it('development에서 devRedirectTo에 콤마로 여러 주소를 넣으면 모두에게 발송한다', async () => {
+    const service = buildService('development');
+    await service.sendVerificationEmail({
+      ...baseParams,
+      devRedirectTo: 'dev1@acme.com, dev2@acme.com , dev3@acme.com',
+    });
+
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: ['dev1@acme.com', 'dev2@acme.com', 'dev3@acme.com'] }),
+    );
+  });
+
+  it('devRedirectTo가 콤마와 공백뿐이면 원래 수신자로 발송한다', async () => {
+    const service = buildService('development');
+    await service.sendVerificationEmail({ ...baseParams, devRedirectTo: ' , ' });
+
+    expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ to: 'user@example.com' }));
+  });
 });
 
 describe('MailService.isConfigured', () => {

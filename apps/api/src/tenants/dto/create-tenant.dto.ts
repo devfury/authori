@@ -107,11 +107,11 @@ export class CreateTenantSettingsDto {
 
   @ApiPropertyOptional({
     description:
-      '개발용 강제 수신자. NODE_ENV=development에서만 적용되며 production에서는 저장되지 않는다',
+      '개발용 강제 수신자. NODE_ENV=development에서만 적용되며 production에서는 저장되지 않는다. 콤마(,)로 여러 주소를 입력하면 모두에게 동시 발송된다',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(320)
+  @MaxLength(1024)
   mailDevRedirectTo?: string;
 }
 
