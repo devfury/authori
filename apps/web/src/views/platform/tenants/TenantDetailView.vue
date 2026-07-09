@@ -279,11 +279,12 @@ onMounted(load)
               <input
                 v-model="tenant.settings.mailDevRedirectTo"
                 type="text"
-                placeholder="dev@acme.com"
+                placeholder="dev1@acme.com, dev2@acme.com"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <p class="mt-1 text-xs text-gray-400">
                 개발 환경 전용입니다. 설정 시 모든 인증 메일이 이 주소로만 발송됩니다.
+                콤마(,)로 여러 주소를 입력하면 모두에게 동시 발송됩니다.
               </p>
             </div>
           </div>

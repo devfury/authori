@@ -71,13 +71,28 @@ export class MailService {
    * 실제 발송할 수신자를 결정한다.
    * 개발환경(NODE_ENV=development)에서 테넌트의 mailDevRedirectTo가 설정된 경우,
    * 원래 수신자 대신 해당 주소로 강제 변경한다(실 사용자에게 잘못 발송되는 것을 방지).
+   * mailDevRedirectTo에 콤마(,)로 여러 주소를 넣으면 모두에게 동시 발송한다.
    */
-  private resolveRecipient(to: string, devRedirectTo?: string | null): string {
+  private resolveRecipient(to: string, devRedirectTo?: string | null): string | string[] {
     if (this.isDev && devRedirectTo) {
-      this.logger.log(`개발환경 메일 리디렉션: 원래 수신자=${to} → 강제 수신자=${devRedirectTo}`);
-      return devRedirectTo;
+      const recipients = devRedirectTo
+        .split(',')
+        .map((addr) => addr.trim())
+        .filter((addr) => addr.length > 0);
+      if (recipients.length > 0) {
+        const forced = recipients.length === 1 ? recipients[0] : recipients;
+        this.logger.log(
+          `개발환경 메일 리디렉션: 원래 수신자=${to} → 강제 수신자=${recipients.join(', ')}`,
+        );
+        return forced;
+      }
     }
     return to;
+  }
+
+  /** 로그 출력용으로 수신자(단일/다중)를 문자열로 변환한다. */
+  private formatRecipient(recipient: string | string[]): string {
+    return Array.isArray(recipient) ? recipient.join(', ') : recipient;
   }
 
   /** SMTP_HOST 설정 여부. 미설정 시 메일을 보내지 않는다(개발용 폴백). */
@@ -119,7 +134,9 @@ export class MailService {
         html,
       });
     } catch (error) {
-      this.logger.error(`인증 메일 발송 실패 to=${recipient}: ${(error as Error).message}`);
+      this.logger.error(
+        `인증 메일 발송 실패 to=${this.formatRecipient(recipient)}: ${(error as Error).message}`,
+      );
       throw error;
     }
   }
@@ -144,7 +161,9 @@ export class MailService {
         html,
       });
     } catch (error) {
-      this.logger.error(`재설정 메일 발송 실패 to=${recipient}: ${(error as Error).message}`);
+      this.logger.error(
+        `재설정 메일 발송 실패 to=${this.formatRecipient(recipient)}: ${(error as Error).message}`,
+      );
       throw error;
     }
   }
@@ -168,7 +187,7 @@ export class MailService {
       });
     } catch (error) {
       this.logger.error(
-        `비활성화 안내 메일 발송 실패 to=${recipient}: ${(error as Error).message}`,
+        `비활성화 안내 메일 발송 실패 to=${this.formatRecipient(recipient)}: ${(error as Error).message}`,
       );
       throw error;
     }
