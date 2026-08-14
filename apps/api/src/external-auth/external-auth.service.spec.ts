@@ -136,7 +136,9 @@ describe('ExternalAuthService provider persistence', () => {
     repo.save.mockResolvedValue(provider);
     const service = new ExternalAuthService(repo as never);
 
-    await expect(service.update('tenant-1', 'provider-1', { emailDomains: ['test1.com'] })).resolves.toBe(provider);
+    await expect(
+      service.update('tenant-1', 'provider-1', { emailDomains: ['test1.com'] }),
+    ).resolves.toBe(provider);
   });
 });
 
