@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ExternalAuthProvider } from '../database/entities';
 import { ExternalAuthService } from './external-auth.service';
 
@@ -64,6 +64,129 @@ describe('ExternalAuthService provider persistence', () => {
         requestMapping: { email: 'login_id' },
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('normalizes and persists email domains', async () => {
+    const service = new ExternalAuthService(repo as never);
+
+    await service.create('tenant-1', {
+      providerUrl: 'https://legacy.example.com/auth',
+      emailDomains: [' @Test1.COM ', '@test1.com', 'test1.co.kr'],
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ emailDomains: ['test1.com', 'test1.co.kr'] }),
+    );
+  });
+
+  it('rejects malformed email domains', () => {
+    const service = new ExternalAuthService(repo as never);
+
+    expect(() => service.normalizeEmailDomains(['invalid'])).toThrow(BadRequestException);
+    expect(() => service.normalizeEmailDomains(['*.example.com'])).toThrow(BadRequestException);
+    expect(service.normalizeEmailDomains([' ', '@TEST.COM', 'test.com'])).toEqual(['test.com']);
+    expect(service.normalizeEmailDomains([])).toBeNull();
+  });
+
+  it('extracts an email domain from the last at sign', () => {
+    const service = new ExternalAuthService(repo as never);
+
+    expect(service.extractEmailDomain('u@Test.COM')).toBe('test.com');
+    expect(service.extractEmailDomain('no-at')).toBeNull();
+    expect(service.extractEmailDomain('"a@b"@test.com')).toBe('test.com');
+  });
+
+  it('rejects overlapping domains but permits non-overlapping domains', async () => {
+    repo.createQueryBuilder.mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([{ id: 'existing', emailDomains: ['test1.com'] }]),
+    });
+    const service = new ExternalAuthService(repo as never);
+
+    await expect(
+      service.create('tenant-1', {
+        providerUrl: 'https://legacy.example.com/auth',
+        emailDomains: ['@TEST1.COM'],
+      }),
+    ).rejects.toThrow(/test1\.com/);
+
+    await expect(
+      service.create('tenant-1', {
+        clientId: 'another-client',
+        providerUrl: 'https://legacy.example.com/auth',
+        emailDomains: ['test2.com'],
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('does not treat the provider itself as a duplicate during update', async () => {
+    const provider = {
+      id: 'provider-1',
+      tenantId: 'tenant-1',
+      clientId: 'client-1',
+      emailDomains: ['test1.com'],
+    } as ExternalAuthProvider;
+    repo.findOne.mockResolvedValue(provider);
+    repo.createQueryBuilder.mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    });
+    repo.save.mockResolvedValue(provider);
+    const service = new ExternalAuthService(repo as never);
+
+    await expect(service.update('tenant-1', 'provider-1', { emailDomains: ['test1.com'] })).resolves.toBe(provider);
+  });
+});
+
+describe('ExternalAuthService active provider selection', () => {
+  const repo = { createQueryBuilder: jest.fn() };
+
+  function serviceWith(candidates: Partial<ExternalAuthProvider>[]) {
+    const query = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(candidates),
+    };
+    repo.createQueryBuilder.mockReturnValue(query);
+    return new ExternalAuthService(repo as never);
+  }
+
+  it.each([
+    ['client domain', 'client-domain', 'client-default', 'tenant-domain', 'tenant-default'],
+    ['client default', undefined, 'client-default', 'tenant-domain', 'tenant-default'],
+    ['tenant domain', undefined, undefined, 'tenant-domain', 'tenant-default'],
+    ['tenant default', undefined, undefined, undefined, 'tenant-default'],
+  ])(
+    '%s has the expected priority',
+    async (_, clientDomain, clientDefault, tenantDomain, tenantDefault) => {
+      const candidates = [
+        clientDomain && { id: clientDomain, clientId: 'client-1', emailDomains: ['example.com'] },
+        clientDefault && { id: clientDefault, clientId: 'client-1', emailDomains: null },
+        tenantDomain && { id: tenantDomain, clientId: null, emailDomains: ['example.com'] },
+        tenantDefault && { id: tenantDefault, clientId: null, emailDomains: null },
+      ].filter(Boolean) as Partial<ExternalAuthProvider>[];
+      const service = serviceWith(candidates);
+
+      const result = await service.findActive('tenant-1', 'client-1', 'u@example.com');
+      expect(result?.id).toBe(clientDomain ?? clientDefault ?? tenantDomain ?? tenantDefault);
+    },
+  );
+
+  it('returns null when the domain does not match and no default exists', async () => {
+    const service = serviceWith([
+      { id: 'provider', clientId: 'client-1', emailDomains: ['other.com'] },
+    ]);
+    await expect(service.findActive('tenant-1', 'client-1', 'u@example.com')).resolves.toBeNull();
+  });
+
+  it('does not select a domain provider when email is omitted', async () => {
+    const service = serviceWith([
+      { id: 'provider', clientId: 'client-1', emailDomains: ['example.com'] },
+    ]);
+    await expect(service.findActive('tenant-1', 'client-1')).resolves.toBeNull();
   });
 });
 

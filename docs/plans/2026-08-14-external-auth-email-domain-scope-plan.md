@@ -42,26 +42,26 @@
 
 ### Phase 2 — 도메인 정규화/추출 유틸 (TDD)
 
-- [ ] 2-1. `external-auth.service.spec.ts`에 `normalizeEmailDomains` 테스트 작성 — 공백/대문자/`@` 접두사 정규화, 중복 제거, 빈 배열→`null`, 점 없는 값 400, 와일드카드 400
-- [ ] 2-2. `external-auth.service.spec.ts`에 `extractEmailDomain` 테스트 작성 — 소문자 반환, `@` 없음→`null`, 인용 로컬파트(`"a@b"@test.com`) 처리
-- [ ] 2-3. `ExternalAuthService`에 `normalizeEmailDomains` / `extractEmailDomain` 구현 (설계서 §3)
+- [x] 2-1. `external-auth.service.spec.ts`에 `normalizeEmailDomains` 테스트 작성 — 공백/대문자/`@` 접두사 정규화, 중복 제거, 빈 배열→`null`, 점 없는 값 400, 와일드카드 400
+- [x] 2-2. `external-auth.service.spec.ts`에 `extractEmailDomain` 테스트 작성 — 소문자 반환, `@` 없음→`null`, 인용 로컬파트(`"a@b"@test.com`) 처리
+- [x] 2-3. `ExternalAuthService`에 `normalizeEmailDomains` / `extractEmailDomain` 구현 (설계서 §3)
 
 ### Phase 3 — 프로바이더 선택 로직 (TDD)
 
-- [ ] 3-1. `findActive` 우선순위 ①~④ 각각이 선택되는 테스트 4개 작성
-- [ ] 3-2. 미매칭→`null`, `email` 미전달 시 도메인 조건 프로바이더 제외, `enabled=false` 제외 테스트 작성
-- [ ] 3-3. `findActive(tenantId, clientId, email?)` 구현 — 단일 쿼리 + 메모리 우선순위 판정 (설계서 §4.2)
-- [ ] 3-4. `authorize.service.ts:313`에서 `dto.email`을 `findActive`에 전달
+- [x] 3-1. `findActive` 우선순위 ①~④ 각각이 선택되는 테스트 4개 작성
+- [x] 3-2. 미매칭→`null`, `email` 미전달 시 도메인 조건 프로바이더 제외, `enabled=false` 제외 테스트 작성
+- [x] 3-3. `findActive(tenantId, clientId, email?)` 구현 — 단일 쿼리 + 메모리 우선순위 판정 (설계서 §4.2)
+- [x] 3-4. `authorize.service.ts:313`에서 `dto.email`을 `findActive`에 전달
 
 ### Phase 4 — 중복 검사 규칙 (TDD)
 
-- [ ] 4-1. 도메인 겹침 409(메시지에 충돌 도메인 포함) / 안 겹치면 성공 / `clientId` 범위 다르면 성공 / update 시 자기 자신 제외 테스트 작성
-- [ ] 4-2. `checkDuplicate(tenantId, clientId, emailDomains, excludeId?)` 구현 (설계서 §5)
-- [ ] 4-3. `create()` / `update()`에서 `emailDomains` 정규화 후 저장 및 변경 시 중복 검사 호출
+- [x] 4-1. 도메인 겹침 409(메시지에 충돌 도메인 포함) / 안 겹치면 성공 / `clientId` 범위 다르면 성공 / update 시 자기 자신 제외 테스트 작성
+- [x] 4-2. `checkDuplicate(tenantId, clientId, emailDomains, excludeId?)` 구현 (설계서 §5)
+- [x] 4-3. `create()` / `update()`에서 `emailDomains` 정규화 후 저장 및 변경 시 중복 검사 호출
 
 ### Phase 5 — API DTO
 
-- [ ] 5-1. `CreateProviderDto`에 `emailDomains?: string[] | null` 추가 (`@IsOptional` `@IsArray` `@IsString({each:true})` + Swagger 데코레이터)
+- [x] 5-1. `CreateProviderDto`에 `emailDomains?: string[] | null` 추가 (`@IsOptional` `@IsArray` `@IsString({each:true})` + Swagger 데코레이터)
 
 ### Phase 6 — 관리 UI
 

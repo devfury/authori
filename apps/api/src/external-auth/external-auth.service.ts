@@ -1,5 +1,11 @@
 import { createHash } from 'crypto';
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExternalAuthProvider } from '../database/entities';
@@ -37,10 +43,12 @@ export class ExternalAuthService {
   ) {}
 
   async create(tenantId: string, dto: CreateProviderDto): Promise<ExternalAuthProvider> {
-    await this.checkDuplicate(tenantId, dto.clientId ?? null);
+    const emailDomains = this.normalizeEmailDomains(dto.emailDomains);
+    await this.checkDuplicate(tenantId, dto.clientId ?? null, emailDomains);
     const provider = this.providerRepo.create({
       tenantId,
       clientId: dto.clientId ?? null,
+      emailDomains,
       enabled: dto.enabled ?? true,
       providerUrl: dto.providerUrl,
       credentialHeader: dto.credentialHeader ?? null,
@@ -74,16 +82,23 @@ export class ExternalAuthService {
   ): Promise<ExternalAuthProvider> {
     const provider = await this.findOne(tenantId, id);
 
-    // 적용 범위(clientId)가 변경되는 경우에만 중복 검사
-    if (dto.clientId !== undefined) {
-      const newClientId = dto.clientId ?? null;
-      if (newClientId !== provider.clientId) {
-        await this.checkDuplicate(tenantId, newClientId);
-      }
+    const newEmailDomains =
+      dto.emailDomains !== undefined
+        ? this.normalizeEmailDomains(dto.emailDomains)
+        : (provider.emailDomains ?? null);
+    const newClientId = dto.clientId !== undefined ? (dto.clientId ?? null) : provider.clientId;
+
+    // 적용 범위(clientId 또는 emailDomains)가 변경되는 경우에만 중복 검사
+    const domainsChanged =
+      dto.emailDomains !== undefined &&
+      JSON.stringify(newEmailDomains) !== JSON.stringify(provider.emailDomains ?? null);
+    if (newClientId !== provider.clientId || domainsChanged) {
+      await this.checkDuplicate(tenantId, newClientId, newEmailDomains, id);
     }
 
     Object.assign(provider, {
       ...(dto.clientId !== undefined && { clientId: dto.clientId ?? null }),
+      ...(dto.emailDomains !== undefined && { emailDomains: newEmailDomains }),
       ...(dto.enabled !== undefined && { enabled: dto.enabled }),
       ...(dto.providerUrl !== undefined && { providerUrl: dto.providerUrl }),
       ...(dto.credentialHeader !== undefined && { credentialHeader: dto.credentialHeader ?? null }),
@@ -108,22 +123,66 @@ export class ExternalAuthService {
    * tenant + clientId에 맞는 활성 프로바이더를 조회한다.
    * clientId 일치 우선, 없으면 테넌트 기본(client_id IS NULL) 사용.
    */
-  async findActive(tenantId: string, clientId: string): Promise<ExternalAuthProvider | null> {
-    // clientId 일치하는 프로바이더 우선 조회
-    const exact = await this.providerRepo.findOne({
-      where: { tenantId, clientId, enabled: true },
-    });
-    if (exact) return exact;
+  async findActive(
+    tenantId: string,
+    clientId: string,
+    email?: string,
+  ): Promise<ExternalAuthProvider | null> {
+    const candidates = await this.providerRepo
+      .createQueryBuilder('p')
+      .where('p.tenant_id = :tenantId', { tenantId })
+      .andWhere('p.enabled = true')
+      .andWhere('(p.client_id = :clientId OR p.client_id IS NULL)', { clientId })
+      .orderBy('p.created_at', 'DESC')
+      .getMany();
 
-    // 테넌트 기본 프로바이더 (client_id IS NULL)
+    const domain = email ? this.extractEmailDomain(email) : null;
+    const hasDomains = (provider: ExternalAuthProvider) =>
+      Array.isArray(provider.emailDomains) && provider.emailDomains.length > 0;
+    const domainMatches = (provider: ExternalAuthProvider) =>
+      !!domain &&
+      hasDomains(provider) &&
+      provider.emailDomains!.some((candidate) => candidate.toLowerCase() === domain);
+
     return (
-      this.providerRepo
-        .createQueryBuilder('p')
-        .where('p.tenant_id = :tenantId', { tenantId })
-        .andWhere('p.client_id IS NULL')
-        .andWhere('p.enabled = true')
-        .getOne() ?? null
+      candidates.find((provider) => provider.clientId === clientId && domainMatches(provider)) ??
+      candidates.find((provider) => provider.clientId === clientId && !hasDomains(provider)) ??
+      candidates.find((provider) => provider.clientId === null && domainMatches(provider)) ??
+      candidates.find((provider) => provider.clientId === null && !hasDomains(provider)) ??
+      null
     );
+  }
+
+  normalizeEmailDomains(value: string[] | null | undefined): string[] | null {
+    if (value == null) return null;
+
+    const normalized: string[] = [];
+    for (const original of value) {
+      if (typeof original !== 'string') {
+        throw new BadRequestException('이메일 도메인은 문자열이어야 합니다.');
+      }
+      const domain = original.trim().replace(/^@/, '').toLowerCase();
+      if (!domain) continue;
+      if (
+        !/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(
+          domain,
+        )
+      ) {
+        throw new BadRequestException(`유효하지 않은 이메일 도메인입니다: '${original}'`);
+      }
+      if (!normalized.includes(domain)) normalized.push(domain);
+    }
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  extractEmailDomain(email: string): string | null {
+    const atIndex = email.lastIndexOf('@');
+    if (atIndex < 0 || atIndex === email.length - 1) return null;
+    const domain = email
+      .slice(atIndex + 1)
+      .trim()
+      .toLowerCase();
+    return domain || null;
   }
 
   applyValueTransforms(value: string, transforms: TransformSpec[]): string {
@@ -299,21 +358,47 @@ export class ExternalAuthService {
   /**
    * fieldMapping을 적용하여 외부 응답 데이터를 User 생성 인자로 변환.
    */
-  private async checkDuplicate(tenantId: string, clientId: string | null): Promise<void> {
-    let existing: ExternalAuthProvider | null;
-    if (clientId === null) {
-      existing =
-        (await this.providerRepo
-          .createQueryBuilder('p')
-          .where('p.tenant_id = :tenantId', { tenantId })
-          .andWhere('p.client_id IS NULL')
-          .getOne()) ?? null;
-    } else {
-      existing = (await this.providerRepo.findOne({ where: { tenantId, clientId } })) ?? null;
+  private async checkDuplicate(
+    tenantId: string,
+    clientId: string | null,
+    emailDomains: string[] | null,
+    excludeId?: string,
+  ): Promise<void> {
+    const query = this.providerRepo
+      .createQueryBuilder('p')
+      .where('p.tenant_id = :tenantId', { tenantId })
+      .andWhere(clientId === null ? 'p.client_id IS NULL' : 'p.client_id = :clientId', {
+        clientId,
+      });
+    if (excludeId) query.andWhere('p.id != :excludeId', { excludeId });
+
+    const existing =
+      typeof query.getMany === 'function'
+        ? await query.getMany()
+        : ([await query.getOne()].filter(Boolean) as ExternalAuthProvider[]);
+    const scope = clientId ? `클라이언트 '${clientId}'` : '테넌트 전체';
+    const normalizedExisting = existing.filter((provider) => provider.emailDomains?.length);
+
+    if (!emailDomains?.length) {
+      if (existing.some((provider) => !provider.emailDomains?.length)) {
+        throw new ConflictException(
+          `${scope}에 이미 도메인 조건 없는 외부 인증 프로바이더가 등록되어 있습니다.`,
+        );
+      }
+      return;
     }
-    if (existing) {
-      const scope = clientId ? `클라이언트 '${clientId}'` : '테넌트 전체';
-      throw new ConflictException(`${scope}에 이미 외부 인증 프로바이더가 등록되어 있습니다.`);
+
+    const conflicts = [
+      ...new Set(
+        normalizedExisting
+          .flatMap((provider) => provider.emailDomains ?? [])
+          .filter((domain) => emailDomains.includes(domain.toLowerCase())),
+      ),
+    ];
+    if (conflicts.length > 0) {
+      throw new ConflictException(
+        `${scope} 범위에 이미 등록된 도메인입니다: ${conflicts.join(', ')}`,
+      );
     }
   }
 
