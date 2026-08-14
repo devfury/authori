@@ -37,8 +37,8 @@
 
 ### Phase 1 — 데이터 모델
 
-- [ ] 1-1. `ExternalAuthProvider` 엔티티에 `emailDomains: string[] | null` (`email_domains` jsonb, nullable) 컬럼 추가 + JSDoc 주석
-- [ ] 1-2. 마이그레이션 `1780900000000-AddExternalAuthEmailDomains.ts` 작성 (up: ADD COLUMN, down: DROP COLUMN)
+- [x] 1-1. `ExternalAuthProvider` 엔티티에 `emailDomains: string[] | null` (`email_domains` jsonb, nullable) 컬럼 추가 + JSDoc 주석
+- [x] 1-2. 마이그레이션 `1780900000000-AddExternalAuthEmailDomains.ts` 작성 (up: ADD COLUMN, down: DROP COLUMN)
 
 ### Phase 2 — 도메인 정규화/추출 유틸 (TDD)
 
