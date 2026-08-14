@@ -70,6 +70,13 @@ export class ExternalAuthProvider {
   @Column({ name: 'client_id', type: 'varchar', nullable: true })
   clientId: string | null;
 
+  /**
+   * 적용 대상 이메일 도메인 목록(소문자, '@' 제외).
+   * null 또는 빈 배열이면 도메인 조건 없음 = 모든 도메인에 적용.
+   */
+  @Column({ name: 'email_domains', type: 'jsonb', nullable: true })
+  emailDomains: string[] | null;
+
   @Column({ default: true })
   enabled: boolean;
 

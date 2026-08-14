@@ -67,6 +67,9 @@ bun run start:dev          # port 3001, Swagger at /docs
 - `oauth/keys/` — RSA 서명 키 관리 (DB 저장), JWKS 엔드포인트
 - `oauth/revoke/` — 토큰 폐기
 - `oauth/discovery/` — `.well-known/openid-configuration`
+- `external-auth/` — 외부 인증 프로바이더 관리. `client_id`와 이메일 도메인(`email_domains`)을 조합해
+  `client_id` 일치+도메인 일치 → client 기본(도메인 없음) → 테넌트 전체+도메인 일치 → 테넌트 전체 기본 순으로 선택한다.
+  도메인은 저장 시 trim·`@` 제거·소문자화·중복 제거하며 정확히 일치해야 하고, 미매칭이면 로컬 비밀번호 인증으로 폴백한다.
 - `users/` — 테넌트 내 사용자 CRUD, UserProfile(JSONB)
 - `tenants/` — 테넌트 및 TenantSettings CRUD
 - `profile-schema/` — JSON Schema Draft-07 기반 사용자 프로필 스키마 버전 관리
@@ -140,7 +143,8 @@ Example server: `http://localhost:3001/docs`
 - 기존 사용자 변경사항을 되돌리거나 덮어쓰지 않는다. 충돌이 있으면 해당 변경을 보존한 상태로 해결한다.
 - 편집, 테스트, 검증은 생성한 worktree 안에서 수행한다.
 - 작업이 끝나면 변경사항을 커밋하고 원격 브랜치로 push한다.
-- push 후 사용자에게 브랜치명, 커밋 해시, 실행한 검증 명령을 보고한다.
+- push 후 검증이 모두 통과했으면 `develop`에 병합하고 원격으로 push한다 (절차는 5단계 참조).
+- 병합까지 마친 뒤 사용자에게 브랜치명, 커밋 해시, 병합 결과, 실행한 검증 명령을 보고한다.
 
 ### Suggested Commands
 - Create: `git worktree add .worktree/<task-slug> -b <prefix>/<task-slug>` (prefix: feat|fix|docs|chore|refactor|test|style)
@@ -148,6 +152,9 @@ Example server: `http://localhost:3001/docs`
 - Verify: 프로젝트에 맞는 테스트, 린트, 빌드 명령 실행
 - Commit: `git add <files> && git commit -m "<message>"`
 - Push: `git push -u origin feat/<task-slug>`
+- Sync: `git fetch origin develop && git merge origin/develop` (작업 브랜치에서 충돌 선해소)
+- Merge: `git checkout develop && git pull --ff-only origin develop && git merge --no-ff feat/<task-slug>`
+- Publish: `git push origin develop`
 
 ## Development Process (개발 프로세스 표준)
 
@@ -197,26 +204,63 @@ bun run build
 
 실패 시 원인을 수정하고 재실행한다. 통과 후 다음 단계로 진행한다.
 
-### 5단계 — 개발완료보고서 작성 및 알림
+### 5단계 — 개발완료보고서 작성 · develop 병합 · 알림
+
+**순서를 지킨다: 보고서 작성 → develop 병합 및 push → 알림 발송.** 알림은 병합 결과를 담아야 하므로 반드시 마지막이다.
+
+#### 5-1. 개발완료보고서
 
 - **개발완료보고서**를 작성한다: `docs/reviews/YYYY-MM-DD-<topic>-review.md`
   - 구현 요약, 완료된 작업 목록, 빌드/테스트 실행 결과, 남은 리스크 또는 후속 작업 포함.
   - 관련 요구사항정의서, 개발설계서, 개발계획서 링크 포함.
-- 가능하면 개인 알림 채널로 완료 상황을 간략히 알린다 (브랜치명, 주요 변경 내용, 검증 결과, 남은 작업).
-  - **1순위 — ezaria**: `ezaria-personal-notify` 스킬이 있으면 해당 스킬의 절차에 따라 개인 채팅방으로 발송한다.
-  - **2순위 — 텔레그램**: `ezaria-personal-notify` 스킬이 없을 때만 `telegram-cli -V`로 사용 가능 여부를 확인한다. 버전이 출력되면 `telegram-cli "<메시지>"` 한 줄로 발송한다.
-  - 두 수단을 모두 사용할 수 없으면 알림 단계를 건너뛴다.
-  - **메시지 형식**: 브랜치명 · 주요 변경 · 검증 결과 · 남은 작업을 4줄 내외로 요약한다.
 
-    ```bash
-    # ezaria-personal-notify 스킬이 없을 때만 실행
-    telegram-cli -V || echo "telegram-cli 미설치 — 알림 생략"
-    telegram-cli "[ezDesk] <작업명> 완료
-    • 브랜치: <branch>
-    • 변경: <핵심 변경 요약>
-    • 검증: <lint/test/build 결과>
-    • 남은 작업: <후속 또는 없음>"
-    ```
+#### 5-2. develop 병합 및 push
+
+4단계 검증이 **모두 통과한 경우에만** 수행한다.
+
+- 작업 브랜치의 모든 변경을 커밋하고 원격에 push한다.
+- 작업 브랜치에서 최신 `develop`을 먼저 병합해 충돌을 해소한다. 충돌 해소는 `develop`이 아니라 작업 브랜치에서 한다.
+- 병합으로 코드가 바뀌었으면 4단계 검증을 다시 실행한다.
+- `develop`으로 옮겨 작업 브랜치를 `--no-ff`로 병합하고 push한다.
+
+```bash
+# 작업 worktree에서
+git push -u origin <branch>
+git fetch origin develop && git merge origin/develop   # 충돌은 여기서 해소
+bun run lint && bun run typecheck && bun run test && bun run build   # 병합으로 코드가 바뀌었으면 재검증
+
+# 메인 worktree에서
+git checkout develop && git pull --ff-only origin develop
+git merge --no-ff <branch> -m "Merge branch '<branch>' into develop"
+git push origin develop
+```
+
+**병합하지 말아야 하는 경우** — 아래에 해당하면 병합을 중단하고 사용자에게 판단을 요청한다.
+
+- 4단계 검증 중 하나라도 실패했을 때 (기존 저장소 baseline 오류는 예외이나, 신규 유입이 없음을 확인하고 보고서에 명시한다).
+- 충돌을 안전하게 해소할 수 없거나 다른 사람의 변경을 덮어써야 할 때.
+- push 권한이나 자격증명이 없어 `develop` push가 실패할 때.
+
+#### 5-3. 알림
+
+`develop` push가 성공한 뒤 개인 알림 채널로 완료 상황을 간략히 알린다 (브랜치명, 주요 변경 내용, 검증 결과, 병합 결과, 남은 작업).
+
+- **1순위 — ezaria**: `ezaria-personal-notify` 스킬이 있으면 해당 스킬의 절차에 따라 개인 채팅방으로 발송한다.
+- **2순위 — 텔레그램**: `ezaria-personal-notify` 스킬이 없을 때만 `telegram-cli -V`로 사용 가능 여부를 확인한다. 버전이 출력되면 `telegram-cli "<메시지>"` 한 줄로 발송한다.
+- 두 수단을 모두 사용할 수 없으면 알림 단계를 건너뛴다.
+- 병합을 건너뛰었거나 실패했으면 알림을 생략하지 말고 **그 사실과 이유를 본문에 명시**해 발송한다.
+- **메시지 형식**: 브랜치명 · 주요 변경 · 검증 결과 · 병합 결과 · 남은 작업을 5줄 내외로 요약한다.
+
+```bash
+# ezaria-personal-notify 스킬이 없을 때만 실행
+telegram-cli -V || echo "telegram-cli 미설치 — 알림 생략"
+telegram-cli "[ezDesk] <작업명> 완료
+• 브랜치: <branch>
+• 변경: <핵심 변경 요약>
+• 검증: <lint/test/build 결과>
+• 병합: develop 병합 및 push 완료 (<merge commit>) / 또는 미수행 사유
+• 남은 작업: <후속 또는 없음>"
+```
 
 ### 문서-코드 추적성
 

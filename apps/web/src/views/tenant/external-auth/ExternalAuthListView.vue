@@ -12,6 +12,16 @@ const providers = ref<ExternalAuthProvider[]>([])
 const loading = ref(true)
 const deletingId = ref<string | null>(null)
 
+function formatDomains(domains: string[] | null) {
+  if (!domains?.length) return null
+  const labels = domains.map((domain) => `@${domain}`)
+  return labels.length > 3 ? `${labels.slice(0, 3).join(', ')} 외 ${labels.length - 3}개` : labels.join(', ')
+}
+
+function allDomains(domains: string[] | null) {
+  return domains?.map((domain) => `@${domain}`).join(', ') ?? ''
+}
+
 async function load() {
   const { data } = await externalAuthApi.findAll(tenantId)
   providers.value = data
@@ -66,6 +76,9 @@ onMounted(load)
             <span v-if="p.clientId" class="text-xs text-gray-400 font-mono">{{ p.clientId }}</span>
             <span v-else class="text-xs text-gray-400">테넌트 전체 적용</span>
           </div>
+          <p v-if="p.emailDomains?.length" class="text-xs text-gray-400" :title="allDomains(p.emailDomains)">
+            {{ formatDomains(p.emailDomains) }}
+          </p>
           <p class="text-sm font-mono text-gray-700 truncate">{{ p.providerUrl }}</p>
           <div class="flex gap-3 mt-1 text-xs text-gray-400">
             <span>JIT: {{ p.jitProvision ? 'O' : 'X' }}</span>
