@@ -372,10 +372,7 @@ export class ExternalAuthService {
       });
     if (excludeId) query.andWhere('p.id != :excludeId', { excludeId });
 
-    const existing =
-      typeof query.getMany === 'function'
-        ? await query.getMany()
-        : ([await query.getOne()].filter(Boolean) as ExternalAuthProvider[]);
+    const existing = await query.getMany();
     const scope = clientId ? `클라이언트 '${clientId}'` : '테넌트 전체';
     const normalizedExisting = existing.filter((provider) => provider.emailDomains?.length);
 

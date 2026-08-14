@@ -19,7 +19,7 @@ describe('ExternalAuthService provider persistence', () => {
     repo.createQueryBuilder.mockReturnValue({
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
-      getOne: jest.fn().mockResolvedValue(null),
+      getMany: jest.fn().mockResolvedValue([]),
     });
   });
 
@@ -54,7 +54,7 @@ describe('ExternalAuthService provider persistence', () => {
     repo.createQueryBuilder.mockReturnValue({
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
-      getOne: jest.fn().mockResolvedValue({ id: 'existing-provider' }),
+      getMany: jest.fn().mockResolvedValue([{ id: 'existing-provider', emailDomains: null }]),
     });
     const service = new ExternalAuthService(repo as never);
 

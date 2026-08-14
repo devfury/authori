@@ -2,7 +2,7 @@
 
 - 작성일: 2026-08-14
 - 브랜치: `feat/external-auth-email-domain-scope`
-- 상태: 구현 완료
+- 상태: 구현 완료 (후속 수정 반영)
 
 ## 1. 구현 요약
 
@@ -11,6 +11,7 @@
 - 외부 프로바이더를 클라이언트·테넌트 범위와 이메일 도메인 조건의 고정 우선순위로 선택하며, 매칭 실패 시 기존 로컬 인증으로 폴백한다.
 - 도메인 중복 등록은 범위별 충돌 도메인을 포함한 409로 거부하고, 도메인 조건이 없는 기존 프로바이더의 하위호환을 유지한다.
 - 관리 API 타입과 등록/수정·목록 UI에 이메일 도메인 입력 및 적용 범위 표시를 추가했다.
+- `checkDuplicate()`는 TypeORM 프로덕션 QueryBuilder의 `getMany()`만 사용하도록 단순화하고, 테스트 목도 실제 API 형태에 맞게 `getMany()`를 제공하도록 수정했다.
 
 ## 2. 완료 작업
 
@@ -26,13 +27,13 @@
 | 명령 | 결과 |
 |---|---|
 | `bun install` | 통과 — 879 packages installed |
-| `bun run lint` | 실패 — 기존 저장소 오류 포함 69 errors, 48 warnings |
+| `bun run lint` | 실패 — develop 기준선과 동일(117 problems: 69 errors, 48 warnings), 신규 유입 0건 |
 | `bun run typecheck` | 통과 — API·웹 2개 패키지 성공 |
 | `bun run test` | 통과 — API 17 suites/134 tests, 웹 5 files/10 tests |
 | `bun run build` | 통과 — API Nest build 및 웹 Vite build 성공 |
 | `graphify update .` | 실행 불가 — `graphify` 명령 미설치 |
 
-`bun run lint` 실패는 `platform-admin.guard.ts`, `tenant-admin.guard.ts`, `pending-request.store.ts` 등 기존 파일의 규칙 위반과 기존 테스트의 unsafe/require-await 오류가 함께 보고된 결과다. 변경 범위의 targeted lint에서는 기존 `external-auth.service.spec.ts` mock의 `require-await`와 기존 `authorize.service.ts`의 enum 비교 오류만 남았다.
+`bun run lint` 실패는 `platform-admin.guard.ts`, `tenant-admin.guard.ts`, `pending-request.store.ts` 등 기존 파일의 규칙 위반과 기존 테스트의 unsafe/require-await 오류가 함께 보고된 결과이며, develop 기준선 117 problems에서 증가하지 않았다.
 
 ## 4. 마이그레이션 검증
 
