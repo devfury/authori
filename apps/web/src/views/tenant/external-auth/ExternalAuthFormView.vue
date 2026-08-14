@@ -14,6 +14,7 @@ const isEdit = computed(() => !!id)
 // 폼 상태
 const clientId = ref<string>('')
 const applyToAll = ref(true)
+const emailDomainsInput = ref('')
 const enabled = ref(true)
 const providerUrl = ref('')
 const credentialHeader = ref('')
@@ -117,8 +118,15 @@ function buildPayload(): CreateProviderPayload {
   if (validPasswordTransforms.length > 0) transforms.password = validPasswordTransforms
   if (Object.keys(transforms).length > 0) requestMapping.transforms = transforms
 
+  const emailDomains = emailDomainsInput.value
+    .split(/[\n,]/)
+    .map((domain) => domain.trim().replace(/^@/, '').toLowerCase())
+    .filter(Boolean)
+    .filter((domain, index, domains) => domains.indexOf(domain) === index)
+
   return {
     clientId: applyToAll.value ? null : (clientId.value || null),
+    emailDomains: emailDomains.length > 0 ? emailDomains : null,
     enabled: enabled.value,
     providerUrl: providerUrl.value,
     credentialHeader: credentialHeader.value || null,
@@ -134,6 +142,7 @@ function buildPayload(): CreateProviderPayload {
 function fillForm(data: Awaited<ReturnType<typeof externalAuthApi.findOne>>['data']) {
   applyToAll.value = !data.clientId
   clientId.value = data.clientId ?? ''
+  emailDomainsInput.value = data.emailDomains?.join('\n') ?? ''
   enabled.value = data.enabled
   providerUrl.value = data.providerUrl
   credentialHeader.value = data.credentialHeader ?? ''
@@ -346,6 +355,19 @@ onMounted(async () => {
               </option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">적용 이메일 도메인</label>
+          <textarea
+            v-model="emailDomainsInput"
+            rows="3"
+            placeholder="test1.com, test1.co.kr"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          <p class="mt-1.5 text-xs text-gray-500">
+            비워두면 모든 이메일 도메인에 적용됩니다. 줄바꿈 또는 콤마로 구분하세요. @는 생략 가능하며, 서브도메인은 자동 매칭되지 않으므로 직접 추가해야 합니다.
+          </p>
         </div>
 
         <div>

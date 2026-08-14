@@ -65,9 +65,9 @@
 
 ### Phase 6 — 관리 UI
 
-- [ ] 6-1. `apps/web/src/api/external-auth.ts`의 `ExternalAuthProvider` / `CreateProviderPayload`에 `emailDomains` 추가
-- [ ] 6-2. `ExternalAuthFormView.vue`에 도메인 입력 textarea 추가 (줄바꿈/콤마 구분, 헬프 텍스트, 저장 파싱, 로드 역변환)
-- [ ] 6-3. `ExternalAuthListView.vue` 적용 범위 셀에 도메인 표시 (3개 초과 시 축약 + `title` 전체 목록)
+- [x] 6-1. `apps/web/src/api/external-auth.ts`의 `ExternalAuthProvider` / `CreateProviderPayload`에 `emailDomains` 추가
+- [x] 6-2. `ExternalAuthFormView.vue`에 도메인 입력 textarea 추가 (줄바꿈/콤마 구분, 헬프 텍스트, 저장 파싱, 로드 역변환)
+- [x] 6-3. `ExternalAuthListView.vue` 적용 범위 셀에 도메인 표시 (3개 초과 시 축약 + `title` 전체 목록)
 
 ### Phase 7 — 문서 및 마무리
 

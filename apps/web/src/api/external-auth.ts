@@ -44,6 +44,7 @@ export interface ExternalAuthProvider {
   id: string
   tenantId: string
   clientId: string | null
+  emailDomains: string[] | null
   enabled: boolean
   providerUrl: string
   credentialHeader: string | null
@@ -59,6 +60,7 @@ export interface ExternalAuthProvider {
 
 export interface CreateProviderPayload {
   clientId?: string | null
+  emailDomains?: string[] | null
   enabled?: boolean
   providerUrl: string
   credentialHeader?: string | null
