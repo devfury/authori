@@ -202,14 +202,16 @@ bun run build
 - **개발완료보고서**를 작성한다: `docs/reviews/YYYY-MM-DD-<topic>-review.md`
   - 구현 요약, 완료된 작업 목록, 빌드/테스트 실행 결과, 남은 리스크 또는 후속 작업 포함.
   - 관련 요구사항정의서, 개발설계서, 개발계획서 링크 포함.
-- 가능하면 텔레그램으로 완료 상황을 간략히 알린다 (브랜치명, 주요 변경 내용, 남은 작업).
-  - **설치 확인**: 발송 전 `telegram-cli -V`로 사용 가능 여부를 확인한다. 버전이 출력되면 사용 가능하고, `command not found` 등으로 실패하면 알림 단계를 건너뛴다.
-  - **발송**: `telegram-cli "<메시지>"` 한 줄로 보낸다. 따옴표 하나에 여러 줄 메시지를 담을 수 있으며, 종료 코드 `0`이면 전송 성공이다.
+- 가능하면 개인 알림 채널로 완료 상황을 간략히 알린다 (브랜치명, 주요 변경 내용, 검증 결과, 남은 작업).
+  - **1순위 — ezaria**: `ezaria-personal-notify` 스킬이 있으면 해당 스킬의 절차에 따라 개인 채팅방으로 발송한다.
+  - **2순위 — 텔레그램**: `ezaria-personal-notify` 스킬이 없을 때만 `telegram-cli -V`로 사용 가능 여부를 확인한다. 버전이 출력되면 `telegram-cli "<메시지>"` 한 줄로 발송한다.
+  - 두 수단을 모두 사용할 수 없으면 알림 단계를 건너뛴다.
   - **메시지 형식**: 브랜치명 · 주요 변경 · 검증 결과 · 남은 작업을 4줄 내외로 요약한다.
 
     ```bash
+    # ezaria-personal-notify 스킬이 없을 때만 실행
     telegram-cli -V || echo "telegram-cli 미설치 — 알림 생략"
-    telegram-cli "[ezPlatform] <작업명> 완료
+    telegram-cli "[ezDesk] <작업명> 완료
     • 브랜치: <branch>
     • 변경: <핵심 변경 요약>
     • 검증: <lint/test/build 결과>
