@@ -67,6 +67,9 @@ bun run start:dev          # port 3001, Swagger at /docs
 - `oauth/keys/` — RSA 서명 키 관리 (DB 저장), JWKS 엔드포인트
 - `oauth/revoke/` — 토큰 폐기
 - `oauth/discovery/` — `.well-known/openid-configuration`
+- `external-auth/` — 외부 인증 프로바이더 관리. `client_id`와 이메일 도메인(`email_domains`)을 조합해
+  `client_id` 일치+도메인 일치 → client 기본(도메인 없음) → 테넌트 전체+도메인 일치 → 테넌트 전체 기본 순으로 선택한다.
+  도메인은 저장 시 trim·`@` 제거·소문자화·중복 제거하며 정확히 일치해야 하고, 미매칭이면 로컬 비밀번호 인증으로 폴백한다.
 - `users/` — 테넌트 내 사용자 CRUD, UserProfile(JSONB)
 - `tenants/` — 테넌트 및 TenantSettings CRUD
 - `profile-schema/` — JSON Schema Draft-07 기반 사용자 프로필 스키마 버전 관리

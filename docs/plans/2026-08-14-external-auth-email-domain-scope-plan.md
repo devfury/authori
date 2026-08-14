@@ -38,7 +38,7 @@
 ### Phase 1 — 데이터 모델
 
 - [x] 1-1. `ExternalAuthProvider` 엔티티에 `emailDomains: string[] | null` (`email_domains` jsonb, nullable) 컬럼 추가 + JSDoc 주석
-- [x] 1-2. 마이그레이션 `1780900000000-AddExternalAuthEmailDomains.ts` 작성 (up: ADD COLUMN, down: DROP COLUMN)
+- [x] 1-2. 마이그레이션 `1780900000000-AddExternalAuthEmailDomains.ts` 작성 (컬럼 추가와 함께 도메인 없는 경우의 유니크 인덱스 재생성, down에서 원래 인덱스 복구)
 
 ### Phase 2 — 도메인 정규화/추출 유틸 (TDD)
 
@@ -71,8 +71,8 @@
 
 ### Phase 7 — 문서 및 마무리
 
-- [ ] 7-1. `CLAUDE.md`의 외부 인증 관련 설명에 도메인 적용 범위 규칙 반영
-- [ ] 7-2. 개발완료보고서 `docs/reviews/2026-08-14-external-auth-email-domain-scope-review.md` 작성
+- [x] 7-1. `CLAUDE.md`의 외부 인증 관련 설명에 도메인 적용 범위 규칙 반영
+- [x] 7-2. 개발완료보고서 `docs/reviews/2026-08-14-external-auth-email-domain-scope-review.md` 작성
 
 ## 검증
 
