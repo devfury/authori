@@ -310,7 +310,11 @@ export class AuthorizeService {
       throw new ForbiddenException('user_inactive');
     }
 
-    const provider = await this.externalAuthService.findActive(tenantId, pending.clientId);
+    const provider = await this.externalAuthService.findActive(
+      tenantId,
+      pending.clientId,
+      dto.email,
+    );
 
     if (provider) {
       // ── 외부 인증 우선 경로 ──────────────────────────

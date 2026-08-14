@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsArray,
   IsNumber,
   IsObject,
   IsOptional,
@@ -110,6 +111,16 @@ export class CreateProviderDto {
   @IsOptional()
   @IsString()
   clientId?: string | null;
+
+  @ApiPropertyOptional({
+    description: "적용 대상 이메일 도메인 목록. 비우면 모든 도메인에 적용. '@'는 생략 가능",
+    example: ['test1.com', 'test1.co.kr'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  emailDomains?: string[] | null;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
