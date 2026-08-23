@@ -75,11 +75,11 @@
 
 ### Task 6 — 전체 검증 및 마무리
 
-- [ ] 루트에서 `bun run lint`
-- [ ] 루트에서 `bun run typecheck`
-- [ ] 루트에서 `bun run test`
-- [ ] 루트에서 `bun run build`
-- [ ] 개발완료보고서 작성: `docs/reviews/2026-08-23-userinfo-response-symmetry-review.md`
+- [x] 루트에서 `bun run lint` — 실패(기존 baseline). 오류 69→67, 신규 유입 0건
+- [x] 루트에서 `bun run typecheck`
+- [x] 루트에서 `bun run test` — 18 suites / 148 tests 통과
+- [x] 루트에서 `bun run build`
+- [x] 개발완료보고서 작성: `docs/reviews/2026-08-23-userinfo-response-symmetry-review.md`
 - [ ] 브랜치 push → `origin/develop` 병합 → push
 - [ ] ezaria 개인 채널 알림 발송
 
