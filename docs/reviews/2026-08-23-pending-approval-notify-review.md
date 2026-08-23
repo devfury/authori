@@ -72,3 +72,35 @@ bun run build      ✅ api, web 빌드 성공
 | 알림 시각 고정 | 다이제스트는 09:00 KST 고정이다. 테넌트별 시각 설정은 후속 과제. |
 | 백필 범위 | 이메일 인증이 꺼진 테넌트의 미탈퇴 INACTIVE 사용자 전체에 표식이 붙는다. 관리자가 의도적으로 만든 INACTIVE 계정도 포함될 수 있으나, 알림 기본값이 비활성이라 켠 테넌트만 영향을 받는다. |
 | 발송 유실 | 재시도·outbox가 없다. 일시 장애로 즉시 알림이 유실되면 다음 날 다이제스트가 백스톱 역할을 한다. |
+
+## 6. 후속 조치 (2026-08-23)
+
+### 6.1 감사 로그 ENUM 값 누락 — 수정 완료 (`fix/notify-audit-enum`)
+
+`AuditAction.NOTIFY_TEST_SENT`를 TS enum에만 추가하고 PostgreSQL의 `audit_logs_action_enum`
+타입에 값을 추가하지 않아, ezAria 테스트 발송 시 감사 로그 INSERT가 실패했다.
+
+```
+QueryFailedError: invalid input value for enum audit_logs_action_enum: "NOTIFY.TEST_SENT" (22P02)
+```
+
+- 영향: `AuditService.record()`가 예외를 삼키므로 테스트 발송 자체와 API 응답은 정상이었으나
+  감사 로그가 남지 않았다(요구사항 FR-13 일부 미충족). 알림 발송·가입 흐름에는 영향 없음.
+- 원인: `1781000000000-AddPendingApprovalNotify`에 `ALTER TYPE ... ADD VALUE` 누락.
+  기존 선례(`1777000000000-AddTenantDeletedAuditAction`)와 동일한 처리가 필요했다.
+- 조치: `1781000100000-AddNotifyTestSentAuditAction` 추가
+  (`ALTER TYPE "audit_logs_action_enum" ADD VALUE IF NOT EXISTS 'NOTIFY.TEST_SENT'`).
+  PostgreSQL은 ENUM 값 제거를 지원하지 않으므로 `down()`은 no-op이다.
+- 교훈: `AuditAction`에 값을 추가할 때는 반드시 DB ENUM 마이그레이션을 함께 작성한다.
+
+### 6.2 배포 환경 `EZARIA_BOT_TOKEN` 미주입 — 인프라 설정 필요
+
+dev 서버 로그에서 실제 가입 시 `reason=bot_not_configured`로 발송이 건너뛰어졌다.
+알림 경로 자체는 정상 동작했고(게이트에서 skip), 컨테이너 환경변수에 `EZARIA_BOT_TOKEN`이
+없는 것이 원인이다. 배포 매니페스트/시크릿에 `EZARIA_BOT_TOKEN`(필요 시 `ADMIN_BASE_URL`)을 추가해야 한다.
+
+### 6.3 비-UUID `:tenantId` 요청이 500을 반환 — 기존 이슈, 후속 과제
+
+`/admin/tenants/<비UUID>/users` 요청이 `QueryFailedError`(22P02)로 500을 반환한다.
+관리 API 전반에 UUID 파라미터 검증(`ParseUUIDPipe`)이나 `QueryFailedError` 전역 필터가 없어
+발생하는 기존 동작이며, 이번 기능과는 무관하다. 별도 과제로 다룬다.
