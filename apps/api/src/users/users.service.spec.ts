@@ -450,6 +450,7 @@ describe('UsersService', () => {
           failedLoginAttempts: 0,
           lockedUntil: null,
           deactivatedAt: new Date('2026-05-01'),
+          pendingApprovalSince: new Date('2026-05-01'),
           profile: { profileJsonb: {} },
         }),
         save: jest.fn().mockImplementation(async (u: unknown) => u),
@@ -465,6 +466,13 @@ describe('UsersService', () => {
         {} as never,
         {} as never,
         {} as never,
+      );
+    });
+
+    it('clears pendingApprovalSince so digest notifications stop', async () => {
+      await service.activate(tenantId, userId);
+      expect(userRepoMock.save).toHaveBeenCalledWith(
+        expect.objectContaining({ pendingApprovalSince: null }),
       );
     });
 

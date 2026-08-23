@@ -54,13 +54,13 @@
 - [x] 3. 설정: `app.config.ts`에 `ezaria`·`adminBaseUrl` 추가, `.env.example` 문서화
 - [x] 4. 엔티티: `TenantSettings` 2컬럼, `User.pendingApprovalSince`, `AuditAction.NOTIFY_TEST_SENT`
 - [x] 5. 마이그레이션 작성 (컬럼 추가 + 기존 대기자 백필 + 부분 인덱스, `down` 포함)
-- [ ] 6. `mask.util.ts` + 단위 테스트
-- [ ] 7. `EzariaClient` + 단위 테스트 (전송 payload / 비-2xx throw / 미설정 / 타임아웃)
-- [ ] 8. `PendingApprovalNotifierService` + 단위 테스트 (게이트 no-op / 메시지 내용 / 예외 미전파 / sendTest reason)
-- [ ] 9. `NotificationModule` 등록 및 `AppModule` 편입
-- [ ] 10. `AuthorizeService.register()` 표식 기록 + best-effort 알림 + 단위 테스트
-- [ ] 11. `UsersService.activate()` 표식 해제 + 단위 테스트
-- [ ] 12. `PendingApprovalDigestService` + 단위 테스트 (락 skip / 0건 침묵 / 테넌트별 계속)
+- [x] 6. `mask.util.ts` + 단위 테스트
+- [x] 7. `EzariaClient` + 단위 테스트 (전송 payload / 비-2xx throw / 미설정 / 타임아웃)
+- [x] 8. `PendingApprovalNotifierService` + 단위 테스트 (게이트 no-op / 메시지 내용 / 예외 미전파 / sendTest reason)
+- [x] 9. `NotificationModule` 등록 및 `AppModule` 편입
+- [x] 10. `AuthorizeService.register()` 표식 기록 + best-effort 알림 + 단위 테스트
+- [x] 11. `UsersService.activate()` 표식 해제 + 단위 테스트
+- [x] 12. `PendingApprovalDigestService` + 단위 테스트 (락 skip / 0건 침묵 / 테넌트별 계속)
 - [ ] 13. 테넌트 설정 DTO 2필드 + 테스트 발송 엔드포인트(감사 로그) + 테스트
 - [ ] 14. 웹: `api/tenants.ts` 타입·`notifyTest()`
 - [ ] 15. 웹: `TenantDetailView.vue` ezAria 알림 섹션
