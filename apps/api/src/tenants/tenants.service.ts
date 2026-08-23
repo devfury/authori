@@ -5,6 +5,10 @@ import { DataSource, Repository } from 'typeorm';
 import { AuditAction, Tenant, TenantSettings, TenantStatus } from '../database/entities';
 import { AuditService, AuditContext } from '../common/audit/audit.service';
 import { ScopesService } from '../oauth/scopes/scopes.service';
+import {
+  PendingApprovalNotifierService,
+  type SkipReason,
+} from '../common/notification/pending-approval-notifier.service';
 import { CreateTenantDto, CreateTenantSettingsDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
@@ -34,6 +38,7 @@ export class TenantsService {
     private readonly auditService: AuditService,
     private readonly scopesService: ScopesService,
     private readonly config: ConfigService,
+    private readonly pendingApprovalNotifier: PendingApprovalNotifierService,
   ) {}
 
   /**
@@ -46,13 +51,49 @@ export class TenantsService {
     }
   }
 
+  /**
+   * 빈 문자열로 들어온 ezAria 채팅방 ID를 null로 정규화한다.
+   * 관리 UI는 입력을 비우면 빈 문자열을 보내므로 '설정 해제'로 저장해야 한다.
+   */
+  private normalizeNotifySettings(settings: CreateTenantSettingsDto): void {
+    if (typeof settings.ezariaChatRoomId === 'string') {
+      const trimmed = settings.ezariaChatRoomId.trim();
+      settings.ezariaChatRoomId = (trimmed || null) as unknown as string | undefined;
+    }
+  }
+
+  /**
+   * 설정한 채팅방으로 실제 알림이 도달하는지 확인하는 테스트 발송.
+   * 채팅방 ID 오타를 조용한 실패로 남기지 않기 위한 확인 수단이므로
+   * 실패도 예외가 아닌 결과로 돌려주고, 성공/실패 모두 감사 로그에 남긴다.
+   */
+  async sendNotifyTest(
+    id: string,
+    ctx?: AuditContext,
+  ): Promise<{ sent: boolean; reason?: SkipReason }> {
+    await this.findOne(id);
+    const result = await this.pendingApprovalNotifier.sendTest(id);
+    await this.auditService.record({
+      tenantId: id,
+      action: AuditAction.NOTIFY_TEST_SENT,
+      targetType: 'tenant',
+      targetId: id,
+      metadata: { channel: 'ezaria', sent: result.sent, reason: result.reason ?? null },
+      ...ctx,
+    });
+    return result;
+  }
+
   async create(dto: CreateTenantDto, ctx?: AuditContext): Promise<Tenant> {
     const exists = await this.tenantRepo.findOne({ where: { slug: dto.slug } });
     if (exists) {
       throw new ConflictException(`Slug '${dto.slug}' is already taken`);
     }
 
-    if (dto.settings) this.stripProductionOnlySettings(dto.settings);
+    if (dto.settings) {
+      this.stripProductionOnlySettings(dto.settings);
+      this.normalizeNotifySettings(dto.settings);
+    }
     const settings = this.settingsRepo.create(dto.settings ?? {});
     const tenant = this.tenantRepo.create({
       slug: dto.slug,
@@ -119,6 +160,7 @@ export class TenantsService {
     return this.dataSource.transaction(async (manager) => {
       if (dto.settings) {
         this.stripProductionOnlySettings(dto.settings);
+        this.normalizeNotifySettings(dto.settings);
         Object.assign(tenant.settings, dto.settings);
         await manager.save(TenantSettings, tenant.settings);
       }

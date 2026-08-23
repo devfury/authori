@@ -133,7 +133,7 @@ export class EzariaClient {
 
 ```ts
 async notifyNewPending(tenantId: string, user: { email: string; createdAt: Date }): Promise<void>
-async notifyDigest(tenantId: string, stat: PendingApprovalStat): Promise<void>
+async notifyDigest(tenantId: string, now?: Date): Promise<void>   // 내부에서 집계, 0건이면 발송 생략
 async sendTest(tenantId: string): Promise<{ sent: boolean; reason?: string }>
 async countPending(tenantId: string): Promise<PendingApprovalStat>   // { count, oldestSince, latestSince, oldestEmail }
 ```
@@ -181,8 +181,10 @@ async run(): Promise<void>
 
 - `AccountDeletionSweepService`와 동일하게 `dataSource.transaction` 안에서
   `SELECT pg_try_advisory_xact_lock($1)`(전용 키 `481924`)을 잡고, 실패하면 skip.
-- 대상 테넌트 조회 후 테넌트별로 집계 → 1건 이상이면 `notifyDigest()`. 테넌트 단위 예외는 잡아
-  다음 테넌트로 계속한다(한 테넌트 실패가 전체를 멈추지 않음).
+- 아래 집계 쿼리로 **후보 테넌트만** 한 번에 좁힌 뒤(알림 ON + 채팅방 설정 + 대기 1건 이상),
+  테넌트별로 `notifyDigest(tenantId)`를 호출한다. 건수·최장 대기·최근 가입 집계는 알림 서비스의
+  `countPending()`이 담당해 가입 즉시 알림과 같은 코드 경로를 쓴다.
+- `notifyDigest()`가 내부에서 예외를 삼키므로 한 테넌트 실패가 나머지 테넌트를 멈추지 않는다.
 
 집계 쿼리:
 

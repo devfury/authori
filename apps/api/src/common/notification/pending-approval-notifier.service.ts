@@ -77,7 +77,10 @@ export class PendingApprovalNotifierService {
   /**
    * 가입 즉시 알림. 회원가입 흐름에서 호출되므로 어떤 예외도 밖으로 전파하지 않는다.
    */
-  async notifyNewPending(tenantId: string, user: { email: string; createdAt: Date }): Promise<void> {
+  async notifyNewPending(
+    tenantId: string,
+    user: { email: string; createdAt: Date },
+  ): Promise<void> {
     try {
       const target = await this.resolveTarget(tenantId);
       if (typeof target === 'string') {
@@ -96,7 +99,9 @@ export class PendingApprovalNotifierService {
 
       await this.ezaria.send(target.chatRoomId, content);
     } catch (error) {
-      this.logger.error(`승인 대기 알림 발송 실패 tenantId=${tenantId}: ${(error as Error).message}`);
+      this.logger.error(
+        `승인 대기 알림 발송 실패 tenantId=${tenantId}: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -159,7 +164,9 @@ export class PendingApprovalNotifierService {
       await this.ezaria.send(target.chatRoomId, content);
       return { sent: true };
     } catch (error) {
-      this.logger.error(`ezAria 테스트 발송 실패 tenantId=${tenantId}: ${(error as Error).message}`);
+      this.logger.error(
+        `ezAria 테스트 발송 실패 tenantId=${tenantId}: ${(error as Error).message}`,
+      );
       return { sent: false, reason: 'send_failed' };
     }
   }

@@ -61,7 +61,7 @@ function build(settings: Partial<Settings> = {}, notifyImpl?: () => Promise<void
 const dto: RegisterDto = {
   email: 'jinho@ez.com',
   password: 'password123',
-} as RegisterDto;
+};
 
 describe('AuthorizeService.register — 승인 대기 알림', () => {
   it('이메일 인증·자동 활성화가 모두 꺼져 있으면 표식을 남기고 알림을 보낸다', async () => {
@@ -74,10 +74,12 @@ describe('AuthorizeService.register — 승인 대기 알림', () => {
       expect.objectContaining({ initialStatus: UserStatus.INACTIVE }),
       expect.anything(),
     );
-    expect(userRepo.update).toHaveBeenCalledWith(
-      { id: 'user-1' },
-      expect.objectContaining({ pendingApprovalSince: expect.any(Date) }),
-    );
+    const [criteria, patch] = userRepo.update.mock.calls[0] as [
+      { id: string },
+      { pendingApprovalSince: Date },
+    ];
+    expect(criteria).toEqual({ id: 'user-1' });
+    expect(patch.pendingApprovalSince).toBeInstanceOf(Date);
     expect(notifier.notifyNewPending).toHaveBeenCalledWith('t1', {
       email: 'jinho@ez.com',
       createdAt: new Date('2026-08-23T05:03:00Z'),

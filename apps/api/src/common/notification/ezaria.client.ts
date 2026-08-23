@@ -57,7 +57,9 @@ export class EzariaClient {
 
     if (!response.ok) {
       const body = await response.text().catch(() => '');
-      throw new Error(`ezaria_send_failed status=${response.status} ${body.slice(0, MAX_ERROR_BODY)}`);
+      throw new Error(
+        `ezaria_send_failed status=${response.status} ${body.slice(0, MAX_ERROR_BODY)}`,
+      );
     }
 
     this.logger.log(`ezAria 알림 발송 완료 chatRoomId=${chatRoomId}`);

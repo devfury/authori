@@ -11,12 +11,28 @@ function buildClient(botToken: string, timeoutMs = 5000): EzariaClient {
   return new EzariaClient(config);
 }
 
+interface FetchInit {
+  method: string;
+  headers: Record<string, string>;
+  body: string;
+  signal?: AbortSignal;
+}
+
+/** fetch 응답 스텁 (EzariaClient가 사용하는 필드만) */
+function stubResponse(status: number, body = ''): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: () => Promise.resolve(body),
+  } as unknown as Response;
+}
+
 describe('EzariaClient', () => {
-  const fetchMock = jest.fn();
+  const fetchMock = jest.fn<Promise<Response>, [string, FetchInit]>();
 
   beforeEach(() => {
     fetchMock.mockReset();
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = fetchMock;
   });
 
   it('토큰이 없으면 isConfigured가 false이고 발송하지 않는다', async () => {
@@ -27,7 +43,7 @@ describe('EzariaClient', () => {
   });
 
   it('토큰을 URL 경로에 붙여 chatRoomId/content를 POST한다', async () => {
-    fetchMock.mockResolvedValue({ ok: true, status: 200, text: async () => '' });
+    fetchMock.mockResolvedValue(stubResponse(200));
     const client = buildClient('secret-token');
 
     await client.send('room-1', '내용');
@@ -41,7 +57,7 @@ describe('EzariaClient', () => {
   });
 
   it('비-2xx 응답이면 상태코드를 담아 예외를 던진다', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 404, text: async () => 'room not found' });
+    fetchMock.mockResolvedValue(stubResponse(404, 'room not found'));
     const client = buildClient('secret-token');
 
     await expect(client.send('bad-room', '내용')).rejects.toThrow(
@@ -57,7 +73,7 @@ describe('EzariaClient', () => {
   });
 
   it('로그에 봇 토큰을 남기지 않는다', async () => {
-    fetchMock.mockResolvedValue({ ok: true, status: 200, text: async () => '' });
+    fetchMock.mockResolvedValue(stubResponse(200));
     const client = buildClient('secret-token');
     const logs: string[] = [];
     jest

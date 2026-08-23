@@ -28,7 +28,7 @@ function build(opts: Options = {}) {
     sendImpl,
   } = opts;
 
-  const send = jest.fn(sendImpl ?? (() => Promise.resolve()));
+  const send = jest.fn<Promise<void>, [string, string]>(sendImpl ?? (() => Promise.resolve()));
   const ezaria = { isConfigured: configured, send } as unknown as EzariaClient;
 
   const tenantRepo = {
@@ -82,7 +82,11 @@ const newUser = { email: 'jinho@ez.com', createdAt: new Date('2026-08-23T05:03:0
 describe('PendingApprovalNotifierService', () => {
   describe('notifyNewPending', () => {
     it('테넌트명·마스킹 이메일·건수·승인 링크를 담아 발송한다', async () => {
-      const { service, send } = build({ pending: [{ email: 'jinho@ez.com', pendingApprovalSince: new Date('2026-08-23T05:03:00Z') }] });
+      const { service, send } = build({
+        pending: [
+          { email: 'jinho@ez.com', pendingApprovalSince: new Date('2026-08-23T05:03:00Z') },
+        ],
+      });
 
       await service.notifyNewPending('t1', newUser);
 
@@ -169,7 +173,7 @@ describe('PendingApprovalNotifierService', () => {
       [{ chatRoomId: null }, 'chat_room_not_set'],
       [{ tenantExists: false }, 'tenant_not_found'],
     ])('건너뛴 이유를 반환한다 (%o → %s)', async (opts, reason) => {
-      const { service, send } = build(opts as Options);
+      const { service, send } = build(opts);
       await expect(service.sendTest('t1')).resolves.toEqual({ sent: false, reason });
       expect(send).not.toHaveBeenCalled();
     });
