@@ -49,11 +49,13 @@
 
 ### Task 3 — E2E 갱신
 
-- [ ] `oauth-userinfo-patch.e2e-spec.ts` → `oauth-userinfo.e2e-spec.ts` 리네임, `describe` 제목 정정
-- [ ] 기존 PATCH 단정 갱신: `res.body.profile` → 평탄 키, `res.body.loginId` → `res.body.preferred_username`
-- [ ] GET 케이스 추가: Bearer 없음 401 · `profile` scope 평탄화 + `preferred_username` · GET/PATCH 응답 키 집합 동일성
-- [ ] 검증: `cd apps/api && bun run test:e2e -- oauth-userinfo`
-  - 기대: 통과. **DB 미가용 환경이면 실행 불가를 개발완료보고서에 명시**하고 Task 1의 단위 테스트로 계약을 보증한다.
+- [x] `oauth-userinfo-patch.e2e-spec.ts` → `oauth-userinfo.e2e-spec.ts` 리네임, `describe` 제목 정정
+- [x] 기존 PATCH 단정 갱신: `res.body.profile` → 평탄 키, `res.body.loginId` → `res.body.preferred_username`
+- [x] GET 케이스 추가: Bearer 없음 401 · `profile` scope 평탄화 + `preferred_username` · GET/PATCH 응답 키 집합 동일성
+- [ ] 검증: `cd apps/api && bun run test:e2e -- oauth-userinfo` — **미실행**
+  - `.env`의 대상 DB가 공용 원격 개발 DB(`mavdevdb.ezcaretech.com`)이고, 이 스위트는 `signing_keys`의 전역 ACTIVE 키를 RETIRED로 바꾼 뒤 테스트 키를 ACTIVE로 심는다. 공용 DB에서 실행하면 다른 개발자의 기발급 토큰 검증이 깨진다.
+  - 로컬 postgres(5432)는 떠 있으나 자격증명이 없고 docker도 사용 불가여서 임시 DB를 만들 수 없었다.
+  - 대안 검증: 타입 체크(`tsc -p tsconfig.json`)와 eslint로 컴파일 가능성을 확인했고, 응답 계약은 Task 1의 단위 테스트 14개가 고정한다. 개발완료보고서에 미실행 사실을 명시한다.
 
 ### Task 4 — 프런트엔드 정정 (D-1, D-2, D-3)
 
