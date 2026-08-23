@@ -413,21 +413,31 @@ Authorization: Bearer <access_token>
 ```json
 {
   "sub": "user-uuid",
+  "tenant_id": "tenant-uuid",
   "email": "user@example.com",
-  "profile": {
-    "nickname": "홍길동",
-    "department": "Engineering"
-  }
+  "email_verified": true,
+  "preferred_username": "johnny",
+  "nickname": "홍길동",
+  "department": "Engineering"
 }
 ```
 
+프로필 필드는 **`profile` 키 아래 중첩되지 않고 최상위에 평탄화되어** 내려온다(OIDC Core 5.1). `res.profile.department`가 아니라 `res.department`로 읽는다.
+
 반환 claim은 token scope에 따라 달라진다.
 
-| Claim | 필요 scope |
-|---|---|
-| `sub` | 항상 포함 |
-| `email` | `email` |
-| `profile` | `profile` |
+| Claim | 필요 scope | 설명 |
+|---|---|---|
+| `sub` | 항상 포함 | `users` 테이블 UUID PK. access token의 `sub`와 항상 동일하며 영구 불변 |
+| `tenant_id` | 항상 포함 | 테넌트 UUID |
+| `email` | `email` | |
+| `email_verified` | `email` | 사용자 상태가 `ACTIVE`면 `true` |
+| `preferred_username` | `profile` | 로그인 ID. 값이 없으면 claim 자체가 생략된다 |
+| 프로필 스키마의 모든 키 | `profile` | 테넌트 활성 Profile Schema에 정의된 키가 최상위로 평탄화 |
+
+`profile:write` scope는 `profile` 읽기를 함의한다. 즉 `profile:write`만 가진 토큰도 프로필 claim을 조회할 수 있다(그 역은 성립하지 않는다).
+
+**예약 claim 보호**: 프로필에 `sub`, `tenant_id`, `email`, `email_verified`, `preferred_username`과 같은 이름의 키가 저장되어 있으면 **해당 프로필 키는 응답에서 제외된다.** 프로필은 사용자가 `profile:write`로 직접 쓸 수 있으므로 인증 정보를 덮어쓰지 못하게 막는다. 프로필 스키마를 설계할 때 이 이름들은 피한다.
 
 ### 8.2 프로필 셀프 수정
 
@@ -467,22 +477,33 @@ Content-Type: application/json
 }
 ```
 
-응답:
+응답은 **`GET`과 동일한 평탄 claim 구조**이며, 수정이 반영된 최신 값이다.
 
 ```json
 {
   "sub": "user-uuid",
-  "loginId": "johnny",
-  "profile": {
-    "nickname": "Johnny",
-    "city": "Seoul",
-    "department": "Engineering"
-  }
+  "tenant_id": "tenant-uuid",
+  "preferred_username": "johnny",
+  "nickname": "Johnny",
+  "city": "Seoul",
+  "department": "Engineering"
 }
 ```
 
+> **⚠️ 하위호환 파괴 변경 (2026-08-23)**
+>
+> 이전 PATCH 응답은 `{ sub, loginId, profile: { ... } }` 형태였다. 응답 스키마가 `GET`과 달라 혼란을 유발했고 OIDC Core 5.1을 위반했기에 위 형태로 통일했다.
+>
+> | 이전 | 이후 |
+> |---|---|
+> | `res.profile.department` | `res.department` |
+> | `res.loginId` | `res.preferred_username` |
+>
+> **요청 바디는 변경되지 않았다** (`{ "profile": { ... }, "loginId": "..." }` 그대로). 응답을 파싱하는 코드만 수정하면 된다. `GET`을 사용하는 코드는 영향이 없다.
+
 주의사항:
 
+- 요청 바디의 프로필 필드 키는 `profile` 객체 아래에 둔다. 응답만 평탄화되며, 요청/응답 형태가 다른 것은 의도된 설계다.
 - `status`, `email`, `password` 같은 관리자 전용 필드는 DTO whitelist에서 제외되어 무시된다.
 - `profile`은 shallow merge다. 중첩 객체 일부만 바꾸려면 먼저 조회 후 클라이언트에서 병합해 보낸다.
 - scope가 없으면 403 `insufficient_scope`가 반환된다.

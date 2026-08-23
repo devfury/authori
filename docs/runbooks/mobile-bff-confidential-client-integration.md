@@ -231,6 +231,8 @@ Authorization: Bearer {access_token}
   "sub": "{user_uuid}",
   "tenant_id": "{tenant_uuid}",
   "email": "user@example.com",
+  "email_verified": true,
+  "preferred_username": "johnny",
   "name": "홍길동",
   "picture": "https://..."
 }
@@ -370,6 +372,8 @@ Authori 로그인 성공 후 userinfo로 받은 정보를 기반으로 서비스
 ```
 
 > `id_token`이 발급된 경우 userinfo 호출 없이 `id_token` 클레임에서 직접 `sub`, `email`, `email_verified`를 추출할 수 있습니다.
+
+> **2단계의 안전성**: `email`/`email_verified`는 Authori가 `users` 테이블에서 직접 채우는 예약 claim입니다. 사용자가 프로필(`profile:write`)에 같은 이름의 키를 심어도 그 값은 응답에서 제외되므로, 이 단계에서 위조된 이메일로 타인 계정에 연결되지 않습니다.
 
 ---
 

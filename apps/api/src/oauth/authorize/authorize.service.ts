@@ -28,6 +28,7 @@ import {
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AuditService, AuditContext } from '../../common/audit/audit.service';
 import { RedirectUriValidator } from '../../common/redirect/redirect-uri.validator';
+import { PendingApprovalNotifierService } from '../../common/notification/pending-approval-notifier.service';
 import { ExternalAuthResult, ExternalAuthService } from '../../external-auth/external-auth.service';
 import { RbacService } from '../../rbac/rbac.service';
 import { EmailVerificationService } from './email-verification.service';
@@ -74,6 +75,7 @@ export class AuthorizeService {
     private readonly rbacService: RbacService,
     private readonly emailVerificationService: EmailVerificationService,
     private readonly redirectUriValidator: RedirectUriValidator,
+    private readonly pendingApprovalNotifier: PendingApprovalNotifierService,
     @Inject(PENDING_REQUEST_STORE)
     private readonly pendingStore: IPendingRequestStore,
   ) {}
@@ -235,6 +237,27 @@ export class AuthorizeService {
     }
 
     await this.rbacService.assignDefaultRolesToUser(tenantId, savedUser.id);
+
+    // 이메일 인증 없이 INACTIVE로 생성된 가입자는 관리자가 직접 활성화해 줘야 한다.
+    // 표식을 남겨 '관리자 승인 대기'를 다른 INACTIVE(이메일 인증 대기·탈퇴)와 구분하고,
+    // 승인 없이 방치되지 않도록 담당자에게 알린다. 표식은 공개 가입 경로에서만 기록한다.
+    const pendingApproval = !emailVerificationRequired && initialStatus === UserStatus.INACTIVE;
+    if (pendingApproval) {
+      const pendingApprovalSince = new Date();
+      await this.userRepo.update({ id: savedUser.id }, { pendingApprovalSince });
+      savedUser.pendingApprovalSince = pendingApprovalSince;
+      // 알림 실패가 가입 자체를 막지 않도록 격리한다(notifier도 내부에서 예외를 삼킨다).
+      try {
+        await this.pendingApprovalNotifier.notifyNewPending(tenantId, {
+          email: savedUser.email,
+          createdAt: savedUser.createdAt ?? pendingApprovalSince,
+        });
+      } catch (error) {
+        this.logger.error(
+          `승인 대기 알림 처리 실패 userId=${savedUser.id}: ${(error as Error).message}`,
+        );
+      }
+    }
 
     if (emailVerificationRequired) {
       let serviceName: string | undefined;

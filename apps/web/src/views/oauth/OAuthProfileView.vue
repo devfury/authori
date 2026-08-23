@@ -123,7 +123,7 @@ onMounted(async () => {
     // 1. Userinfo 조회
     const { data: info } = await oauthApi.userinfo(tenantSlug, token)
     userinfo.value = info
-    loginId.value = info.loginId ?? ''
+    loginId.value = info.preferred_username ?? ''
 
     // 2. Login Config (Branding + Schema) 조회
     const { data: config } = await oauthApi.getLoginConfig(tenantSlug, clientId || undefined)
@@ -133,7 +133,7 @@ onMounted(async () => {
 
     if (config.activeSchema) {
       schemaFields.value = parseJsonSchema(config.activeSchema.schemaJsonb)
-      initProfileValues(schemaFields.value, info.profile ?? {})
+      initProfileValues(schemaFields.value, info)
     }
     
     // 토큰 저장 (필요 시)

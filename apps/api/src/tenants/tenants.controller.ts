@@ -87,6 +87,22 @@ export class TenantsController {
     return this.withEnvFlags(await this.tenantsService.update(id, dto));
   }
 
+  @Post(':id/notify-test')
+  @ApiOperation({
+    summary: 'ezAria 알림 테스트 발송',
+    description:
+      '테넌트에 설정된 ezAria 채팅방으로 테스트 메시지를 보낸다. 설정 미비·발송 실패는 reason과 함께 sent=false로 반환한다.',
+  })
+  notifyTest(@Param('id') id: string, @Req() req: Request) {
+    return this.tenantsService.sendNotifyTest(id, {
+      actorId: req.admin?.sub ?? null,
+      actorType: req.admin ? 'admin' : null,
+      ipAddress: req.ip ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+      requestId: (req.headers['x-request-id'] as string) ?? null,
+    });
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '테넌트 영구 삭제' })

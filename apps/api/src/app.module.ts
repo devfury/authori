@@ -6,6 +6,7 @@ import { ConfigModule } from './common/config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './common/audit/audit.module';
 import { MailModule } from './common/mail/mail.module';
+import { NotificationModule } from './common/notification/notification.module';
 import { TenantMiddleware } from './common/tenant/tenant.middleware';
 import { RequestIdMiddleware } from './common/security/request-id.middleware';
 import { Tenant } from './database/entities';
@@ -35,6 +36,7 @@ import { RbacModule } from './rbac/rbac.module';
     DatabaseModule,
     AuditModule,
     MailModule,
+    NotificationModule,
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     TypeOrmModule.forFeature([Tenant]),

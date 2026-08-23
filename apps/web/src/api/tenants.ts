@@ -17,6 +17,10 @@ export interface TenantSettings {
   mailFrom: string | null
   mailDevRedirectTo: string | null
   accountDeletionGracePeriodDays: number
+  /** 승인 대기 신규 가입자 ezAria 알림 사용 여부 */
+  pendingApprovalNotifyEnabled: boolean
+  /** 승인 대기 알림을 받을 ezAria 채팅방 ID */
+  ezariaChatRoomId: string | null
 }
 
 export interface Tenant {
@@ -53,7 +57,20 @@ export interface UpdateTenantPayload {
     mailFrom?: string
     mailDevRedirectTo?: string
     accountDeletionGracePeriodDays?: number
+    pendingApprovalNotifyEnabled?: boolean
+    ezariaChatRoomId?: string
   }
+}
+
+/** ezAria 알림 테스트 발송 결과. 설정 미비·발송 실패는 sent=false + reason으로 온다 */
+export interface NotifyTestResult {
+  sent: boolean
+  reason?:
+    | 'bot_not_configured'
+    | 'notify_disabled'
+    | 'chat_room_not_set'
+    | 'tenant_not_found'
+    | 'send_failed'
 }
 
 export interface TenantListQuery {
@@ -91,5 +108,8 @@ export const tenantsApi = {
   },
   delete(id: string) {
     return http.delete(`/admin/tenants/${id}`)
+  },
+  notifyTest(id: string) {
+    return http.post<NotifyTestResult>(`/admin/tenants/${id}/notify-test`)
   },
 }

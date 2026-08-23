@@ -29,9 +29,13 @@ export interface RegisterPayload {
 
 export interface UserinfoResponse {
   sub: string
+  tenant_id: string
   email?: string
-  loginId?: string
-  profile?: Record<string, any>
+  email_verified?: boolean
+  /** 로그인 ID. OIDC 표준 클레임이며 profile scope에서 내려온다. */
+  preferred_username?: string
+  /** 테넌트 프로필 스키마에 정의된 키들이 최상위로 평탄화되어 들어온다. */
+  [claim: string]: unknown
 }
 
 export interface UpdateUserinfoPayload {

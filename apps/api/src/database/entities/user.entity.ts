@@ -59,6 +59,14 @@ export class User {
   @Column({ name: 'deactivated_at', nullable: true, type: 'timestamptz' })
   deactivatedAt: Date | null;
 
+  /**
+   * 관리자 승인 대기 시작 시각. 공개 회원가입 결과가 '관리자 승인 대기 INACTIVE'인 경우에만
+   * 기록되고 활성화 시 null로 지워진다. status=INACTIVE의 세 의미
+   * (관리자 승인 대기 / 이메일 인증 대기 / 탈퇴)를 구분하는 표식이다.
+   */
+  @Column({ name: 'pending_approval_since', nullable: true, type: 'timestamptz' })
+  pendingApprovalSince: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
