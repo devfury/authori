@@ -320,6 +320,7 @@ Authorization: Bearer {access_token}
 | `tenant_id` | 항상 | ✅ 지원 |
 | `email` | `email` | ✅ 지원 |
 | `email_verified` | `email` | ✅ 지원 (ACTIVE 사용자 = `true`) |
+| `preferred_username` | `profile` | ✅ 지원 (로그인 ID, 값이 없으면 생략) |
 | `name` | `profile` | 🔶 프로필 스키마 등록 필요 |
 | `picture` | `profile` | 🔶 프로필 스키마 등록 필요 |
 

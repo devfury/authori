@@ -19,7 +19,7 @@ import {
   UserStatus,
 } from '../src/database/entities';
 
-describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
+describe('GET·PATCH /t/:slug/oauth/userinfo (e2e)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
   let tenantSlug: string;
@@ -132,6 +132,10 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
     await app.close();
   });
 
+  /** supertest의 res.body는 any이므로 클레임 단정 전에 타입을 좁힌다. */
+  const claims = (res: { body: unknown }): Record<string, unknown> =>
+    res.body as Record<string, unknown>;
+
   const storeToken = async (jti: string, scopes: string[]) => {
     await dataSource.getRepository(AccessToken).save({
       tenantId,
@@ -149,6 +153,86 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
       .patch(`/t/${tenantSlug}/oauth/userinfo`)
       .send({ profile: { nickname: 'X' } })
       .expect(401);
+
+    await request(app.getHttpServer()).get(`/t/${tenantSlug}/oauth/userinfo`).expect(401);
+  });
+
+  it('GET은 scope가 없으면 sub와 tenant_id만 반환한다', async () => {
+    const jti = `jti-get-noscope-${randomUUID()}`;
+    await storeToken(jti, []);
+    const token = signToken({ sub: userId, jti });
+
+    const res = await request(app.getHttpServer())
+      .get(`/t/${tenantSlug}/oauth/userinfo`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(claims(res)).toEqual({ sub: userId, tenant_id: tenantId });
+  });
+
+  it('GET은 profile scope에서 프로필 필드를 최상위로 평탄화한다', async () => {
+    const jti = `jti-get-profile-${randomUUID()}`;
+    const scopes = ['openid', 'profile'];
+    await storeToken(jti, scopes);
+    const token = signToken({ sub: userId, jti, scope: scopes.join(' ') });
+
+    const res = await request(app.getHttpServer())
+      .get(`/t/${tenantSlug}/oauth/userinfo`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(claims(res).nickname).toBe('Jin');
+    expect(claims(res)).not.toHaveProperty('profile');
+  });
+
+  it('GET은 로그인 ID를 preferred_username 표준 클레임으로 반환한다', async () => {
+    await dataSource.getRepository(User).update({ id: userId }, { loginId: 'jin-login' });
+
+    const jti = `jti-get-username-${randomUUID()}`;
+    const scopes = ['openid', 'profile'];
+    await storeToken(jti, scopes);
+    const token = signToken({ sub: userId, jti, scope: scopes.join(' ') });
+
+    const res = await request(app.getHttpServer())
+      .get(`/t/${tenantSlug}/oauth/userinfo`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(claims(res).preferred_username).toBe('jin-login');
+    expect(claims(res)).not.toHaveProperty('loginId');
+  });
+
+  it('GET은 프로필에 심어둔 예약 클레임이 인증 정보를 덮어쓰지 못하게 한다', async () => {
+    const profileRepo = dataSource.getRepository(UserProfile);
+    await profileRepo.update(
+      { userId },
+      {
+        profileJsonb: {
+          nickname: 'Jin',
+          sub: 'attacker',
+          email: 'victim@corp.com',
+          email_verified: true,
+          preferred_username: 'admin',
+        },
+      },
+    );
+
+    const jti = `jti-get-reserved-${randomUUID()}`;
+    const scopes = ['openid', 'email', 'profile'];
+    await storeToken(jti, scopes);
+    const token = signToken({ sub: userId, jti, scope: scopes.join(' ') });
+
+    const res = await request(app.getHttpServer())
+      .get(`/t/${tenantSlug}/oauth/userinfo`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(claims(res).sub).toBe(userId);
+    expect(claims(res).email).toBe('jin@example.com');
+    expect(claims(res).preferred_username).toBe('jin-login');
+    expect(claims(res).nickname).toBe('Jin');
+
+    await profileRepo.update({ userId }, { profileJsonb: { nickname: 'Jin' } });
   });
 
   it('returns scope display names and descriptions in login config', async () => {
@@ -201,10 +285,13 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
       .send({ profile: { nickname: 'Johnny', city: 'Seoul' } })
       .expect(200);
 
-    expect(res.body.profile).toEqual({
+    expect(claims(res)).toMatchObject({
+      sub: userId,
+      tenant_id: tenantId,
       nickname: 'Johnny',
       city: 'Seoul',
     });
+    expect(claims(res)).not.toHaveProperty('profile');
   });
 
   it('ignores status field from self-service payload (DTO whitelist)', async () => {
@@ -221,6 +308,27 @@ describe('PATCH /t/:slug/oauth/userinfo (e2e)', () => {
 
     const user = await dataSource.getRepository(User).findOne({ where: { id: userId } });
     expect(user?.status).toBe(UserStatus.ACTIVE);
-    expect(res.body.loginId).toBe('johnny');
+    expect(claims(res).preferred_username).toBe('johnny');
+    expect(claims(res)).not.toHaveProperty('loginId');
+  });
+
+  it('GET과 PATCH가 동일한 클레임 키 집합을 반환한다', async () => {
+    const jti = `jti-parity-${randomUUID()}`;
+    const scopes = ['openid', 'email', 'profile', 'profile:write'];
+    await storeToken(jti, scopes);
+    const token = signToken({ sub: userId, jti, scope: scopes.join(' ') });
+
+    const getRes = await request(app.getHttpServer())
+      .get(`/t/${tenantSlug}/oauth/userinfo`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const patchRes = await request(app.getHttpServer())
+      .patch(`/t/${tenantSlug}/oauth/userinfo`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(200);
+
+    expect(Object.keys(claims(patchRes)).sort()).toEqual(Object.keys(claims(getRes)).sort());
   });
 });
