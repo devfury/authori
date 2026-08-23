@@ -41,10 +41,10 @@
 
 ### Task 2 — 컨트롤러가 빌더 공유
 
-- [ ] `userinfo.controller.ts` GET을 `buildUserInfoClaims()` 호출로 교체
-- [ ] PATCH 반환을 `{ sub, loginId, profile }` → 동일 빌더 호출로 교체
-- [ ] `profile:write` 403 판정은 **원본 scope**로 유지 (함의는 단방향)
-- [ ] 검증: `cd apps/api && bun run typecheck && bun run test`
+- [x] `userinfo.controller.ts` GET을 `buildUserInfoClaims()` 호출로 교체
+- [x] PATCH 반환을 `{ sub, loginId, profile }` → 동일 빌더 호출로 교체
+- [x] `profile:write` 403 판정은 **원본 scope**로 유지 (함의는 단방향)
+- [x] 검증: `cd apps/api && bun run typecheck && bun run test`
   - 기대: 타입 오류 없음, 기존 단위 테스트 회귀 없음
 
 ### Task 3 — E2E 갱신

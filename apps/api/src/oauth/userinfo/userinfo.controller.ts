@@ -13,13 +13,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { User, UserProfile, UserStatus } from '../../database/entities';
+import { User, UserProfile } from '../../database/entities';
 import { UsersService } from '../../users/users.service';
 import { SelfUpdateUserDto } from '../../users/dto/self-update-user.dto';
 import { RequireTenantGuard } from '../../common/tenant/require-tenant.guard';
 import { CurrentTenant } from '../../common/tenant/tenant.decorator';
 import type { TenantContext } from '../../common/tenant/tenant-context';
 import { OAuthTokenVerifierService } from '../token-verifier/oauth-token-verifier.service';
+import { buildUserInfoClaims } from './userinfo-claims';
 
 @ApiTags('OAuth2')
 @ApiParam({ name: 'tenantSlug', description: '테넌트 슬러그' })
@@ -53,19 +54,7 @@ export class UserInfoController {
       where: { userId: user.id },
     });
 
-    const claims: Record<string, unknown> = {
-      sub: user.id,
-      tenant_id: tenant.tenantId,
-    };
-    if (scopes.has('email')) {
-      claims['email'] = user.email;
-      claims['email_verified'] = user.status === UserStatus.ACTIVE;
-    }
-    if (scopes.has('profile') && profile) {
-      Object.assign(claims, profile.profileJsonb);
-    }
-
-    return claims;
+    return buildUserInfoClaims({ user, profile, tenantId: tenant.tenantId, scopes });
   }
 
   @Patch('oauth/userinfo')
@@ -84,6 +73,7 @@ export class UserInfoController {
       tenant.tenantId,
       req.headers['authorization'],
     );
+    // 403 판정은 유효 scope가 아닌 원본 scope로 한다 — profile:write → profile 함의는 단방향이다.
     if (!scopes.has('profile:write')) {
       throw new ForbiddenException('insufficient_scope');
     }
@@ -100,11 +90,12 @@ export class UserInfoController {
       where: { userId: saved.id },
     });
 
-    return {
-      sub: saved.id,
-      loginId: saved.loginId,
-      profile: profile?.profileJsonb ?? {},
-    };
+    return buildUserInfoClaims({
+      user: saved,
+      profile,
+      tenantId: tenant.tenantId,
+      scopes,
+    });
   }
 
   private async verifyAccessToken(
