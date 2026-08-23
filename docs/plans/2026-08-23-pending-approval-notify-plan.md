@@ -66,7 +66,7 @@
 - [x] 15. 웹: `TenantDetailView.vue` ezAria 알림 섹션
 - [x] 16. `CLAUDE.md` 갱신
 - [x] 17. 4단계 검증 (`lint` → `typecheck` → `test` → `build`)
-- [ ] 18. 개발완료보고서 작성, `develop` 병합·push, ezAria 알림
+- [x] 18. 개발완료보고서 작성, `develop` 병합·push, ezAria 알림
 
 ## 검증 명령과 기대 결과
 
