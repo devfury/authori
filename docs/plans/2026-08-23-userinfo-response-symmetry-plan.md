@@ -34,9 +34,9 @@
 
 ### Task 1 — 클레임 빌더와 단위 테스트 (TDD)
 
-- [ ] `userinfo-claims.spec.ts` 작성: scope 없음 / `email` / `profile` 평탄화 + `preferred_username` / `loginId=null` 생략 / 프로필 행 없음 / **예약 키 충돌 시 프로필 값 무시** / `profile:write` → `profile` 함의
-- [ ] `userinfo-claims.ts` 구현: `RESERVED_USERINFO_CLAIMS`, `resolveEffectiveScopes()`, `buildUserInfoClaims()`
-- [ ] 검증: `cd apps/api && bun run test -- userinfo-claims`
+- [x] `userinfo-claims.spec.ts` 작성: scope 없음 / `email` / `profile` 평탄화 + `preferred_username` / `loginId=null` 생략 / 프로필 행 없음 / **예약 키 충돌 시 프로필 값 무시** / `profile:write` → `profile` 함의
+- [x] `userinfo-claims.ts` 구현: `RESERVED_USERINFO_CLAIMS`, `resolveEffectiveScopes()`, `buildUserInfoClaims()`
+- [x] 검증: `cd apps/api && bun run test -- userinfo-claims`
   - 기대: 신규 테스트 전부 통과
 
 ### Task 2 — 컨트롤러가 빌더 공유
