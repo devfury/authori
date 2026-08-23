@@ -59,10 +59,10 @@
 
 ### Task 4 — 프런트엔드 정정 (D-1, D-2, D-3)
 
-- [ ] `apps/web/src/api/oauth.ts`의 `UserinfoResponse`에서 `profile?`/`loginId?` 제거, 예약 클레임 명시 + 인덱스 시그니처 추가
-- [ ] `OAuthProfileView.vue:126` → `info.preferred_username ?? ''`
-- [ ] `OAuthProfileView.vue:136` → `initProfileValues(schemaFields.value, info)`
-- [ ] 검증: `cd apps/web && bun run build`
+- [x] `apps/web/src/api/oauth.ts`의 `UserinfoResponse`에서 `profile?`/`loginId?` 제거, 예약 클레임 명시 + 인덱스 시그니처 추가
+- [x] `OAuthProfileView.vue:126` → `info.preferred_username ?? ''`
+- [x] `OAuthProfileView.vue:136` → `initProfileValues(schemaFields.value, info)`
+- [x] 검증: `cd apps/web && bun run build`
   - 기대: 타입 오류 없이 빌드 성공 (제거한 필드를 참조하는 코드가 남아 있으면 여기서 실패해야 정상)
 
 ### Task 5 — 문서 갱신 (D-4)
