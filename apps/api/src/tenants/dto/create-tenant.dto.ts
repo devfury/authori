@@ -113,6 +113,23 @@ export class CreateTenantSettingsDto {
   @IsString()
   @MaxLength(1024)
   mailDevRedirectTo?: string;
+
+  @ApiPropertyOptional({
+    description:
+      '관리자 승인 대기 신규 가입자에 대한 ezAria 알림 사용 여부. ezariaChatRoomId가 함께 설정돼야 발송된다',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  pendingApprovalNotifyEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: '승인 대기 알림을 받을 ezAria 채팅방 ID. 비우면 알림을 발송하지 않는다',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  ezariaChatRoomId?: string;
 }
 
 export class CreateTenantDto {

@@ -77,6 +77,17 @@ export class TenantSettings {
   @Column({ name: 'mail_dev_redirect_to', type: 'varchar', nullable: true })
   mailDevRedirectTo: string | null;
 
+  /**
+   * 관리자 승인 대기 신규 가입자에 대한 ezAria 알림 사용 여부.
+   * 켜져 있고 ezariaChatRoomId가 설정된 경우에만 알림이 발송된다.
+   */
+  @Column({ name: 'pending_approval_notify_enabled', default: false })
+  pendingApprovalNotifyEnabled: boolean;
+
+  /** 승인 대기 알림을 받을 ezAria 채팅방 ID. 미설정이면 발송하지 않는다. */
+  @Column({ name: 'ezaria_chat_room_id', type: 'varchar', length: 128, nullable: true })
+  ezariaChatRoomId: string | null;
+
   /** 계정 비활성화 후 자동 삭제까지의 유예 일수 */
   @Column({ name: 'account_deletion_grace_period_days', default: 30 })
   accountDeletionGracePeriodDays: number;

@@ -246,6 +246,8 @@ export class UsersService {
     const user = await this.findOne(tenantId, id);
     user.status = UserStatus.ACTIVE;
     user.deactivatedAt = null;
+    // 관리자 승인 대기 표식을 지운다. 남겨 두면 승인 이후에도 대기 알림이 계속 발송된다.
+    user.pendingApprovalSince = null;
     await this.userRepo.save(user);
     await this.auditService.record({
       tenantId,

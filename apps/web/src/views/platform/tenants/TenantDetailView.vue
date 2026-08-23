@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { tenantsApi, type Tenant, type UpdateTenantPayload } from '@/api/tenants'
+import {
+  tenantsApi,
+  type NotifyTestResult,
+  type Tenant,
+  type UpdateTenantPayload,
+} from '@/api/tenants'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
@@ -69,6 +74,39 @@ function onEmailVerificationChange() {
   }
 }
 
+// ── ezAria 알림 테스트 발송 ──────────────────────────────
+const testing = ref(false)
+const testMsg = ref('')
+const testError = ref('')
+
+const NOTIFY_TEST_REASONS: Record<NonNullable<NotifyTestResult['reason']>, string> = {
+  bot_not_configured: '서버에 ezAria 봇 토큰이 설정되지 않았습니다. 운영자에게 문의하세요.',
+  notify_disabled: '알림 사용이 꺼져 있습니다. 먼저 켜고 저장한 뒤 다시 시도하세요.',
+  chat_room_not_set: '채팅방 ID가 저장되지 않았습니다. 입력 후 저장한 뒤 다시 시도하세요.',
+  tenant_not_found: '테넌트를 찾을 수 없습니다.',
+  send_failed: '발송에 실패했습니다. 채팅방 ID를 확인하세요.',
+}
+
+async function sendNotifyTest() {
+  testing.value = true
+  testMsg.value = ''
+  testError.value = ''
+  try {
+    const { data } = await tenantsApi.notifyTest(id)
+    if (data.sent) {
+      testMsg.value = '테스트 알림을 발송했습니다. 채팅방을 확인하세요.'
+    } else {
+      testError.value = data.reason
+        ? NOTIFY_TEST_REASONS[data.reason]
+        : '발송하지 못했습니다.'
+    }
+  } catch {
+    testError.value = '테스트 발송 중 오류가 발생했습니다.'
+  } finally {
+    testing.value = false
+  }
+}
+
 async function saveSettings() {
   if (!tenant.value) return
   if (!tenant.value.settings.allowRegistration) {
@@ -93,6 +131,8 @@ async function saveSettings() {
       autoActivateRegistration: tenant.value.settings.autoActivateRegistration,
       emailVerificationRequired: tenant.value.settings.emailVerificationRequired,
       mailFrom: tenant.value.settings.mailFrom ?? '',
+      pendingApprovalNotifyEnabled: tenant.value.settings.pendingApprovalNotifyEnabled,
+      ezariaChatRoomId: tenant.value.settings.ezariaChatRoomId ?? '',
     }
     // 개발용 강제 수신자는 편집 가능(비-production)할 때만 전송한다.
     if (tenant.value.mailDevRedirectEditable) {
@@ -286,6 +326,52 @@ onMounted(load)
                 개발 환경 전용입니다. 설정 시 모든 인증 메일이 이 주소로만 발송됩니다.
                 콤마(,)로 여러 주소를 입력하면 모두에게 동시 발송됩니다.
               </p>
+            </div>
+          </div>
+
+          <!-- ezAria 알림 -->
+          <div class="border-t border-gray-100 pt-4 space-y-4">
+            <h3 class="text-sm font-semibold text-gray-900">ezAria 알림</h3>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                v-model="tenant.settings.pendingApprovalNotifyEnabled"
+                type="checkbox"
+                class="rounded"
+              />
+              <span class="text-sm text-gray-700">승인 대기 가입자 알림 사용</span>
+            </label>
+            <p class="text-xs text-gray-400 -mt-2">
+              자동 활성화가 꺼진 상태로 신규 가입이 발생하면 즉시 알리고, 승인 대기 건이 남아 있으면
+              매일 09:00에 잔량을 다시 알립니다. 알림에는 마스킹된 이메일만 포함됩니다.
+            </p>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">수신 채팅방 ID</label>
+              <div class="flex gap-2">
+                <input
+                  v-model="tenant.settings.ezariaChatRoomId"
+                  type="text"
+                  placeholder="ezAria 채팅방 ID"
+                  :disabled="!tenant.settings.pendingApprovalNotifyEnabled"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400"
+                />
+                <button
+                  type="button"
+                  :disabled="
+                    testing ||
+                    !tenant.settings.pendingApprovalNotifyEnabled ||
+                    !tenant.settings.ezariaChatRoomId
+                  "
+                  class="px-3 py-2 text-sm border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors whitespace-nowrap"
+                  @click="sendNotifyTest"
+                >
+                  {{ testing ? '발송 중...' : '테스트 발송' }}
+                </button>
+              </div>
+              <p class="mt-1 text-xs text-gray-400">
+                비워두면 알림을 발송하지 않습니다. 테스트 발송은 저장된 설정을 기준으로 동작합니다.
+              </p>
+              <p v-if="testMsg" class="mt-1 text-xs text-green-600">{{ testMsg }}</p>
+              <p v-if="testError" class="mt-1 text-xs text-red-600">{{ testError }}</p>
             </div>
           </div>
 

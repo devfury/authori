@@ -39,6 +39,8 @@ export enum AuditAction {
   SCHEMA_PUBLISHED = 'SCHEMA.PUBLISHED',
   // 외부 인증
   EXTERNAL_AUTH_ERROR = 'EXTERNAL_AUTH.ERROR',
+
+  NOTIFY_TEST_SENT = 'NOTIFY.TEST_SENT',
 }
 
 @Entity('audit_logs')
