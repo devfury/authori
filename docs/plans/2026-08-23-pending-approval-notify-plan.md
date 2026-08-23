@@ -51,9 +51,9 @@
 
 - [x] 1. 요구사항정의서 작성 및 커밋
 - [x] 2. 개발설계서·개발계획서 작성 및 커밋
-- [ ] 3. 설정: `app.config.ts`에 `ezaria`·`adminBaseUrl` 추가, `.env.example` 문서화
-- [ ] 4. 엔티티: `TenantSettings` 2컬럼, `User.pendingApprovalSince`, `AuditAction.NOTIFY_TEST_SENT`
-- [ ] 5. 마이그레이션 작성 (컬럼 추가 + 기존 대기자 백필 + 부분 인덱스, `down` 포함)
+- [x] 3. 설정: `app.config.ts`에 `ezaria`·`adminBaseUrl` 추가, `.env.example` 문서화
+- [x] 4. 엔티티: `TenantSettings` 2컬럼, `User.pendingApprovalSince`, `AuditAction.NOTIFY_TEST_SENT`
+- [x] 5. 마이그레이션 작성 (컬럼 추가 + 기존 대기자 백필 + 부분 인덱스, `down` 포함)
 - [ ] 6. `mask.util.ts` + 단위 테스트
 - [ ] 7. `EzariaClient` + 단위 테스트 (전송 payload / 비-2xx throw / 미설정 / 타임아웃)
 - [ ] 8. `PendingApprovalNotifierService` + 단위 테스트 (게이트 no-op / 메시지 내용 / 예외 미전파 / sendTest reason)

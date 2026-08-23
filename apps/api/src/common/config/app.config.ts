@@ -17,6 +17,16 @@ function getDefaultCorsOrigins(): string[] {
   }
 }
 
+/** 알림 링크에 사용할 관리 UI base URL. 미설정 시 LOGIN_PAGE_URL의 origin을 사용한다. */
+function getDefaultAdminBaseUrl(): string {
+  const loginPageUrl = process.env.LOGIN_PAGE_URL ?? 'http://localhost:5173/login';
+  try {
+    return new URL(loginPageUrl).origin;
+  } catch {
+    return 'http://localhost:5173';
+  }
+}
+
 export const appConfig = registerAs('app', () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -31,6 +41,19 @@ export const appConfig = registerAs('app', () => ({
     return origins.length > 0 ? origins : getDefaultCorsOrigins();
   })(),
   loginPageUrl: process.env.LOGIN_PAGE_URL ?? 'http://localhost:5173/login',
+  /** 알림 메시지의 관리 UI 링크 base. 예: https://admin.example.com */
+  adminBaseUrl: (process.env.ADMIN_BASE_URL ?? '').replace(/\/+$/, '') || getDefaultAdminBaseUrl(),
+  ezaria: {
+    /**
+     * ezAria 봇 토큰. 비밀정보이므로 로그·API 응답에 노출하지 않는다.
+     * 미설정이면 알림을 발송하지 않고 로그만 남긴다(SMTP 미설정 폴백과 동일).
+     */
+    botToken: process.env.EZARIA_BOT_TOKEN ?? '',
+    baseUrl: (
+      process.env.EZARIA_BOT_BASE_URL ?? 'https://aria.ezcaretech.com:13443/v1/bot/send'
+    ).replace(/\/+$/, ''),
+    timeoutMs: parseInt(process.env.EZARIA_SEND_TIMEOUT_MS ?? '5000', 10),
+  },
   smtp: {
     host: process.env.SMTP_HOST ?? '',
     port: parseInt(process.env.SMTP_PORT ?? '587', 10),
