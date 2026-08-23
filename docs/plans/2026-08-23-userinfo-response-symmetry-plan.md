@@ -67,11 +67,11 @@
 
 ### Task 5 — 문서 갱신 (D-4)
 
-- [ ] 연동 가이드 §8.1: 응답 예시 평탄화, claim/scope 표에 `tenant_id`·`email_verified`·`preferred_username` 추가
-- [ ] 연동 가이드 §8.2: PATCH 응답 예시 교체 + 파괴 변경 경고 블록
-- [ ] 연동 가이드에 예약 클레임 충돌 시 프로필 키가 제외된다는 제약 명시
-- [ ] 런북 3종 클레임 표에 `preferred_username` 행 추가
-- [ ] 검증: 문서 내 GET/PATCH 예시가 Task 1 단위 테스트의 기대값과 일치하는지 대조
+- [x] 연동 가이드 §8.1: 응답 예시 평탄화, claim/scope 표에 `tenant_id`·`email_verified`·`preferred_username` 추가
+- [x] 연동 가이드 §8.2: PATCH 응답 예시 교체 + 파괴 변경 경고 블록
+- [x] 연동 가이드에 예약 클레임 충돌 시 프로필 키가 제외된다는 제약 명시
+- [x] 런북 3종 클레임 표에 `preferred_username` 행 추가
+- [x] 검증: 문서 내 GET/PATCH 예시가 Task 1 단위 테스트의 기대값과 일치하는지 대조
 
 ### Task 6 — 전체 검증 및 마무리
 
