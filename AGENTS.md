@@ -249,7 +249,7 @@ git push origin develop
 ```bash
 # ezaria-personal-notify 스킬이 없을 때만 실행
 telegram-cli -V || echo "telegram-cli 미설치 — 알림 생략"
-telegram-cli "[ezDesk] <작업명> 완료
+telegram-cli "[Authori] <작업명> 완료
 • 브랜치: <branch>
 • 변경: <핵심 변경 요약>
 • 검증: <lint/test/build 결과>
