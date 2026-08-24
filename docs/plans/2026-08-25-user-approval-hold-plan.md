@@ -45,7 +45,7 @@
 
 ## 작업 단계
 
-- [ ] 1. 엔티티·감사 액션·마이그레이션: `approvalHeldAt` 컬럼, `USER_APPROVAL_HELD` enum(TS+DB), 마이그레이션 파일
+- [x] 1. 엔티티·감사 액션·마이그레이션: `approvalHeldAt` 컬럼, `USER_APPROVAL_HELD` enum(TS+DB), 마이그레이션 파일
 - [ ] 2. 서비스 구현: `hold()` 대상 검증·표식 기록·감사 로그, `activate()` 표식 해제, `findAll()` `pending` 필터
 - [ ] 3. bulk 서비스 구현: `bulkActivate()`·`bulkHold()` 부분 성공 루프, 중복 제거, `BulkUserActionResult`
 - [ ] 4. DTO·컨트롤러: `HoldUserDto`·`BulkActivateUsersDto`·`BulkHoldUsersDto`, 라우트 3개(bulk를 `:id`보다 위 선언), `pending` 쿼리 파라미터
