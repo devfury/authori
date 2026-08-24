@@ -25,6 +25,12 @@ export interface UserListQuery {
   limit?: number; // 기본값 20, 최대 100
   search?: string; // email 부분 검색
   status?: UserStatus; // 'ACTIVE' | 'INACTIVE' | 'LOCKED'
+  pending?: boolean; // true면 관리자 승인 대기 사용자만 (status보다 우선)
+}
+
+export interface BulkUserActionResult {
+  succeeded: string[];
+  failed: { userId: string; reason: string }[];
 }
 
 export interface UserPage {
@@ -117,7 +123,13 @@ export class UsersService {
       });
     }
 
-    if (status) {
+    if (query.pending) {
+      // 관리자 승인 대기: 보류(approvalHeldAt)·탈퇴(deactivatedAt)는 제외한다.
+      qb.andWhere('u.status = :status', { status: UserStatus.INACTIVE })
+        .andWhere('u.pendingApprovalSince IS NOT NULL')
+        .andWhere('u.deactivatedAt IS NULL')
+        .andWhere('u.approvalHeldAt IS NULL');
+    } else if (status) {
       qb.andWhere('u.status = :status', { status });
     }
 
@@ -248,6 +260,8 @@ export class UsersService {
     user.deactivatedAt = null;
     // 관리자 승인 대기 표식을 지운다. 남겨 두면 승인 이후에도 대기 알림이 계속 발송된다.
     user.pendingApprovalSince = null;
+    // 보류 표식도 해제한다. 보류된 사용자를 되돌리는 유일한 경로가 활성화다.
+    user.approvalHeldAt = null;
     await this.userRepo.save(user);
     await this.auditService.record({
       tenantId,
@@ -256,6 +270,78 @@ export class UsersService {
       targetId: id,
       ...ctx,
     });
+  }
+
+  /**
+   * 가입 승인 보류(거절). 관리자 승인 대기 사용자에게만 허용하며, INACTIVE를 유지한 채
+   * approvalHeldAt만 기록해 승인 대기 집계·알림에서 제외한다. 사유는 감사 로그에만 남긴다.
+   */
+  async hold(
+    tenantId: string,
+    id: string,
+    reason: string | null,
+    ctx?: AuditContext,
+  ): Promise<void> {
+    const user = await this.findOne(tenantId, id);
+    const isPendingApproval =
+      user.status === UserStatus.INACTIVE &&
+      user.pendingApprovalSince !== null &&
+      user.deactivatedAt === null &&
+      user.approvalHeldAt === null;
+    if (!isPendingApproval) throw new ConflictException('not_pending_approval');
+
+    user.approvalHeldAt = new Date();
+    await this.userRepo.save(user);
+    await this.auditService.record({
+      tenantId,
+      action: AuditAction.USER_APPROVAL_HELD,
+      targetType: 'user',
+      targetId: id,
+      metadata: { email: user.email, ...(reason ? { reason } : {}) },
+      ...ctx,
+    });
+  }
+
+  /** 일괄 승인(활성화). 건별 부분 성공 — INACTIVE가 아니면 실패 목록으로 보낸다. */
+  async bulkActivate(
+    tenantId: string,
+    userIds: string[],
+    ctx?: AuditContext,
+  ): Promise<BulkUserActionResult> {
+    return this.bulkRun(tenantId, userIds, async (user) => {
+      if (user.status !== UserStatus.INACTIVE) throw new ConflictException('not_inactive');
+      await this.activate(tenantId, user.id, ctx);
+    });
+  }
+
+  /** 일괄 보류. 건별 부분 성공 — 승인 대기 사용자가 아니면 실패 목록으로 보낸다. */
+  async bulkHold(
+    tenantId: string,
+    userIds: string[],
+    reason: string | null,
+    ctx?: AuditContext,
+  ): Promise<BulkUserActionResult> {
+    return this.bulkRun(tenantId, userIds, (user) => this.hold(tenantId, user.id, reason, ctx));
+  }
+
+  /** 중복 제거 후 건별 try/catch로 처리하고 부분 성공 결과를 모은다. */
+  private async bulkRun(
+    tenantId: string,
+    userIds: string[],
+    action: (user: User) => Promise<void>,
+  ): Promise<BulkUserActionResult> {
+    const result: BulkUserActionResult = { succeeded: [], failed: [] };
+    for (const userId of new Set(userIds)) {
+      try {
+        const user = await this.findOne(tenantId, userId);
+        await action(user);
+        result.succeeded.push(userId);
+      } catch (error) {
+        const reason = error instanceof NotFoundException ? 'not_found' : (error as Error).message;
+        result.failed.push({ userId, reason });
+      }
+    }
+    return result;
   }
 
   async deactivate(tenantId: string, id: string, ctx?: AuditContext): Promise<void> {

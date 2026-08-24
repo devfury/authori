@@ -48,11 +48,18 @@ function build(opts: Options = {}) {
   const sorted = [...pending].sort(
     (a, b) => a.pendingApprovalSince.getTime() - b.pendingApprovalSince.getTime(),
   );
+  const whereConditions: string[] = [];
   function makeQb() {
     let asc = true;
     const qb: Record<string, unknown> = {};
-    qb.where = () => qb;
-    qb.andWhere = () => qb;
+    qb.where = (cond: string) => {
+      whereConditions.push(cond);
+      return qb;
+    };
+    qb.andWhere = (cond: string) => {
+      whereConditions.push(cond);
+      return qb;
+    };
     qb.orderBy = (_field: string, direction: 'ASC' | 'DESC') => {
       asc = direction === 'ASC';
       return qb;
@@ -74,7 +81,7 @@ function build(opts: Options = {}) {
     ezaria,
     config,
   );
-  return { service, send };
+  return { service, send, whereConditions };
 }
 
 const newUser = { email: 'jinho@ez.com', createdAt: new Date('2026-08-23T05:03:00Z') };
@@ -214,6 +221,19 @@ describe('PendingApprovalNotifierService', () => {
         latestSince: latest,
         oldestEmail: 'old@ez.com',
       });
+    });
+
+    it('보류(approvalHeldAt)·탈퇴(deactivatedAt) 사용자를 집계에서 제외한다', async () => {
+      const { service, whereConditions } = build({ pending: [] });
+      await service.countPending('t1');
+
+      expect(whereConditions).toEqual(
+        expect.arrayContaining([
+          'u.approvalHeldAt IS NULL',
+          'u.deactivatedAt IS NULL',
+          'u.pendingApprovalSince IS NOT NULL',
+        ]),
+      );
     });
   });
 });
