@@ -337,8 +337,7 @@ export class UsersService {
         await action(user);
         result.succeeded.push(userId);
       } catch (error) {
-        const reason =
-          error instanceof NotFoundException ? 'not_found' : (error as Error).message;
+        const reason = error instanceof NotFoundException ? 'not_found' : (error as Error).message;
         result.failed.push({ userId, reason });
       }
     }

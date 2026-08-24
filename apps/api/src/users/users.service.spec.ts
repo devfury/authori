@@ -524,7 +524,7 @@ describe('UsersService', () => {
     beforeEach(() => {
       userRepoMock = {
         findOne: jest.fn().mockResolvedValue(pendingUser()),
-        save: jest.fn().mockImplementation(async (u: unknown) => u),
+        save: jest.fn().mockImplementation((u: unknown) => Promise.resolve(u)),
       };
       auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
       service = new UsersService(
@@ -545,8 +545,8 @@ describe('UsersService', () => {
       expect(userRepoMock.save).toHaveBeenCalledWith(
         expect.objectContaining({
           status: UserStatus.INACTIVE,
-          approvalHeldAt: expect.any(Date),
-          pendingApprovalSince: expect.any(Date),
+          approvalHeldAt: expect.any(Date) as Date,
+          pendingApprovalSince: expect.any(Date) as Date,
         }),
       );
     });
@@ -572,9 +572,7 @@ describe('UsersService', () => {
 
     it('rejects a user who is not pending approval (no pendingApprovalSince)', async () => {
       userRepoMock.findOne.mockResolvedValue({ ...pendingUser(), pendingApprovalSince: null });
-      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('rejects a user who is already held', async () => {
@@ -582,9 +580,7 @@ describe('UsersService', () => {
         ...pendingUser(),
         approvalHeldAt: new Date('2026-08-21T00:00:00Z'),
       });
-      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('rejects a deactivated user', async () => {
@@ -592,16 +588,12 @@ describe('UsersService', () => {
         ...pendingUser(),
         deactivatedAt: new Date('2026-08-21T00:00:00Z'),
       });
-      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('throws NotFoundException when user not found', async () => {
       userRepoMock.findOne.mockResolvedValue(null);
-      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -636,10 +628,10 @@ describe('UsersService', () => {
       userRepoMock = {
         findOne: jest
           .fn()
-          .mockImplementation(async ({ where }: { where: { id: string } }) =>
-            usersById[where.id] ? structuredClone(usersById[where.id]) : null,
+          .mockImplementation(({ where }: { where: { id: string } }) =>
+            Promise.resolve(usersById[where.id] ? structuredClone(usersById[where.id]) : null),
           ),
-        save: jest.fn().mockImplementation(async (u: unknown) => u),
+        save: jest.fn().mockImplementation((u: unknown) => Promise.resolve(u)),
       };
       auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
       service = new UsersService(
@@ -695,7 +687,7 @@ describe('UsersService', () => {
         expect.objectContaining({
           action: AuditAction.USER_APPROVAL_HELD,
           targetId: 'u-pending',
-          metadata: expect.objectContaining({ reason: '정원 초과' }),
+          metadata: expect.objectContaining({ reason: '정원 초과' }) as object,
         }),
       );
     });
