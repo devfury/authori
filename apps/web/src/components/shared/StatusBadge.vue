@@ -11,6 +11,8 @@ const cls = computed(() => {
     case 'INACTIVE':  return 'bg-gray-100 text-gray-600'
     case 'LOCKED':    return 'bg-red-100 text-red-700'
     case 'DRAFT':     return 'bg-yellow-100 text-yellow-700'
+    case 'PENDING_APPROVAL': return 'bg-yellow-100 text-yellow-700'
+    case 'APPROVAL_HELD':    return 'bg-orange-100 text-orange-700'
     case 'PUBLISHED': return 'bg-green-100 text-green-700'
     case 'DEPRECATED': return 'bg-orange-100 text-orange-700'
     default: return 'bg-gray-100 text-gray-600'
@@ -25,6 +27,8 @@ const label = computed(() => {
     DRAFT:      '초안',
     PUBLISHED:  '게시됨',
     DEPRECATED: '지원 종료',
+    PENDING_APPROVAL: '승인 대기',
+    APPROVAL_HELD: '보류',
   }
   return map[props.status] ?? props.status
 })
