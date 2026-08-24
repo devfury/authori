@@ -50,7 +50,7 @@
 - [x] 3. bulk 서비스 구현: `bulkActivate()`·`bulkHold()` 부분 성공 루프, 중복 제거, `BulkUserActionResult`
 - [x] 4. DTO·컨트롤러: `HoldUserDto`·`BulkActivateUsersDto`·`BulkHoldUsersDto`, 라우트 3개(bulk를 `:id`보다 위 선언), `pending` 쿼리 파라미터
 - [x] 5. 알림 집계 변경: `countPending()`에 보류 제외 조건 + 주석 갱신
-- [ ] 6. 백엔드 단위 테스트: users.service(hold/bulk/activate), notifier(보류 제외)
+- [x] 6. 백엔드 단위 테스트: users.service(hold/bulk/activate), notifier(보류 제외)
 - [ ] 7. 웹 API 클라이언트·StatusBadge: 타입/메서드 추가, 배지 키 추가
 - [ ] 8. `HoldUsersDialog.vue` 신규 작성
 - [ ] 9. `UserListView.vue`: 체크박스 선택, 일괄 액션 바, 확인 다이얼로그 연결, 결과 요약, 보조 배지, 승인 대기 필터(URL 동기화 포함)

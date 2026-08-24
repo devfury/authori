@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import {
   UserStatus,
@@ -451,6 +451,7 @@ describe('UsersService', () => {
           lockedUntil: null,
           deactivatedAt: new Date('2026-05-01'),
           pendingApprovalSince: new Date('2026-05-01'),
+          approvalHeldAt: new Date('2026-05-02'),
           profile: { profileJsonb: {} },
         }),
         save: jest.fn().mockImplementation(async (u: unknown) => u),
@@ -476,6 +477,13 @@ describe('UsersService', () => {
       );
     });
 
+    it('clears approvalHeldAt (activating is the only way back from hold)', async () => {
+      await service.activate(tenantId, userId);
+      expect(userRepoMock.save).toHaveBeenCalledWith(
+        expect.objectContaining({ approvalHeldAt: null }),
+      );
+    });
+
     it('sets status to ACTIVE and clears deactivatedAt (cancels scheduled deletion)', async () => {
       await service.activate(tenantId, userId);
       expect(userRepoMock.save).toHaveBeenCalledWith(
@@ -493,6 +501,203 @@ describe('UsersService', () => {
     it('throws NotFoundException when user not found', async () => {
       userRepoMock.findOne.mockResolvedValue(null);
       await expect(service.activate(tenantId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('hold', () => {
+    let userRepoMock: { findOne: jest.Mock; save: jest.Mock };
+    let auditSvc: { record: jest.Mock };
+
+    const pendingUser = () => ({
+      id: userId,
+      tenantId,
+      email: 'lee@example.com',
+      status: UserStatus.INACTIVE,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      deactivatedAt: null as Date | null,
+      pendingApprovalSince: new Date('2026-08-20T00:00:00Z') as Date | null,
+      approvalHeldAt: null as Date | null,
+      profile: { profileJsonb: {} },
+    });
+
+    beforeEach(() => {
+      userRepoMock = {
+        findOne: jest.fn().mockResolvedValue(pendingUser()),
+        save: jest.fn().mockImplementation(async (u: unknown) => u),
+      };
+      auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
+      service = new UsersService(
+        userRepoMock as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        auditSvc as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      );
+    });
+
+    it('sets approvalHeldAt while keeping status INACTIVE and pendingApprovalSince', async () => {
+      await service.hold(tenantId, userId, null);
+      expect(userRepoMock.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: UserStatus.INACTIVE,
+          approvalHeldAt: expect.any(Date),
+          pendingApprovalSince: expect.any(Date),
+        }),
+      );
+    });
+
+    it('records USER_APPROVAL_HELD with the reason in metadata', async () => {
+      await service.hold(tenantId, userId, '서류 미비', { actorId: 'admin-1' });
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.USER_APPROVAL_HELD,
+          targetId: userId,
+          actorId: 'admin-1',
+          metadata: { email: 'lee@example.com', reason: '서류 미비' },
+        }),
+      );
+    });
+
+    it('omits reason from metadata when not given', async () => {
+      await service.hold(tenantId, userId, null);
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({ metadata: { email: 'lee@example.com' } }),
+      );
+    });
+
+    it('rejects a user who is not pending approval (no pendingApprovalSince)', async () => {
+      userRepoMock.findOne.mockResolvedValue({ ...pendingUser(), pendingApprovalSince: null });
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it('rejects a user who is already held', async () => {
+      userRepoMock.findOne.mockResolvedValue({
+        ...pendingUser(),
+        approvalHeldAt: new Date('2026-08-21T00:00:00Z'),
+      });
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it('rejects a deactivated user', async () => {
+      userRepoMock.findOne.mockResolvedValue({
+        ...pendingUser(),
+        deactivatedAt: new Date('2026-08-21T00:00:00Z'),
+      });
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it('throws NotFoundException when user not found', async () => {
+      userRepoMock.findOne.mockResolvedValue(null);
+      await expect(service.hold(tenantId, userId, null)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('bulkActivate / bulkHold', () => {
+    let userRepoMock: { findOne: jest.Mock; save: jest.Mock };
+    let auditSvc: { record: jest.Mock };
+
+    const usersById: Record<string, object> = {};
+
+    const makeUser = (id: string, overrides: object = {}) => ({
+      id,
+      tenantId,
+      email: `${id}@example.com`,
+      status: UserStatus.INACTIVE,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      deactivatedAt: null,
+      pendingApprovalSince: new Date('2026-08-20T00:00:00Z'),
+      approvalHeldAt: null,
+      profile: { profileJsonb: {} },
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      for (const key of Object.keys(usersById)) delete usersById[key];
+      usersById['u-pending'] = makeUser('u-pending');
+      usersById['u-active'] = makeUser('u-active', {
+        status: UserStatus.ACTIVE,
+        pendingApprovalSince: null,
+      });
+
+      userRepoMock = {
+        findOne: jest
+          .fn()
+          .mockImplementation(async ({ where }: { where: { id: string } }) =>
+            usersById[where.id] ? structuredClone(usersById[where.id]) : null,
+          ),
+        save: jest.fn().mockImplementation(async (u: unknown) => u),
+      };
+      auditSvc = { record: jest.fn().mockResolvedValue(undefined) };
+      service = new UsersService(
+        userRepoMock as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        auditSvc as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+      );
+    });
+
+    it('bulkActivate activates INACTIVE users and reports the rest as failed', async () => {
+      const result = await service.bulkActivate(tenantId, ['u-pending', 'u-active', 'u-missing']);
+
+      expect(result.succeeded).toEqual(['u-pending']);
+      expect(result.failed).toEqual(
+        expect.arrayContaining([
+          { userId: 'u-active', reason: 'not_inactive' },
+          { userId: 'u-missing', reason: 'not_found' },
+        ]),
+      );
+      expect(auditSvc.record).toHaveBeenCalledTimes(1);
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.USER_ACTIVATED, targetId: 'u-pending' }),
+      );
+    });
+
+    it('bulkActivate deduplicates userIds', async () => {
+      const result = await service.bulkActivate(tenantId, ['u-pending', 'u-pending']);
+      expect(result.succeeded).toEqual(['u-pending']);
+      expect(auditSvc.record).toHaveBeenCalledTimes(1);
+    });
+
+    it('bulkHold holds pending users and reports non-pending ones as failed', async () => {
+      const result = await service.bulkHold(
+        tenantId,
+        ['u-pending', 'u-active', 'u-missing'],
+        '정원 초과',
+      );
+
+      expect(result.succeeded).toEqual(['u-pending']);
+      expect(result.failed).toEqual(
+        expect.arrayContaining([
+          { userId: 'u-active', reason: 'not_pending_approval' },
+          { userId: 'u-missing', reason: 'not_found' },
+        ]),
+      );
+      expect(auditSvc.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.USER_APPROVAL_HELD,
+          targetId: 'u-pending',
+          metadata: expect.objectContaining({ reason: '정원 초과' }),
+        }),
+      );
     });
   });
 
