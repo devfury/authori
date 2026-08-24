@@ -11,6 +11,7 @@ import StatusBadge from '@/components/shared/StatusBadge.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import UserRoleDialog from './UserRoleDialog.vue'
 import ChangePasswordDialog from './ChangePasswordDialog.vue'
+import HoldUsersDialog from './HoldUsersDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,6 +27,22 @@ const showActivate = ref(false)
 const showRoleDialog = ref(false)
 const showPasswordDialog = ref(false)
 const showDelete = ref(false)
+const showHold = ref(false)
+const holdLoading = ref(false)
+
+/** 승인 대기/보류 보조 배지 키 (목록 화면과 동일 규칙) */
+const approvalBadge = computed<string | null>(() => {
+  if (!user.value) return null
+  if (user.value.approvalHeldAt) return 'APPROVAL_HELD'
+  if (
+    user.value.status === UserStatus.INACTIVE &&
+    user.value.pendingApprovalSince &&
+    !user.value.deactivatedAt
+  ) {
+    return 'PENDING_APPROVAL'
+  }
+  return null
+})
 
 async function load() {
   loading.value = true
@@ -79,6 +96,17 @@ async function activate() {
   await load()
 }
 
+async function hold(reason?: string) {
+  holdLoading.value = true
+  try {
+    await usersApi.hold(tenantId, userId, reason)
+  } finally {
+    holdLoading.value = false
+    showHold.value = false
+  }
+  await load()
+}
+
 async function deleteUser() {
   await usersApi.delete(tenantId, userId)
   showDelete.value = false
@@ -102,6 +130,7 @@ onMounted(load)
               수정
             </router-link>
             <StatusBadge :status="user.status" />
+            <StatusBadge v-if="approvalBadge" :status="approvalBadge" />
           </div>
         </template>
       </PageHeader>
@@ -133,6 +162,18 @@ onMounted(load)
                 <dt class="text-xs text-gray-400 mb-0.5">생성일</dt>
                 <dd class="text-gray-800">{{ new Date(user.createdAt).toLocaleDateString('ko-KR') }}</dd>
               </div>
+              <div v-if="user.pendingApprovalSince">
+                <dt class="text-xs text-gray-400 mb-0.5">승인 대기 시작</dt>
+                <dd class="text-gray-800">
+                  {{ new Date(user.pendingApprovalSince).toLocaleString('ko-KR') }}
+                </dd>
+              </div>
+              <div v-if="user.approvalHeldAt">
+                <dt class="text-xs text-gray-400 mb-0.5">가입 보류 처리</dt>
+                <dd class="text-gray-800">
+                  {{ new Date(user.approvalHeldAt).toLocaleString('ko-KR') }}
+                </dd>
+              </div>
             </dl>
 
             <div class="mt-5 pt-4 border-t border-gray-100 flex gap-3">
@@ -155,6 +196,13 @@ onMounted(load)
                 @click="showActivate = true"
               >
                 사용자 활성화
+              </button>
+              <button
+                v-if="approvalBadge === 'PENDING_APPROVAL'"
+                class="px-4 py-2 text-sm border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors"
+                @click="showHold = true"
+              >
+                가입 보류
               </button>
               <button
                 class="px-4 py-2 text-sm border border-red-600 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ml-auto"
@@ -261,6 +309,14 @@ onMounted(load)
       confirm-label="활성화"
       @confirm="activate"
       @cancel="showActivate = false"
+    />
+
+    <HoldUsersDialog
+      :open="showHold"
+      :subject="`'${user?.email}' 사용자`"
+      :loading="holdLoading"
+      @confirm="hold"
+      @close="showHold = false"
     />
 
     <ConfirmDialog

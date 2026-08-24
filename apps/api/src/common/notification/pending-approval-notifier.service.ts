@@ -173,7 +173,8 @@ export class PendingApprovalNotifierService {
 
   /**
    * 관리자 승인 대기 사용자 현황을 집계한다.
-   * 탈퇴(`deactivatedAt`)와 이메일 인증 대기는 `pendingApprovalSince` 표식으로 이미 제외된다.
+   * INACTIVE의 네 의미 중 승인 대기만 남긴다: 탈퇴는 `deactivatedAt`, 보류는 `approvalHeldAt`,
+   * 이메일 인증 대기는 `pendingApprovalSince` 표식으로 제외된다.
    */
   async countPending(tenantId: string): Promise<PendingApprovalStat> {
     const base = () =>
@@ -182,6 +183,7 @@ export class PendingApprovalNotifierService {
         .where('u.tenantId = :tenantId', { tenantId })
         .andWhere('u.status = :status', { status: UserStatus.INACTIVE })
         .andWhere('u.deactivatedAt IS NULL')
+        .andWhere('u.approvalHeldAt IS NULL')
         .andWhere('u.pendingApprovalSince IS NOT NULL');
 
     const count = await base().getCount();

@@ -30,6 +30,9 @@ export interface User {
   status: UserStatus
   failedLoginAttempts: number
   lastLoginAt: string | null
+  deactivatedAt: string | null
+  pendingApprovalSince: string | null
+  approvalHeldAt: string | null
   createdAt: string
   profile?: UserProfile
   userRoles?: UserRoleEntry[]
@@ -52,6 +55,12 @@ export interface UserListQuery {
   limit?: number
   search?: string
   status?: UserStatus
+  pending?: boolean
+}
+
+export interface BulkUserActionResult {
+  succeeded: string[]
+  failed: { userId: string; reason: string }[]
 }
 
 export interface UserPage {
@@ -85,5 +94,19 @@ export const usersApi = {
   },
   changePassword(tenantId: string, userId: string, password: string) {
     return http.post(`/admin/tenants/${tenantId}/users/${userId}/password`, { password })
+  },
+  hold(tenantId: string, userId: string, reason?: string) {
+    return http.post(`/admin/tenants/${tenantId}/users/${userId}/hold`, reason ? { reason } : {})
+  },
+  bulkActivate(tenantId: string, userIds: string[]) {
+    return http.post<BulkUserActionResult>(`/admin/tenants/${tenantId}/users/bulk/activate`, {
+      userIds,
+    })
+  },
+  bulkHold(tenantId: string, userIds: string[], reason?: string) {
+    return http.post<BulkUserActionResult>(`/admin/tenants/${tenantId}/users/bulk/hold`, {
+      userIds,
+      ...(reason ? { reason } : {}),
+    })
   },
 }

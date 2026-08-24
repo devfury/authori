@@ -61,11 +61,19 @@ export class User {
 
   /**
    * 관리자 승인 대기 시작 시각. 공개 회원가입 결과가 '관리자 승인 대기 INACTIVE'인 경우에만
-   * 기록되고 활성화 시 null로 지워진다. status=INACTIVE의 세 의미
-   * (관리자 승인 대기 / 이메일 인증 대기 / 탈퇴)를 구분하는 표식이다.
+   * 기록되고 활성화 시 null로 지워진다(보류 시에는 신청 이력으로 보존).
+   * status=INACTIVE의 네 의미(관리자 승인 대기 / 보류 / 이메일 인증 대기 / 탈퇴)는
+   * deactivatedAt → approvalHeldAt → pendingApprovalSince 순으로 판정한다.
    */
   @Column({ name: 'pending_approval_since', nullable: true, type: 'timestamptz' })
   pendingApprovalSince: Date | null;
+
+  /**
+   * 가입 승인 보류(거절) 시각. 보류된 사용자는 INACTIVE를 유지하되 승인 대기 집계·알림에서
+   * 제외된다. 활성화 시 null로 지워지며, 별도 '보류 해제' 액션은 없다.
+   */
+  @Column({ name: 'approval_held_at', nullable: true, type: 'timestamptz' })
+  approvalHeldAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
