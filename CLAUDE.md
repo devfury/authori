@@ -73,6 +73,7 @@ bun run start:dev          # port 3001, Swagger at /docs
 - `users/` — 테넌트 내 사용자 CRUD, UserProfile(JSONB)
 - `tenants/` — 테넌트 및 TenantSettings CRUD
 - `profile-schema/` — JSON Schema Draft-07 기반 사용자 프로필 스키마 버전 관리
+- `common/profile/` — `omitNullValues()`. **`user_profiles.profile_jsonb` 는 값 없음을 키 부재로만 표현한다**(`null` 값 키를 두지 않는다). 저장 경로(`users.service` 생성·수정, 외부 인증 `applyFieldMapping`)와 읽기 경로(UserInfo 클레임 빌더) 양쪽에서 강제한다. `null` 클레임을 그대로 내보내 소비자를 깨뜨린 전례가 있다(2026-09-02). `false`·`0`·`''` 는 유효한 값이므로 남긴다.
 - `common/audit/` — AuditService: 모든 중요 동작을 AuditLog 테이블에 기록
 - `common/crypto/` — CryptoUtil: bcrypt hash/verify, PKCE S256 검증, sha256Hex
 - `common/notification/` — ezAria 알림 채널. `EzariaClient`(봇 API 전송), `PendingApprovalNotifierService`(승인 대기 알림), `PendingApprovalDigestService`(매일 09:00 KST 잔량 다이제스트)
