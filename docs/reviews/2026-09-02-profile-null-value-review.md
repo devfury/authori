@@ -91,10 +91,15 @@
 
 ## 6. 병합 결과
 
-- 작업 브랜치: `fix/userinfo-null-claim`
-- `develop` 병합: 본 보고서 커밋 이후 `--no-ff` 병합 및 push (아래 §7 갱신)
+- 작업 브랜치: `fix/userinfo-null-claim` (원격 push 완료)
+- `develop` 병합: `--no-ff` 병합 후 push 완료
 
 ## 7. 병합·배포 기록
 
-- develop 병합 커밋: `<merge-commit>`
-- push: 완료
+| 항목 | 값 |
+|---|---|
+| 작업 브랜치 | `fix/userinfo-null-claim` |
+| 브랜치 커밋 | `3402557` → `f295b91` (문서 4건 · 구현 5건) |
+| develop 병합 커밋 | `164c61f` |
+| push | `38d7021..164c61f develop -> develop` |
+| 배포 시 필요한 작업 | `bun run migration:run` (§4 참조) |
