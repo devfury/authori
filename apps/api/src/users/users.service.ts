@@ -19,6 +19,7 @@ import { ProfileSchemaService } from '../profile-schema/profile-schema.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SelfUpdateUserDto } from './dto/self-update-user.dto';
+import { omitNullValues } from '../common/profile/profile-value.util';
 
 export interface UserListQuery {
   page?: number; // 1-based, 기본값 1
@@ -68,7 +69,8 @@ export class UsersService {
     });
     if (exists) throw new ConflictException(`Email '${dto.email}' already exists`);
 
-    const profileData = dto.profile ?? {};
+    // null 값은 저장하지 않는다 — profile_jsonb 는 값 없음을 키 부재로만 표현한다.
+    const profileData = omitNullValues(dto.profile ?? {});
     await this.profileSchemaService.validate(tenantId, profileData);
 
     const passwordHash = await CryptoUtil.hash(dto.password);
@@ -158,7 +160,9 @@ export class UsersService {
     if (dto.loginId !== undefined) user.loginId = dto.loginId;
 
     if (dto.profile) {
-      const merged = { ...user.profile.profileJsonb, ...dto.profile };
+      // 병합 결과 전체에 적용한다 — 요청의 null 은 해당 키를 지우고,
+      // 예전에 저장된 null 도 이 참에 함께 정리된다.
+      const merged = omitNullValues({ ...user.profile.profileJsonb, ...dto.profile });
       await this.profileSchemaService.validate(tenantId, merged);
 
       const activeSchema = await this.profileSchemaService.findActive(tenantId);
@@ -203,7 +207,9 @@ export class UsersService {
     if (dto.loginId !== undefined) user.loginId = dto.loginId;
 
     if (dto.profile) {
-      const merged = { ...user.profile.profileJsonb, ...dto.profile };
+      // 병합 결과 전체에 적용한다 — 요청의 null 은 해당 키를 지우고,
+      // 예전에 저장된 null 도 이 참에 함께 정리된다.
+      const merged = omitNullValues({ ...user.profile.profileJsonb, ...dto.profile });
       await this.profileSchemaService.validate(tenantId, merged);
 
       const activeSchema = await this.profileSchemaService.findActive(tenantId);

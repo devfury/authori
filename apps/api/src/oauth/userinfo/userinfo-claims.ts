@@ -65,6 +65,11 @@ export function buildUserInfoClaims({
     // profile_jsonb 는 사용자가 직접 쓸 수 있으므로 예약 클레임 위조를 막아야 한다.
     for (const [key, value] of Object.entries(profile?.profileJsonb ?? {})) {
       if (RESERVED.has(key)) continue;
+      // 값이 없는 클레임은 키째로 생략한다(OIDC Core 5.3.2). null 을 그대로
+      // 내보내면 클레임을 문자열로 기대한 소비자가 깨진다 — 2026-09-02 장애.
+      // 저장 경로에서도 막지만(omitNullValues) UserInfo 는 모든 외부 연동의
+      // 공통 출구이므로 여기서도 방어한다.
+      if (value === null || value === undefined) continue;
       claims[key] = value;
     }
   }

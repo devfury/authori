@@ -625,6 +625,59 @@ describe('ExternalAuthService response field mapping', () => {
     });
   });
 
+  it('상류가 null로 준 필드는 프로필에 담지 않는다', () => {
+    // 전화번호 미등록 사용자에게 상류가 null 을 주면 그대로 저장돼
+    // UserInfo 소비자를 깨뜨렸다(2026-09-02 장애). 키를 빼서 기존 값을 보존한다.
+    const service = new ExternalAuthService(repo as never);
+
+    const mapped = service.applyFieldMapping(
+      {
+        authenticated: true,
+        user: {
+          loginId: 'doctor001',
+          departmentName: '내과',
+          telePhoneNumber: null,
+          mobilePhoneNumber: '010-5678-1234',
+        },
+      },
+      {
+        loginId: 'user.loginId',
+        profile: {
+          'user.departmentName': 'department',
+          'user.telePhoneNumber': 'telephone',
+          'user.mobilePhoneNumber': 'mobilephone',
+        },
+      },
+    );
+
+    expect(mapped.profile).toEqual({
+      department: '내과',
+      mobilephone: '010-5678-1234',
+    });
+    expect(mapped.profile).not.toHaveProperty('telephone');
+  });
+
+  it('매핑을 지정하지 않은 경로에서도 null 필드를 제외한다', () => {
+    const service = new ExternalAuthService(repo as never);
+
+    const mapped = service.applyFieldMapping(
+      {
+        authenticated: true,
+        user: {
+          loginId: 'doctor001',
+          profile: {
+            department: '내과',
+            telephone: null,
+            agreed: false,
+          },
+        },
+      },
+      null,
+    );
+
+    expect(mapped.profile).toEqual({ department: '내과', agreed: false });
+  });
+
   it('keeps existing user.profile mapping behavior for unqualified profile keys', () => {
     const service = new ExternalAuthService(repo as never);
 
