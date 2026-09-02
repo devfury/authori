@@ -26,7 +26,7 @@
 
 ## 작업 단계
 
-- [ ] T1 — `omitNullValues()` 유틸 및 단위 테스트 추가 (FR-2)
+- [x] T1 — `omitNullValues()` 유틸 및 단위 테스트 추가 (FR-2)
 - [ ] T2 — `buildUserInfoClaims()` 에서 `null`/`undefined` 항목 생략 + 테스트 (FR-1, FR-2)
 - [ ] T3 — `applyFieldMapping()` 두 경로에서 `null` 제외 + 테스트 (FR-3, FR-4)
 - [ ] T4 — `users.service` 세 경로에 `omitNullValues` 적용 + 테스트 (FR-5)
