@@ -181,6 +181,55 @@ describe('buildUserInfoClaims', () => {
     expect(claims.preferred_username).toBe('johnny');
   });
 
+  it('값이 null인 프로필 항목은 키째로 생략한다', () => {
+    // 소비자는 클레임이 있으면 값이 있다고 기대한다. null 을 그대로 내보내
+    // ezDesk 로그인이 깨진 2026-09-02 장애의 회귀 방지 테스트.
+    const claims = buildUserInfoClaims({
+      user: user(),
+      profile: profile({ department: '내과', telephone: null }),
+      tenantId: TENANT_ID,
+      scopes: ['profile'],
+    });
+
+    expect(claims).not.toHaveProperty('telephone');
+    expect(claims.department).toBe('내과');
+  });
+
+  it('값이 undefined인 프로필 항목도 생략한다', () => {
+    const claims = buildUserInfoClaims({
+      user: user(),
+      profile: profile({ telephone: undefined }),
+      tenantId: TENANT_ID,
+      scopes: ['profile'],
+    });
+
+    expect(claims).not.toHaveProperty('telephone');
+  });
+
+  it('false·0·빈 문자열은 유효한 값이므로 반환한다', () => {
+    const claims = buildUserInfoClaims({
+      user: user(),
+      profile: profile({ agreed: false, visits: 0, memo: '' }),
+      tenantId: TENANT_ID,
+      scopes: ['profile'],
+    });
+
+    expect(claims.agreed).toBe(false);
+    expect(claims.visits).toBe(0);
+    expect(claims.memo).toBe('');
+  });
+
+  it('모든 프로필 값이 null이면 프로필 클레임이 하나도 나오지 않는다', () => {
+    const claims = buildUserInfoClaims({
+      user: user({ loginId: null }),
+      profile: profile({ department: null, telephone: null }),
+      tenantId: TENANT_ID,
+      scopes: ['profile'],
+    });
+
+    expect(Object.keys(claims).sort()).toEqual(['sub', 'tenant_id']);
+  });
+
   it('전체 scope에서 반환하는 클레임 키 집합을 고정한다', () => {
     // GET/PATCH가 이 빌더를 공유하므로 여기서 고정한 키 집합이 두 응답의 계약이다.
     const source = {

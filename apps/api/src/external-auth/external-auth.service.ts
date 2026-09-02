@@ -12,6 +12,7 @@ import { ExternalAuthProvider } from '../database/entities';
 import type { TransformSpec } from '../database/entities';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
+import { omitNullValues } from '../common/profile/profile-value.util';
 
 export interface ExternalAuthResult {
   [key: string]: unknown;
@@ -435,20 +436,24 @@ export class ExternalAuthService {
       ? (getMappedUserValue(mapping.loginId) as string | undefined)
       : externalUser?.loginId;
 
+    // 상류가 값 없음을 null 로 표현해도 프로필에 담지 않는다. profile_jsonb 는
+    // 값 없음을 키 부재로만 표현하며(omitNullValues), 병합 지점이 스프레드라
+    // 키를 빼면 곧 "이번 로그인에서는 건드리지 않음"이 된다 — 로컬에 보정해 둔
+    // 값이 매 로그인마다 지워지는 것을 막는다.
     const profile: Record<string, unknown> = {};
     if (externalProfile) {
       if (mapping?.profile) {
         for (const [extKey, localKey] of Object.entries(mapping.profile)) {
           const val = getMappedProfileValue(extKey);
-          if (val !== undefined) profile[localKey] = val;
+          if (val !== undefined && val !== null) profile[localKey] = val;
         }
       } else {
-        Object.assign(profile, externalProfile);
+        Object.assign(profile, omitNullValues(externalProfile));
       }
     } else if (mapping?.profile) {
       for (const [extKey, localKey] of Object.entries(mapping.profile)) {
         const val = getMappedProfileValue(extKey);
-        if (val !== undefined) profile[localKey] = val;
+        if (val !== undefined && val !== null) profile[localKey] = val;
       }
     }
 
