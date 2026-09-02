@@ -38,6 +38,25 @@ Authori 의 웹 경로(관리자 사용자 편집, 셀프 프로필, 회원가�
 
 또한 C-1 경로(`authorize.service.ts:447`, `jitProvisionUser`)에는 **프로필 스키마 검증(`profileSchemaService.validate()`) 호출이 없다.** 스키마가 `type: "string"` 으로 선언한 필드라도 이 경로로는 `null` 이 통과한다.
 
+#### 개발 DB 조회로 확인한 사실 (2026-09-02, 읽기 전용)
+
+| 확인 항목 | 결과 |
+|---|---|
+| ezdesk 테넌트의 외부 인증 매핑 | `{"user.telePhoneNumber": "telephone", "user.mobilePhoneNumber": "mobilephone", "user.departmentName": "department", "tenantCode": "organization", ...}` — 문제 필드가 실제로 상류 응답에서 매핑된다. |
+| 해당 프로바이더 설정 | `sync_on_login = true`, `jit_provision = true` — 매 로그인마다 상류 값이 프로필에 병합된다. |
+| 개발 DB의 `null` 값 항목 | **0건.** 값이 없는 사용자는 `"telephone": ""`(빈 문자열)로 저장돼 있다. |
+
+즉 개발 환경 상류(`dev-emrinf`)는 빈 문자열을 주고, 빈 문자열은 소비자에서 정상 처리된다(`''.trim()`). 장애가 난 행은 **개발 DB가 아닌 운영 Authori DB**에 있으며, 운영 상류가 같은 필드를 `null` 로 반환한 것으로 판단한다. 운영 DB 는 이 작업 환경에서 조회할 수 없어 직접 확인하지 못했다 — 배포 후 아래 질의로 확인한다.
+
+```sql
+SELECT u.email, p.profile_jsonb
+FROM user_profiles p JOIN users u ON u.id = p.user_id
+WHERE jsonb_typeof(p.profile_jsonb) = 'object'
+  AND EXISTS (SELECT 1 FROM jsonb_each(p.profile_jsonb) e WHERE e.value = 'null'::jsonb);
+```
+
+이 판단이 틀리더라도(예: C-2 경로로 유입) 본 수정의 유효성은 달라지지 않는다. 읽기·쓰기 양쪽을 모두 막으므로 유입 경로와 무관하게 `null` 이 소비자에게 도달하지 않는다.
+
 ### 1.3 버전 관계 정정
 
 접수 시 "1.3.8 에서는 문제 없었다"는 진술이 있었으나, **1.3.8 → 1.3.10 사이 UserInfo 변경(`4bcf335`, `a9077a0`)은 null 통과 동작을 바꾸지 않았다.** 1.3.8 의 `Object.assign(claims, profile.profileJsonb)` 역시 `null` 을 그대로 내보냈다. 실제 노출 계기는 소비자 측 변경(ezDesk `95c3233`, 2026-08-27, "Authori 프로필 전화번호 동기화")으로, 그 전까지 ezDesk 는 `organization`/`department` 만 읽었다. 저장된 `null` 은 그 이전부터 존재했을 가능성이 크다.
