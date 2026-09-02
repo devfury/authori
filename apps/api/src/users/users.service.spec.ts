@@ -218,6 +218,48 @@ describe('UsersService', () => {
       );
     });
 
+    it('요청의 null은 해당 프로필 키를 삭제한다', async () => {
+      // profile_jsonb 는 값 없음을 키 부재로만 표현한다. null 을 저장하면
+      // UserInfo 소비자가 깨진다(2026-09-02 장애).
+      const result = await service.updateSelf(tenantId, userId, {
+        profile: { department: null },
+      });
+
+      expect(result.profile.profileJsonb).toEqual({ name: 'Lee Jin Ho' });
+      expect(profileSchemaService.validate).toHaveBeenCalledWith(tenantId, {
+        name: 'Lee Jin Ho',
+      });
+    });
+
+    it('예전에 저장된 null 항목도 수정 시 함께 정리된다', async () => {
+      const stale = structuredClone(user);
+      stale.profile.profileJsonb = {
+        name: 'Lee Jin Ho',
+        telephone: null,
+      } as never;
+      userRepoMock.findOne.mockResolvedValue(stale);
+
+      const result = await service.updateSelf(tenantId, userId, {
+        profile: { nickname: 'Johnny' },
+      });
+
+      expect(result.profile.profileJsonb).toEqual({ name: 'Lee Jin Ho', nickname: 'Johnny' });
+    });
+
+    it('false·0·빈 문자열은 지우지 않는다', async () => {
+      const result = await service.updateSelf(tenantId, userId, {
+        profile: { agreed: false, visits: 0, memo: '' },
+      });
+
+      expect(result.profile.profileJsonb).toEqual({
+        name: 'Lee Jin Ho',
+        department: 'Engineering',
+        agreed: false,
+        visits: 0,
+        memo: '',
+      });
+    });
+
     it('throws NotFoundException when the user does not exist', async () => {
       userRepoMock.findOne.mockResolvedValue(null);
 
