@@ -32,7 +32,7 @@
 - [x] T4 — `users.service` 세 경로에 `omitNullValues` 적용 + 테스트 (FR-5)
 - [x] T5 — 기존 데이터 정리 마이그레이션 추가 (FR-6, NFR-1)
 - [x] T6 — CLAUDE.md 불변식 반영
-- [ ] T7 — 4단계 검증 (lint → typecheck → test → build)
+- [x] T7 — 4단계 검증 (lint → typecheck → test → build)
 - [ ] T8 — 개발완료보고서 작성 · develop 병합 · 알림
 
 ## 검증 명령과 기대 결과
