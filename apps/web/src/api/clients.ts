@@ -46,8 +46,9 @@ export interface ClientUpdatedResponse {
   plainSecret: string | null
 }
 
-export interface ClientCreatedResponse extends OAuthClient {
-  plainSecret?: string
+export interface ClientCreatedResponse {
+  client: OAuthClient
+  plainSecret: string | null
 }
 
 export interface ClientListQuery {

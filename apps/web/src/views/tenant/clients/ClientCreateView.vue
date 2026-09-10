@@ -27,7 +27,7 @@ const selectedGrants = ref<string[]>(['authorization_code'])
 
 const error = ref('')
 const loading = ref(false)
-const plainSecret = ref<string | null>(null)
+const created = ref<{ clientId: string; plainSecret: string } | null>(null)
 
 onMounted(async () => {
   try {
@@ -61,7 +61,7 @@ async function submit() {
       postVerificationRedirectUri: postVerificationRedirectUri.value.trim() || undefined,
     })
     if (data.plainSecret) {
-      plainSecret.value = data.plainSecret
+      created.value = { clientId: data.client.clientId, plainSecret: data.plainSecret }
     } else {
       router.push({ name: 'client-list', params: { tenantId } })
     }
@@ -79,11 +79,15 @@ async function submit() {
     <PageHeader title="OAuth 클라이언트 생성" />
 
     <!-- 시크릿 발급 결과 -->
-    <div v-if="plainSecret" class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+    <div v-if="created" class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
       <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
         Client Secret은 지금만 확인 가능합니다. 반드시 안전한 곳에 저장하세요.
       </div>
-      <CopyableField :value="plainSecret" label="Client Secret" />
+      <div>
+        <CopyableField :value="created.clientId" label="Client ID" />
+        <p class="mt-1 text-xs text-gray-400">목록과 상세 화면에서 다시 확인할 수 있습니다.</p>
+      </div>
+      <CopyableField :value="created.plainSecret" label="Client Secret" />
       <button
         class="w-full py-2 px-4 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
         @click="router.push({ name: 'client-list', params: { tenantId } })"
