@@ -22,7 +22,7 @@
 - [x] 결과 카드에 Client ID `CopyableField` 추가 (Secret 위, 보조 문구 포함)
 - [x] `ClientCreateView.spec.ts` 로 T-1/T-2/T-3 검증
 - [x] 4단계 검증 (lint / typecheck / test / build)
-- [ ] 개발완료보고서 작성 및 develop 병합
+- [x] 개발완료보고서 작성 및 develop 병합
 
 ## 검증 명령과 기대 결과
 
