@@ -17,11 +17,11 @@
 
 ## 작업 단계
 
-- [ ] `ClientCreatedResponse` 타입을 실제 API 응답 `{ client, plainSecret }` 에 맞춰 정정
-- [ ] `ClientCreateView` 의 결과 상태를 `created: { clientId, plainSecret }` 로 교체하고 `submit()` 을 새 응답 구조에 맞게 수정
-- [ ] 결과 카드에 Client ID `CopyableField` 추가 (Secret 위, 보조 문구 포함)
-- [ ] `ClientCreateView.spec.ts` 로 T-1/T-2/T-3 검증
-- [ ] 4단계 검증 (lint / typecheck / test / build)
+- [x] `ClientCreatedResponse` 타입을 실제 API 응답 `{ client, plainSecret }` 에 맞춰 정정
+- [x] `ClientCreateView` 의 결과 상태를 `created: { clientId, plainSecret }` 로 교체하고 `submit()` 을 새 응답 구조에 맞게 수정
+- [x] 결과 카드에 Client ID `CopyableField` 추가 (Secret 위, 보조 문구 포함)
+- [x] `ClientCreateView.spec.ts` 로 T-1/T-2/T-3 검증
+- [x] 4단계 검증 (lint / typecheck / test / build)
 - [ ] 개발완료보고서 작성 및 develop 병합
 
 ## 검증 명령과 기대 결과
