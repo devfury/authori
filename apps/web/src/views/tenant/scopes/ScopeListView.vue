@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import { Plus, RefreshCw, Pencil, Trash2, CheckCircle2 } from 'lucide-vue-next'
 import { scopesApi, type TenantScope } from '@/api/scopes'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import ScopeFormDialog from './ScopeFormDialog.vue'
 
@@ -12,15 +14,19 @@ const tenantId = route.params.tenantId as string
 
 const scopes = ref<TenantScope[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const showForm = ref(false)
 const selectedScope = ref<TenantScope | null>(null)
 const deleteTarget = ref<TenantScope | null>(null)
 
 async function loadScopes() {
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await scopesApi.findAll(tenantId)
     scopes.value = data || []
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -76,6 +82,12 @@ onMounted(loadScopes)
 
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading && scopes.length === 0" class="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+      <ErrorState
+        v-else-if="loadError"
+        :message="loadError"
+        :retryable="isRetryable(loadError)"
+        @retry="loadScopes"
+      />
       <div v-else-if="scopes.length === 0" class="p-8 text-center text-sm text-gray-400">
         등록된 스코프가 없습니다.
       </div>

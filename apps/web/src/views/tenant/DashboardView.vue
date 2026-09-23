@@ -5,6 +5,8 @@ import { clientsApi } from '@/api/clients'
 import { usersApi } from '@/api/users'
 import { auditApi, type AuditLog } from '@/api/audit'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 
 const route = useRoute()
 const tenantId = route.params.tenantId as string
@@ -13,8 +15,11 @@ const clientCount = ref(0)
 const userCount = ref(0)
 const recentLogs = ref<AuditLog[]>([])
 const loading = ref(true)
+const loadError = ref('')
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
+  loadError.value = ''
   try {
     const [clients, users, logs] = await Promise.all([
       clientsApi.findAll(tenantId, { limit: 1 }),
@@ -24,10 +29,14 @@ onMounted(async () => {
     clientCount.value = clients.data.total
     userCount.value = users.data.total
     recentLogs.value = logs.data.items
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 </script>
 
 <template>
@@ -35,6 +44,9 @@ onMounted(async () => {
     <PageHeader title="테넌트 대시보드" />
 
     <div v-if="loading" class="text-sm text-gray-400">불러오는 중...</div>
+    <div v-else-if="loadError" class="bg-white rounded-xl border border-gray-200">
+      <ErrorState :message="loadError" :retryable="isRetryable(loadError)" @retry="load" />
+    </div>
     <template v-else>
       <div class="grid grid-cols-2 gap-4 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 p-5">

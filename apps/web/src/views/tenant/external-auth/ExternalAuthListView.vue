@@ -3,6 +3,8 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { externalAuthApi, type ExternalAuthProvider } from '@/api/external-auth'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,6 +12,7 @@ const tenantId = route.params.tenantId as string
 
 const providers = ref<ExternalAuthProvider[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const deletingId = ref<string | null>(null)
 
 function formatDomains(domains: string[] | null) {
@@ -23,9 +26,17 @@ function allDomains(domains: string[] | null) {
 }
 
 async function load() {
-  const { data } = await externalAuthApi.findAll(tenantId)
-  providers.value = data
-  loading.value = false
+  // try 가 없어 실패 시 loading 이 영원히 true 로 남아 "불러오는 중..."만 보였다.
+  loading.value = true
+  loadError.value = ''
+  try {
+    const { data } = await externalAuthApi.findAll(tenantId)
+    providers.value = data
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
+  } finally {
+    loading.value = false
+  }
 }
 
 async function remove(id: string) {
@@ -56,6 +67,13 @@ onMounted(load)
     </PageHeader>
 
     <div v-if="loading" class="text-sm text-gray-400">불러오는 중...</div>
+
+    <ErrorState
+      v-else-if="loadError"
+      :message="loadError"
+      :retryable="isRetryable(loadError)"
+      @retry="load"
+    />
 
     <div v-else-if="providers.length === 0" class="text-sm text-gray-400 py-10 text-center">
       등록된 외부 인증 프로바이더가 없습니다.

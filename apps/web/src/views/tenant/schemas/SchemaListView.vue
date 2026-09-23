@@ -6,6 +6,8 @@ import { adminsApi, type AdminUser } from '@/api/admins'
 import { schemasApi, type ProfileSchemaVersion } from '@/api/schemas'
 import { parseJsonSchema } from '@/utils/schema'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
 const route = useRoute()
@@ -13,6 +15,7 @@ const tenantId = route.params.tenantId as string
 
 const schemas = ref<ProfileSchemaVersion[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const adminMap = ref<Record<string, AdminUser>>({})
 const expandedId = ref<string | null>(null)
 
@@ -50,8 +53,13 @@ function toggleExpand(id: string) {
   expandedId.value = expandedId.value === id ? null : id
 }
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
+  loadError.value = ''
   try {
+    // adminsApi 는 플랫폼 관리자 전용이라 테넌트 관리자에게는 항상 403이다.
+    // 발행자 이름을 채우는 보조 정보일 뿐이므로 실패를 관용한다.
+    // 화면의 주 데이터인 schemas 의 실패만 오류로 표면화한다.
     const [schemasResult, adminsResult] = await Promise.allSettled([
       schemasApi.findAll(tenantId),
       adminsApi.findAll(),
@@ -59,6 +67,8 @@ onMounted(async () => {
 
     if (schemasResult.status === 'fulfilled') {
       schemas.value = schemasResult.value.data
+    } else {
+      loadError.value = toApiErrorMessage(schemasResult.reason)
     }
     if (adminsResult.status === 'fulfilled') {
       adminMap.value = indexById(adminsResult.value.data?.items || [], (admin) => admin.id)
@@ -66,7 +76,9 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 </script>
 
 <template>
@@ -85,6 +97,12 @@ onMounted(async () => {
 
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading" class="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+      <ErrorState
+        v-else-if="loadError"
+        :message="loadError"
+        :retryable="isRetryable(loadError)"
+        @retry="load"
+      />
       <div v-else-if="schemas.length === 0" class="p-8 text-center text-sm text-gray-400">
         발행된 스키마가 없습니다.
       </div>

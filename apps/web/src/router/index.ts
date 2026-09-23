@@ -234,6 +234,17 @@ router.beforeEach((to, _from, next) => {
     return next({ name: 'forbidden' })
   }
 
+  // 경로가 특정 테넌트를 가리키면 그 테넌트의 관리자인지 확인한다.
+  // 라우트 meta 플래그가 아니라 tenantId 파라미터의 존재 자체를 신호로 삼아,
+  // 테넌트 범위 라우트를 추가할 때 플래그를 빠뜨려 구멍이 생기지 않게 한다.
+  //
+  // 이것은 UX 장치이지 보안 경계가 아니다. 실제 차단은 서버의 TenantAdminGuard 가
+  // 하며, 여기서는 권한 없음을 알리고 실패할 것이 뻔한 요청을 막는 역할만 한다.
+  const targetTenantId = to.params.tenantId
+  if (typeof targetTenantId === 'string' && !auth.isPlatformAdmin) {
+    if (auth.tenantId !== targetTenantId) return next({ name: 'forbidden' })
+  }
+
   next()
 })
 
