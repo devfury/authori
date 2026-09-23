@@ -43,8 +43,8 @@
 
 - [x] 1. `utils/api-error.ts` 작성 + 테스트 (FR-6, FR-7)
 - [x] 2. `components/shared/ErrorState.vue` 작성 + 테스트 (FR-5, FR-7)
-- [ ] 3. 라우터 가드에 테넌트 경계 검사 추가 + 테스트 (FR-1, FR-2, FR-3)
-- [ ] 4. `ForbiddenView` 역할별 복귀 경로·문구 (FR-4)
+- [x] 3. 라우터 가드에 테넌트 경계 검사 추가 + 테스트 (FR-1, FR-2, FR-3)
+- [x] 4. `ForbiddenView` 역할별 복귀 경로·문구 (FR-4)
 - [ ] 5. 목록 화면 9곳에 오류 상태 적용 (FR-5)
 - [ ] 6. 4단계 검증 명령 전체 실행 및 통과
 
