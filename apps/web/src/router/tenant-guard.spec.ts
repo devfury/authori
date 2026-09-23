@@ -18,7 +18,7 @@ type GuardResult = { name?: string } | undefined
 async function loadGuard(auth: {
   isAuthenticated: boolean
   isPlatformAdmin: boolean
-  tenantId: string | null
+  tenantIds: string[]
 }) {
   vi.resetModules()
   vi.doMock('@/stores/auth.store', () => ({ useAuthStore: () => auth }))
@@ -59,13 +59,19 @@ async function navigate(
 const tenantAdmin = {
   isAuthenticated: true,
   isPlatformAdmin: false,
-  tenantId: MY_TENANT,
+  tenantIds: [MY_TENANT],
+  role: AdminRole.TENANT_ADMIN,
+}
+const multiTenantAdmin = {
+  isAuthenticated: true,
+  isPlatformAdmin: false,
+  tenantIds: [MY_TENANT, OTHER_TENANT],
   role: AdminRole.TENANT_ADMIN,
 }
 const platformAdmin = {
   isAuthenticated: true,
   isPlatformAdmin: true,
-  tenantId: null,
+  tenantIds: [],
   role: AdminRole.PLATFORM_ADMIN,
 }
 
@@ -74,7 +80,7 @@ describe('라우터 테넌트 경계 가드', () => {
     setActivePinia(createPinia())
   })
 
-  it('테넌트 관리자는 자기 테넌트 경로로 진입할 수 있다', async () => {
+  it('테넌트 관리자는 배정된 테넌트 경로로 진입할 수 있다', async () => {
     const result = await navigate(tenantAdmin, {
       meta: { requiresAuth: true },
       params: { tenantId: MY_TENANT },
@@ -82,12 +88,22 @@ describe('라우터 테넌트 경계 가드', () => {
     expect(result).toBeUndefined()
   })
 
-  it('테넌트 관리자가 다른 테넌트 경로로 진입하면 403 으로 보낸다', async () => {
+  it('배정되지 않은 테넌트 경로로 진입하면 403 으로 보낸다', async () => {
     const result = await navigate(tenantAdmin, {
       meta: { requiresAuth: true },
       params: { tenantId: OTHER_TENANT },
     })
     expect(result).toEqual({ name: 'forbidden' })
+  })
+
+  it('여러 테넌트를 배정받으면 각각에 진입할 수 있다', async () => {
+    for (const tenantId of [MY_TENANT, OTHER_TENANT]) {
+      const result = await navigate(multiTenantAdmin, {
+        meta: { requiresAuth: true },
+        params: { tenantId },
+      })
+      expect(result).toBeUndefined()
+    }
   })
 
   it('플랫폼 관리자는 임의의 테넌트 경로로 진입할 수 있다', async () => {
@@ -105,7 +121,7 @@ describe('라우터 테넌트 경계 가드', () => {
 
   it('public 라우트는 그대로 통과한다', async () => {
     const result = await navigate(
-      { isAuthenticated: false, isPlatformAdmin: false, tenantId: null },
+      { isAuthenticated: false, isPlatformAdmin: false, tenantIds: [] },
       { meta: { public: true } },
     )
     expect(result).toBeUndefined()
@@ -113,7 +129,7 @@ describe('라우터 테넌트 경계 가드', () => {
 
   it('미인증이면 로그인으로 보낸다', async () => {
     const result = await navigate(
-      { isAuthenticated: false, isPlatformAdmin: false, tenantId: null },
+      { isAuthenticated: false, isPlatformAdmin: false, tenantIds: [] },
       { meta: { requiresAuth: true }, params: { tenantId: MY_TENANT } },
     )
     expect(result).toEqual({ name: 'login' })

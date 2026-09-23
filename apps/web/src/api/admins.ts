@@ -1,12 +1,13 @@
 import http from './http'
 import { type AdminRole, type AdminStatus } from './enums'
+import { type AdminTenant } from './auth'
 
 export interface AdminUser {
   id: string
   email: string
   name: string | null
   role: AdminRole
-  tenantId: string | null
+  tenants: AdminTenant[]
   status: AdminStatus
   createdAt: string
 }
@@ -16,7 +17,7 @@ export interface CreateAdminPayload {
   name?: string
   password: string
   role: AdminRole
-  tenantId?: string
+  tenantIds?: string[]
 }
 
 export interface UpdateAdminPayload {
@@ -24,7 +25,7 @@ export interface UpdateAdminPayload {
   name?: string
   password?: string
   role?: AdminRole
-  tenantId?: string
+  tenantIds?: string[]
   status?: AdminStatus
 }
 

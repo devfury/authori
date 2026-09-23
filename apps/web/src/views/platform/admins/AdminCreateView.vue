@@ -5,6 +5,7 @@ import { adminsApi } from '@/api/admins'
 import { tenantsApi, type Tenant } from '@/api/tenants'
 import { AdminRole, TenantStatus } from '@/api/enums'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import TenantMultiSelect from '@/components/shared/TenantMultiSelect.vue'
 
 const router = useRouter()
 
@@ -13,7 +14,7 @@ const name = ref('')
 const password = ref('')
 const passwordConfirm = ref('')
 const role = ref<typeof AdminRole[keyof typeof AdminRole]>(AdminRole.TENANT_ADMIN)
-const tenantId = ref('')
+const tenantIds = ref<string[]>([])
 const tenants = ref<Tenant[]>([])
 const error = ref('')
 const loading = ref(false)
@@ -29,6 +30,10 @@ async function submit() {
     error.value = '비밀번호가 일치하지 않습니다.'
     return
   }
+  if (role.value === AdminRole.TENANT_ADMIN && tenantIds.value.length === 0) {
+    error.value = '테넌트를 최소 1개 선택하세요.'
+    return
+  }
   loading.value = true
   try {
     await adminsApi.create({
@@ -36,7 +41,7 @@ async function submit() {
       name: name.value || undefined,
       password: password.value,
       role: role.value,
-      tenantId: role.value === AdminRole.TENANT_ADMIN ? tenantId.value : undefined,
+      tenantIds: role.value === AdminRole.TENANT_ADMIN ? tenantIds.value : undefined,
     })
     router.push('/admin/admins')
   } catch (e: unknown) {
@@ -112,19 +117,8 @@ async function submit() {
         </div>
         <div v-if="role === AdminRole.TENANT_ADMIN">
           <label class="block text-sm font-medium text-gray-700 mb-1">테넌트</label>
-          <select
-            v-model="tenantId"
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-          >
-            <option value="" disabled>테넌트 선택</option>
-            <option v-for="t in tenants" :key="t.id" :value="t.id">
-              {{ t.name }} ({{ t.slug }})
-            </option>
-          </select>
-          <p v-if="tenants.length === 0" class="text-xs text-gray-400 mt-1">
-            등록된 활성 테넌트가 없습니다.
-          </p>
+          <p class="text-xs text-gray-400 mb-2">여러 테넌트를 배정할 수 있습니다.</p>
+          <TenantMultiSelect v-model="tenantIds" :tenants="tenants" />
         </div>
 
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

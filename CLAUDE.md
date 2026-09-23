@@ -82,9 +82,13 @@ bun run start:dev          # port 3001, Swagger at /docs
 
 **AuditContext 패턴**: 컨트롤러에서 `{ actorId, actorType, ipAddress, userAgent, requestId }`를 구성하여 서비스 메서드에 `ctx` 파라미터로 전달. `...ctx` 스프레드로 AuditEventDto에 병합.
 
-**관리자 인증**: `AdminJwtGuard` → JWT 검증 (`type: 'admin'` 클레임 확인). `PlatformAdminGuard` → `role === PLATFORM_ADMIN`. `TenantAdminGuard` → role이 TENANT_ADMIN이고 `tenantId` 일치 여부 확인.
+**관리자 인증**: `AdminJwtGuard` → JWT 검증 (`type: 'admin'` 클레임 확인). `PlatformAdminGuard` → `role === PLATFORM_ADMIN`. `TenantAdminGuard` → PLATFORM_ADMIN이거나, TENANT_ADMIN이면서 경로의 `:tenantId`가 **배정된 테넌트인지** `admin_user_tenants`를 조회해 확인.
 
-**엔티티 목록**: Tenant, TenantSettings, User, UserProfile, ProfileSchemaVersion, OAuthClient, OAuthClientRedirectUri, AuthorizationCode, AccessToken, RefreshToken, Consent, SigningKey, AuditLog, AdminUser, EmailVerificationToken
+**관리자의 다중 테넌트**: 한 TENANT_ADMIN은 `admin_user_tenants`(N:M) 매핑으로 **여러 테넌트를 배정**받을 수 있다. 이 표가 접근 권한의 단일 진실이며 `admin_users.tenant_id` 컬럼은 제거됐다. **배정 목록을 JWT에 담지 않는다** — 담으면 배정을 해제해도 토큰이 만료될 때까지 접근이 유지되므로, 가드가 매 요청 DB를 조회해 회수가 즉시 반영되게 한다(`AdminTenantAccessService`). 배정은 PLATFORM_ADMIN만 변경할 수 있고, TENANT_ADMIN은 최소 1개가 필요하며 PLATFORM_ADMIN에게는 배정하지 않는다(역할에 전체 접근이 내재). 생성·수정 API는 `tenantIds` 배열을 **전체 교체**로 받는다. 프런트는 로그인 응답과 `GET /admin/auth/me`가 주는 목록을 localStorage에 캐시해 라우터 가드를 동기로 유지하지만, 이는 UX 장치이며 실제 차단은 서버가 한다. 배정이 2개 이상이면 로그인 후 `/admin/select-tenant` 선택 화면과 사이드바 전환 드롭다운이 나타나고, 1개면 기존과 동일하게 곧바로 대시보드로 간다.
+
+**권한 부족은 403**: 인증 실패(토큰 부재·위조·만료)만 401이고, 역할·테넌트 경계 위반은 `ForbiddenException`(403)이다. 프런트 `http.ts`의 401 인터셉터가 무조건 로그아웃시키므로, 권한 부족에 401을 쓰면 로그인한 관리자가 권한 없는 화면에 진입하기만 해도 세션이 파기된다(2026-09-23).
+
+**엔티티 목록**: Tenant, TenantSettings, User, UserProfile, ProfileSchemaVersion, OAuthClient, OAuthClientRedirectUri, AuthorizationCode, AccessToken, RefreshToken, Consent, SigningKey, AuditLog, AdminUser, AdminUserTenant, EmailVerificationToken
 
 **회원가입 활성화 정책**: 공개 회원가입(`allowRegistration`) 시 신규 사용자 상태는 `TenantSettings`로 결정된다. `emailVerificationRequired`가 켜지면 `autoActivateRegistration`보다 우선하며, 사용자는 INACTIVE로 생성되고 가입 이메일의 인증 링크(`/verify-email`)를 클릭하면 활성화된다. 메일 발송은 전역 SMTP 접속 설정(`app.config.ts`의 `smtp`, `.env`의 `SMTP_HOST/PORT/USER/PASS/SECURE/TLS_REJECT_UNAUTHORIZED`)을 사용하는 `common/mail/MailService`가 담당하며, SMTP 미설정 시 인증 링크를 서버 로그로만 출력한다(개발용 폴백). 발신자 주소(`mailFrom`)와 개발용 강제 수신자(`mailDevRedirectTo`)는 환경변수가 아닌 **테넌트별 설정(`TenantSettings`)** 으로 관리한다: `mailFrom` 미설정 시 하드코딩 기본값을 쓰고, `mailDevRedirectTo`는 `NODE_ENV=development`에서만 설정·적용된다(production에서는 저장 API가 무시하고 관리 UI에도 노출되지 않음 — 서버가 내려주는 `mailDevRedirectEditable` 플래그로 판단). 인증 토큰은 `EmailVerificationToken`에 sha256 해시로 저장된다(`oauth/authorize/email-verification.service.ts`).
 
@@ -99,6 +103,7 @@ bun run start:dev          # port 3001, Swagger at /docs
 **라우트 구조**:
 - `/login` — 엔드유저 OAuth 로그인 폼 (`OAuthLoginView.vue`)
 - `/admin/login`, `/admin/bootstrap` — 관리자 인증
+- `/admin/select-tenant` — 여러 테넌트를 배정받은 관리자의 테넌트 선택
 - `/admin/tenants/*` — Platform Admin 전용 (테넌트 관리)
 - `/admin/admins/*` — Platform Admin 전용 (관리자 계정 관리)
 - `/admin/tenants/:tenantId/clients/*` — 클라이언트 관리
@@ -107,6 +112,8 @@ bun run start:dev          # port 3001, Swagger at /docs
 - `/admin/tenants/:tenantId/audit` — 감사 로그
 
 **API 클라이언트**: `src/api/` 폴더의 각 모듈별 파일. 공통 axios 인스턴스(`src/api/http.ts`)에 401 인터셉터(→ `/admin/login`)가 달려 있음. **OAuth 엔드포인트 호출 시 별도 `axios.create()` 인스턴스를 사용해야 함** (401이 관리자 로그아웃을 트리거하지 않도록).
+
+**조회 실패 표시**: 목록·대시보드는 `catch`에서 `utils/api-error.ts`의 `toApiErrorMessage()`로 문구를 얻어 `components/shared/ErrorState.vue`로 보여준다. 문구와 모양이 화면마다 갈라지지 않게 한 곳에 모았다. 401은 인터셉터가 처리하므로 매핑하지 않고, 403은 재시도해도 결과가 같아 재시도 버튼을 감춘다.
 
 **프로필 폼**: `UserCreateView.vue`에서 활성 스키마를 조회하여 field type(string/number/boolean/enum)에 따라 동적 폼 렌더링.
 
@@ -124,7 +131,11 @@ Refresh token은 rotation + family 추적 방식. 재사용 감지 시 동일 fa
 
 TypeORM DataSource 설정: `apps/api/src/database/data-source.ts`. 엔티티: `apps/api/src/database/entities/`. 마이그레이션: `apps/api/src/database/migrations/`.
 
-환경변수: `.env` 파일 (DB 접속 정보, JWT_SECRET, JWT_ISSUER, API_PREFIX, LOGIN_PAGE_URL 등).
+환경변수: `.env` 파일 (DATABASE_URL, JWT_SECRET, JWT_ISSUER, API_PREFIX, LOGIN_PAGE_URL 등).
+
+> **DB 접속**: `DATABASE_URL` 하나로 지정한다(`postgresql://user:password@host:port/dbname`). 비밀번호의 `@`·`:`·`/` 는 퍼센트 인코딩하고, TLS 가 필요하면 `?sslmode=require`(검증까지 원하면 `verify-full`)를 덧붙인다. 해석은 `database/database-url.ts`의 `resolveDatabaseConnection()`으로 단일화되어 런타임(`DatabaseModule`)과 마이그레이션 CLI(`data-source.ts`)가 같은 결과를 쓴다. **형식이 잘못되면 기동 시점에 오류로 실패한다** — 조용히 localhost 로 떨어져 엉뚱한 DB 에 붙지 않게 하기 위해서다. 개별 `DB_HOST`/`DB_PORT`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME` 은 폐기 예정 폴백으로만 남아 있다(쓰면 경고 로그).
+
+> **엔티티 등록**: DataSource 에 올릴 엔티티는 `database/entities/index.ts`의 `ALL_ENTITIES` 한 곳에만 정의한다. 런타임과 CLI 가 목록을 각각 들고 있던 탓에 `AdminUserTenant` 가 런타임에서만 누락돼 `No metadata for ... was found` 로 실패한 전례가 있다(2026-09-23). 엔티티를 새로 만들면 export 와 함께 이 배열에도 추가한다.
 
 > **issuer 규칙**: `JWT_ISSUER`는 외부에서 보이는 전체 base URL이며 `API_PREFIX`가 설정된 경우 그 prefix까지 포함해야 한다(예: `https://auth.example.com/api`). issuer 계산은 `common/tenant/issuer.util.ts`의 `resolveTenantIssuer()`로 단일화되어 있어 discovery 문서의 `issuer`/엔드포인트 URL과 access token의 `iss` 클레임이 항상 일치한다. 테넌트별 `issuer` 컬럼이 설정되면 그 값을 그대로 사용하고, 없으면 `{JWT_ISSUER}/t/{slug}`로 폴백한다.
 

@@ -1,6 +1,6 @@
 {
   "name": "authori",
-  "version": "1.3.14",
+  "version": "1.4.0",
   "private": true,
   "description": "멀티테넌트 OAuth2 인증 서비스 (Turborepo 모노레포)",
   "license": "UNLICENSED",
@@ -20,10 +20,11 @@
     "dev:web": "turbo run dev --filter=@authori/web",
     "build:api": "turbo run build --filter=@authori/api",
     "build:web": "turbo run build --filter=@authori/web",
-    "migration:show": "turbo run migration:show --filter=@authori/api",
+    "migration:generate": "turbo run migration:generate --filter=@authori/api",
+    "migration:show:local": "turbo run migration:show:local --filter=@authori/api",
     "migration:show:dev": "turbo run migration:show:dev --filter=@authori/api",
     "migration:show:prd": "turbo run migration:show:prd --filter=@authori/api",
-    "migration:run": "turbo run migration:run --filter=@authori/api",
+    "migration:run:local": "turbo run migration:run:local --filter=@authori/api",
     "migration:run:dev": "turbo run migration:run:dev --filter=@authori/api",
     "migration:run:prd": "turbo run migration:run:prd --filter=@authori/api"
   },

@@ -1,4 +1,5 @@
 import { registerAs } from '@nestjs/config';
+import { resolveDatabaseConnection } from '../../database/database-url';
 
 function parseCorsOrigins(raw: string): string[] {
   return raw
@@ -72,11 +73,8 @@ export const appConfig = registerAs('app', () => ({
 }));
 
 export const dbConfig = registerAs('db', () => ({
-  host: process.env.DB_HOST ?? 'localhost',
-  port: parseInt(process.env.DB_PORT ?? '5432', 10),
-  username: process.env.DB_USERNAME ?? 'authori',
-  password: process.env.DB_PASSWORD ?? '',
-  name: process.env.DB_NAME ?? 'authori_db',
+  // 접속 정보는 DATABASE_URL 하나로 지정한다. 해석은 마이그레이션 CLI 와 공유한다.
+  ...resolveDatabaseConnection(),
   /** 쿼리 로깅 여부. 미설정 시 개발환경에서만 켜진다. DB_LOGGING=false 로 강제로 끌 수 있다 */
   logging:
     process.env.DB_LOGGING !== undefined
