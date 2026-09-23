@@ -29,16 +29,17 @@
 | `.env.example` | `DB_*` 5줄 → `DATABASE_URL` |
 | `docker-compose.yml` | api 서비스 환경변수 교체 |
 | `README.md` | 환경변수 설명 갱신 |
+| `CLAUDE.md` | DB 접속·엔티티 등록 규약 반영 |
 
 변경 없음: DB 스키마, 마이그레이션, 도메인 로직, `docs/guide/new-service-reference.md`(제외 범위).
 
 ## 작업 단계
 
-- [ ] 1. `database-url.ts` 작성 + 테스트 (FR-1~9, NFR-1)
-- [ ] 2. `ALL_ENTITIES` 단일화 — `AdminUserTenant` 누락 해소 (FR-11)
-- [ ] 3. `app.config.ts`·`database.module.ts`·`data-source.ts` 를 해석 함수에 연결 (FR-7)
-- [ ] 4. `.env.example`·`docker-compose.yml`·`README.md` 갱신 (NFR-2, NFR-5)
-- [ ] 5. 4단계 검증 명령 전체 실행 및 통과
+- [x] 1. `database-url.ts` 작성 + 테스트 (FR-1~9, NFR-1)
+- [x] 2. `ALL_ENTITIES` 단일화 — `AdminUserTenant` 누락 해소 (FR-11)
+- [x] 3. `app.config.ts`·`database.module.ts`·`data-source.ts` 를 해석 함수에 연결 (FR-7)
+- [x] 4. `.env.example`·`docker-compose.yml`·`README.md` 갱신 (NFR-2, NFR-5)
+- [x] 5. 4단계 검증 명령 전체 실행 및 통과
 
 1 을 먼저 하는 이유: 3 이 이 함수에 의존한다. 2 는 독립적이지만 같은 파일(`database.module.ts`, `data-source.ts`)을 건드리므로 3 보다 앞에 둔다.
 

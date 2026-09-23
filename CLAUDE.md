@@ -131,7 +131,11 @@ Refresh token은 rotation + family 추적 방식. 재사용 감지 시 동일 fa
 
 TypeORM DataSource 설정: `apps/api/src/database/data-source.ts`. 엔티티: `apps/api/src/database/entities/`. 마이그레이션: `apps/api/src/database/migrations/`.
 
-환경변수: `.env` 파일 (DB 접속 정보, JWT_SECRET, JWT_ISSUER, API_PREFIX, LOGIN_PAGE_URL 등).
+환경변수: `.env` 파일 (DATABASE_URL, JWT_SECRET, JWT_ISSUER, API_PREFIX, LOGIN_PAGE_URL 등).
+
+> **DB 접속**: `DATABASE_URL` 하나로 지정한다(`postgresql://user:password@host:port/dbname`). 비밀번호의 `@`·`:`·`/` 는 퍼센트 인코딩하고, TLS 가 필요하면 `?sslmode=require`(검증까지 원하면 `verify-full`)를 덧붙인다. 해석은 `database/database-url.ts`의 `resolveDatabaseConnection()`으로 단일화되어 런타임(`DatabaseModule`)과 마이그레이션 CLI(`data-source.ts`)가 같은 결과를 쓴다. **형식이 잘못되면 기동 시점에 오류로 실패한다** — 조용히 localhost 로 떨어져 엉뚱한 DB 에 붙지 않게 하기 위해서다. 개별 `DB_HOST`/`DB_PORT`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME` 은 폐기 예정 폴백으로만 남아 있다(쓰면 경고 로그).
+
+> **엔티티 등록**: DataSource 에 올릴 엔티티는 `database/entities/index.ts`의 `ALL_ENTITIES` 한 곳에만 정의한다. 런타임과 CLI 가 목록을 각각 들고 있던 탓에 `AdminUserTenant` 가 런타임에서만 누락돼 `No metadata for ... was found` 로 실패한 전례가 있다(2026-09-23). 엔티티를 새로 만들면 export 와 함께 이 배열에도 추가한다.
 
 > **issuer 규칙**: `JWT_ISSUER`는 외부에서 보이는 전체 base URL이며 `API_PREFIX`가 설정된 경우 그 prefix까지 포함해야 한다(예: `https://auth.example.com/api`). issuer 계산은 `common/tenant/issuer.util.ts`의 `resolveTenantIssuer()`로 단일화되어 있어 discovery 문서의 `issuer`/엔드포인트 URL과 access token의 `iss` 클레임이 항상 일치한다. 테넌트별 `issuer` 컬럼이 설정되면 그 값을 그대로 사용하고, 없으면 `{JWT_ISSUER}/t/{slug}`로 폴백한다.
 
