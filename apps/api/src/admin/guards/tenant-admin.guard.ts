@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminJwtGuard } from './admin-jwt.guard';
 import { AdminRole } from '../../database/entities';
@@ -23,6 +23,6 @@ export class TenantAdminGuard implements CanActivate {
       if (admin.tenantId && admin.tenantId === paramTenantId) return true;
     }
 
-    throw new UnauthorizedException('Tenant admin access required for this tenant');
+    throw new ForbiddenException('Tenant admin access required for this tenant');
   }
 }
