@@ -212,7 +212,12 @@ Refresh token은 rotation + family 추적 방식이며, 재사용 감지 시 동
 
 - `PORT`
 - `NODE_ENV`
-- `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`
+- `DATABASE_URL` — DB 접속 정보. 형식: `postgresql://user:password@host:port/dbname`
+  - 비밀번호에 `@` `:` `/` 가 들어가면 퍼센트 인코딩합니다 (`@` → `%40`).
+  - 포트를 생략하면 5432 로 봅니다.
+  - TLS 가 필요하면 `?sslmode=require` 를 덧붙입니다. `verify-full` 은 인증서까지 검증합니다.
+  - 형식이 잘못되면 기동 시점에 오류로 실패합니다(조용히 localhost 로 접속하지 않습니다).
+  - 기존 `DB_HOST`/`DB_PORT`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME` 도 당분간 동작하지만 **폐기 예정**입니다.
 - `JWT_ISSUER`
 - `JWT_ACCESS_TOKEN_EXPIRY`
 - `JWT_REFRESH_TOKEN_EXPIRY`

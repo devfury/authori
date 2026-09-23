@@ -24,11 +24,7 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: development
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USERNAME: authori
-      DB_PASSWORD: authori_password
-      DB_NAME: authori_db
+      DATABASE_URL: postgresql://authori:authori_password@postgres:5432/authori_db
     depends_on:
       postgres:
         condition: service_healthy
