@@ -29,10 +29,10 @@ TENANT_ADMIN 로그인 직후 레이아웃의 `GET /admin/tenants/:id` 가 401 �
 
 - [x] 1. 가드 2종의 권한 부족 예외를 `ForbiddenException` 으로 변경 (FR-7)
 - [x] 2. 가드 단위 테스트 작성 — 역할별 통과/거부, 테넌트 경계, 인증 실패 401 전파 (FR-6, FR-7)
-- [ ] 3. `tenants.controller.ts` 클래스 레벨 가드 제거 후 메서드별 가드 부여 (FR-1·2·4·5)
-- [ ] 4. 경로 파라미터 `:id` → `:tenantId` 통일 (가드의 테넌트 경계 검사 기준)
-- [ ] 5. `update()` 에 TENANT_ADMIN 금지 필드(`status`, `issuer`) 검사 추가 (FR-3)
-- [ ] 6. 컨트롤러 단위 테스트 작성 — 역할별 수정 필드 허용/거부, `mailDevRedirectEditable` 회귀 (FR-3)
+- [x] 3. `tenants.controller.ts` 클래스 레벨 가드 제거 후 메서드별 가드 부여 (FR-1·2·4·5)
+- [x] 4. 경로 파라미터 `:id` → `:tenantId` 통일 (가드의 테넌트 경계 검사 기준)
+- [x] 5. `update()` 에 TENANT_ADMIN 금지 필드(`status`, `issuer`) 검사 추가 (FR-3)
+- [x] 6. 컨트롤러 단위 테스트 작성 — 역할별 수정 필드 허용/거부, `mailDevRedirectEditable` 회귀 (FR-3)
 - [ ] 7. 4단계 검증 명령 전체 실행 및 통과
 
 ## 검증 명령과 기대 결과

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -19,11 +20,20 @@ import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { PlatformAdminGuard } from '../admin/guards/platform-admin.guard';
-import { TenantStatus } from '../database/entities';
+import { TenantAdminGuard } from '../admin/guards/tenant-admin.guard';
+import type { AdminJwtPayload } from '../admin/auth/admin-auth.service';
+import { AdminRole, TenantStatus } from '../database/entities';
 
+/**
+ * 테넌트 관리자도 자기 테넌트는 조회·설정할 수 있어야 하므로 가드를 클래스가 아니라
+ * 메서드마다 건다. NestJS 에서 메서드 레벨 가드는 클래스 레벨 가드를 대체하지 않고
+ * 함께 실행되므로, 일부 엔드포인트만 완화하려면 클래스 레벨 가드를 두면 안 된다.
+ *
+ * 경로 파라미터는 `:tenantId` 로 통일한다. TenantAdminGuard 가 테넌트 경계를 이 이름으로
+ * 검사하며, 다른 테넌트 범위 컨트롤러도 모두 같은 규약을 쓴다.
+ */
 @ApiTags('Admin / Tenants')
 @ApiBearerAuth()
-@UseGuards(PlatformAdminGuard)
 @Controller('admin/tenants')
 export class TenantsController {
   constructor(
@@ -32,6 +42,7 @@ export class TenantsController {
   ) {}
 
   @Post()
+  @UseGuards(PlatformAdminGuard)
   @ApiOperation({ summary: '테넌트 생성' })
   create(@Body() dto: CreateTenantDto, @Req() req: Request) {
     return this.tenantsService.create(dto, {
@@ -44,6 +55,7 @@ export class TenantsController {
   }
 
   @Get()
+  @UseGuards(PlatformAdminGuard)
   @ApiOperation({ summary: '테넌트 목록 조회' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: '페이지 번호' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: '페이지당 건수' })
@@ -75,26 +87,54 @@ export class TenantsController {
     };
   }
 
-  @Get(':id')
+  /**
+   * status(테넌트 활성/비활성 생명주기)와 issuer(토큰 발급자 = 신뢰 경계)는 플랫폼 관리자
+   * 고유 권한이다. 테넌트 관리자가 자기 테넌트를 강제 활성화하거나 발급자를 바꾸지 못하게 막는다.
+   * PATCH 는 부분 수정이므로 실제로 전달된 키(undefined 가 아닌 키)만 위반으로 본다.
+   */
+  private assertUpdatableBy(admin: AdminJwtPayload | undefined, dto: UpdateTenantDto): void {
+    if (admin?.role === AdminRole.PLATFORM_ADMIN) return;
+
+    const forbidden = (['status', 'issuer'] as const).filter((key) => dto[key] !== undefined);
+    if (forbidden.length > 0) {
+      throw new ForbiddenException(
+        `Tenant admin cannot modify: ${forbidden.join(', ')}`,
+      );
+    }
+  }
+
+  @Get(':tenantId')
+  @UseGuards(TenantAdminGuard)
   @ApiOperation({ summary: '테넌트 단건 조회' })
-  async findOne(@Param('id') id: string) {
-    return this.withEnvFlags(await this.tenantsService.findOne(id));
+  async findOne(@Param('tenantId') tenantId: string) {
+    return this.withEnvFlags(await this.tenantsService.findOne(tenantId));
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: '테넌트 수정' })
-  async update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
-    return this.withEnvFlags(await this.tenantsService.update(id, dto));
+  @Patch(':tenantId')
+  @UseGuards(TenantAdminGuard)
+  @ApiOperation({
+    summary: '테넌트 수정',
+    description:
+      '테넌트 관리자는 자기 테넌트의 name·settings 만 수정할 수 있다. status·issuer 는 플랫폼 관리자 전용.',
+  })
+  async update(
+    @Param('tenantId') tenantId: string,
+    @Body() dto: UpdateTenantDto,
+    @Req() req: Request,
+  ) {
+    this.assertUpdatableBy(req.admin, dto);
+    return this.withEnvFlags(await this.tenantsService.update(tenantId, dto));
   }
 
-  @Post(':id/notify-test')
+  @Post(':tenantId/notify-test')
+  @UseGuards(TenantAdminGuard)
   @ApiOperation({
     summary: 'ezAria 알림 테스트 발송',
     description:
       '테넌트에 설정된 ezAria 채팅방으로 테스트 메시지를 보낸다. 설정 미비·발송 실패는 reason과 함께 sent=false로 반환한다.',
   })
-  notifyTest(@Param('id') id: string, @Req() req: Request) {
-    return this.tenantsService.sendNotifyTest(id, {
+  notifyTest(@Param('tenantId') tenantId: string, @Req() req: Request) {
+    return this.tenantsService.sendNotifyTest(tenantId, {
       actorId: req.admin?.sub ?? null,
       actorType: req.admin ? 'admin' : null,
       ipAddress: req.ip ?? null,
@@ -103,11 +143,12 @@ export class TenantsController {
     });
   }
 
-  @Delete(':id')
+  @Delete(':tenantId')
+  @UseGuards(PlatformAdminGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '테넌트 영구 삭제' })
-  deletePermanently(@Param('id') id: string, @Req() req: Request) {
-    return this.tenantsService.deletePermanently(id, {
+  deletePermanently(@Param('tenantId') tenantId: string, @Req() req: Request) {
+    return this.tenantsService.deletePermanently(tenantId, {
       actorId: req.admin?.sub ?? null,
       actorType: req.admin ? 'admin' : null,
       ipAddress: req.ip ?? null,
