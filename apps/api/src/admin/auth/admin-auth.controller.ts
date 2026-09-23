@@ -9,16 +9,19 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { AdminJwtGuard } from '../guards/admin-jwt.guard';
 import { AdminRole, AdminStatus } from '../../database/entities';
 
 @ApiTags('Admin / Auth')
@@ -50,6 +53,17 @@ export class AdminAuthController {
   @ApiOperation({ summary: '관리자 로그인' })
   login(@Body() dto: AdminLoginDto) {
     return this.adminAuthService.login(dto);
+  }
+
+  @Get('me')
+  @UseGuards(AdminJwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: '현재 관리자 정보 조회',
+    description: '접근 가능한 테넌트 목록을 포함한다. 배정은 토큰이 아니라 DB가 단일 진실이다.',
+  })
+  me(@Req() req: Request) {
+    return this.adminAuthService.me(req.admin!.sub);
   }
 
   @Post('admins')

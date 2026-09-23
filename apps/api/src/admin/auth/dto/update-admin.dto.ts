@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { ArrayUnique, IsArray, IsEmail, IsEnum, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 import { AdminRole, AdminStatus } from '../../../database/entities';
 
 export class UpdateAdminDto {
@@ -24,10 +24,16 @@ export class UpdateAdminDto {
   @IsEnum(AdminRole)
   role?: AdminRole;
 
-  @ApiPropertyOptional({ description: 'TENANT_ADMIN 역할일 때 필수' })
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      '배정 테넌트 전체 교체. 생략하면 기존 배정을 유지한다. TENANT_ADMIN 은 빈 배열을 허용하지 않는다.',
+  })
   @IsOptional()
-  @IsUUID()
-  tenantId?: string;
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  tenantIds?: string[];
 
   @ApiPropertyOptional({ enum: AdminStatus })
   @IsOptional()

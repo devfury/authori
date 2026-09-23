@@ -35,10 +35,6 @@ export class AdminUser {
   @Column({ type: 'enum', enum: AdminRole })
   role: AdminRole;
 
-  /** TENANT_ADMIN인 경우 접근 가능한 테넌트 ID */
-  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
-  tenantId: string | null;
-
   @Column({ type: 'enum', enum: AdminStatus, default: AdminStatus.ACTIVE })
   status: AdminStatus;
 

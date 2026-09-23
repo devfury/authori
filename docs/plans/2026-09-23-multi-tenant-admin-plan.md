@@ -62,11 +62,11 @@
 
 ## 작업 단계
 
-- [ ] 1. `AdminUserTenant` 엔티티 + 마이그레이션 (이관 → 컬럼 제거 순서 준수) (FR-1~5)
-- [ ] 2. `AdminTenantAccessService` + 테스트 (FR-6)
-- [ ] 3. `TenantAdminGuard` 소속 조회로 전환 + 가드 테스트 갱신 (FR-6~9)
-- [ ] 4. JWT 페이로드에서 `tenantId` 제거, 로그인 응답에 `tenants` 추가, `GET /admin/auth/me` 신설 (FR-10, FR-17)
-- [ ] 5. 관리자 생성·수정의 `tenantIds` 처리와 검증 + 서비스 테스트 (FR-11~16)
+- [x] 1. `AdminUserTenant` 엔티티 + 마이그레이션 (이관 → 컬럼 제거 순서 준수) (FR-1~5)
+- [x] 2. `AdminTenantAccessService` + 테스트 (FR-6)
+- [x] 3. `TenantAdminGuard` 소속 조회로 전환 + 가드 테스트 갱신 (FR-6~9)
+- [x] 4. JWT 페이로드에서 `tenantId` 제거, 로그인 응답에 `tenants` 추가, `GET /admin/auth/me` 신설 (FR-10, FR-17)
+- [x] 5. 관리자 생성·수정의 `tenantIds` 처리와 검증 + 서비스 테스트 (FR-11~16)
 - [ ] 6. 프런트 auth store — `tenants` 캐시와 로그인 후 이동 분기 + 테스트 (FR-18·19·23)
 - [ ] 7. 라우터 가드 포함 검사 + `/admin/select-tenant` 라우트·화면 (FR-19, FR-22)
 - [ ] 8. `TenantSwitcher` 컴포넌트 + 사이드바 연결 + 테스트 (FR-20·21)

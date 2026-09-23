@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { AdminUser } from '../../database/entities';
+import { AdminUser, AdminUserTenant, Tenant } from '../../database/entities';
 import { AdminAuthService } from './admin-auth.service';
+import { AdminTenantAccessService } from './admin-tenant-access.service';
 import { AdminAuthController } from './admin-auth.controller';
 import { AdminJwtGuard } from '../guards/admin-jwt.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
@@ -11,7 +12,7 @@ import { TenantAdminGuard } from '../guards/tenant-admin.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AdminUser]),
+    TypeOrmModule.forFeature([AdminUser, AdminUserTenant, Tenant]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -23,7 +24,19 @@ import { TenantAdminGuard } from '../guards/tenant-admin.guard';
     }),
   ],
   controllers: [AdminAuthController],
-  providers: [AdminAuthService, AdminJwtGuard, PlatformAdminGuard, TenantAdminGuard],
-  exports: [AdminAuthService, AdminJwtGuard, PlatformAdminGuard, TenantAdminGuard],
+  providers: [
+    AdminAuthService,
+    AdminTenantAccessService,
+    AdminJwtGuard,
+    PlatformAdminGuard,
+    TenantAdminGuard,
+  ],
+  exports: [
+    AdminAuthService,
+    AdminTenantAccessService,
+    AdminJwtGuard,
+    PlatformAdminGuard,
+    TenantAdminGuard,
+  ],
 })
 export class AdminAuthModule {}
