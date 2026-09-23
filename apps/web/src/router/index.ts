@@ -61,6 +61,12 @@ const router = createRouter({
       component: () => import('@/views/auth/BootstrapView.vue'),
       meta: { layout: 'auth', public: true },
     },
+    {
+      path: '/admin/select-tenant',
+      name: 'tenant-select',
+      component: () => import('@/views/auth/TenantSelectView.vue'),
+      meta: { layout: 'auth', requiresAuth: true },
+    },
     // ── Platform Admin ────────────────────────────────
     {
       path: '/admin',
@@ -242,7 +248,7 @@ router.beforeEach((to, _from, next) => {
   // 하며, 여기서는 권한 없음을 알리고 실패할 것이 뻔한 요청을 막는 역할만 한다.
   const targetTenantId = to.params.tenantId
   if (typeof targetTenantId === 'string' && !auth.isPlatformAdmin) {
-    if (auth.tenantId !== targetTenantId) return next({ name: 'forbidden' })
+    if (!auth.tenantIds.includes(targetTenantId)) return next({ name: 'forbidden' })
   }
 
   next()

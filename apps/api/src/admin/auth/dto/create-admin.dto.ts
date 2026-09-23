@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MinLength,
+} from 'class-validator';
 import { AdminRole } from '../../../database/entities';
 
 export class CreateAdminDto {
@@ -21,8 +30,14 @@ export class CreateAdminDto {
   @IsEnum(AdminRole)
   role: AdminRole;
 
-  @ApiPropertyOptional({ description: 'TENANT_ADMIN 역할일 때 필수' })
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'TENANT_ADMIN 역할일 때 최소 1개 필수. PLATFORM_ADMIN 은 모든 테넌트에 접근하므로 무시된다.',
+  })
   @IsOptional()
-  @IsUUID()
-  tenantId?: string;
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  tenantIds?: string[];
 }

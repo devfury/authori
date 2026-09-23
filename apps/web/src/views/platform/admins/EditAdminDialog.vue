@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { adminsApi, type AdminUser } from '@/api/admins'
 import { tenantsApi, type Tenant } from '@/api/tenants'
+import TenantMultiSelect from '@/components/shared/TenantMultiSelect.vue'
 import { AdminRole, TenantStatus } from '@/api/enums'
 
 const props = defineProps<{
@@ -19,7 +20,7 @@ const name = ref('')
 const password = ref('')
 const passwordConfirm = ref('')
 const role = ref<AdminRole>(AdminRole.TENANT_ADMIN)
-const tenantId = ref('')
+const tenantIds = ref<string[]>([])
 const tenants = ref<Tenant[]>([])
 const error = ref('')
 const loading = ref(false)
@@ -33,7 +34,7 @@ watch(
       password.value = ''
       passwordConfirm.value = ''
       role.value = props.admin.role
-      tenantId.value = props.admin.tenantId || ''
+      tenantIds.value = props.admin.tenants.map((t) => t.id)
       error.value = ''
 
       if (tenants.value.length === 0) {
@@ -51,6 +52,10 @@ async function submit() {
     error.value = '비밀번호가 일치하지 않습니다.'
     return
   }
+  if (role.value === AdminRole.TENANT_ADMIN && tenantIds.value.length === 0) {
+    error.value = '테넌트를 최소 1개 선택하세요.'
+    return
+  }
   loading.value = true
   try {
     await adminsApi.update(props.admin.id, {
@@ -58,7 +63,7 @@ async function submit() {
       name: name.value || undefined,
       password: password.value || undefined,
       role: role.value,
-      tenantId: role.value === AdminRole.TENANT_ADMIN ? tenantId.value : undefined,
+      tenantIds: role.value === AdminRole.TENANT_ADMIN ? tenantIds.value : undefined,
     })
     emit('updated')
     emit('close')
@@ -147,16 +152,7 @@ async function submit() {
         </div>
         <div v-if="role === AdminRole.TENANT_ADMIN">
           <label class="block text-sm font-medium text-gray-700 mb-1">테넌트</label>
-          <select
-            v-model="tenantId"
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-          >
-            <option value="" disabled>테넌트 선택</option>
-            <option v-for="t in tenants" :key="t.id" :value="t.id">
-              {{ t.name }} ({{ t.slug }})
-            </option>
-          </select>
+          <TenantMultiSelect v-model="tenantIds" :tenants="tenants" />
         </div>
 
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>

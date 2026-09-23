@@ -4,6 +4,7 @@ import { config } from 'dotenv';
 import {
   AccessToken,
   AdminUser,
+  AdminUserTenant,
   AuditLog,
   AuthorizationCode,
   Consent,
@@ -61,6 +62,7 @@ export const AppDataSource = new DataSource({
     SigningKey,
     AuditLog,
     AdminUser,
+    AdminUserTenant,
     ExternalAuthProvider,
     PendingOAuthRequest,
     EmailVerificationToken,
