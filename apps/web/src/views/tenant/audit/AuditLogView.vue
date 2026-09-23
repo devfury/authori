@@ -7,6 +7,8 @@ import { auditApi, type AuditLog } from '@/api/audit'
 import { clientsApi, type OAuthClient } from '@/api/clients'
 import { usersApi, type User } from '@/api/users'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +16,7 @@ const tenantId = route.params.tenantId as string
 
 const logs = ref<AuditLog[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const adminMap = ref<Record<string, AdminUser>>({})
 const userMap = ref<Record<string, User>>({})
 const clientMap = ref<Record<string, OAuthClient>>({})
@@ -114,6 +117,7 @@ function indexById<T>(items: T[], getId: (item: T) => string): Record<string, T>
 
 async function loadPage() {
   loading.value = true
+  loadError.value = ''
   try {
     const logsResult = await auditApi.findAll(tenantId, {
       page: currentPage.value,
@@ -126,6 +130,8 @@ async function loadPage() {
     })
     logs.value = logsResult.data?.items || []
     total.value = logsResult.data?.total || 0
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -379,6 +385,12 @@ onMounted(async () => {
 
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading && logs.length === 0" class="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+      <ErrorState
+        v-else-if="loadError"
+        :message="loadError"
+        :retryable="isRetryable(loadError)"
+        @retry="loadPage"
+      />
       <div v-else-if="logs.length === 0" class="p-8 text-center text-sm text-gray-400">
         기록이 없습니다.
       </div>

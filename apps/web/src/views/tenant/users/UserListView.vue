@@ -5,6 +5,8 @@ import { Plus, Search, RefreshCw } from 'lucide-vue-next'
 import { usersApi, type User } from '@/api/users'
 import { UserStatus } from '@/api/enums'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import HoldUsersDialog from './HoldUsersDialog.vue'
@@ -18,6 +20,7 @@ const PENDING_FILTER = 'PENDING'
 
 const users = ref<User[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const deactivateTarget = ref<User | null>(null)
 
 // 멀티선택 일괄 승인/보류
@@ -110,6 +113,7 @@ const visiblePages = computed(() => {
 
 async function loadPage() {
   loading.value = true
+  loadError.value = ''
   // 목록이 바뀌면 화면에 없는 행이 선택으로 남지 않도록 선택을 비운다.
   selected.value = new Set()
   try {
@@ -123,6 +127,8 @@ async function loadPage() {
     })
     users.value = data?.items || []
     total.value = data?.total || 0
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -291,6 +297,12 @@ onMounted(() => {
 
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading && users.length === 0" class="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+      <ErrorState
+        v-else-if="loadError"
+        :message="loadError"
+        :retryable="isRetryable(loadError)"
+        @retry="loadPage"
+      />
       <div v-else-if="users.length === 0" class="p-8 text-center text-sm text-gray-400">
         등록된 사용자가 없습니다.
       </div>

@@ -27,15 +27,15 @@
 |---|---|
 | `apps/web/src/router/index.ts` | `beforeEach` 에 테넌트 경계 검사 추가 |
 | `apps/web/src/views/ForbiddenView.vue` | 역할별 복귀 경로·문구 |
-| `apps/web/src/views/tenant/DashboardView.vue` | 오류 상태 |
+| `apps/web/src/views/tenant/DashboardView.vue` | 오류 상태 + `load()` 추출 (재시도용) |
 | `apps/web/src/views/tenant/clients/ClientListView.vue` | 오류 상태 |
 | `apps/web/src/views/tenant/users/UserListView.vue` | 오류 상태 |
 | `apps/web/src/views/tenant/rbac/RoleListView.vue` | 오류 상태 |
 | `apps/web/src/views/tenant/rbac/PermissionListView.vue` | 오류 상태 |
 | `apps/web/src/views/tenant/scopes/ScopeListView.vue` | 오류 상태 |
-| `apps/web/src/views/tenant/schemas/SchemaListView.vue` | 오류 상태 |
-| `apps/web/src/views/tenant/audit/AuditLogView.vue` | 오류 상태 |
-| `apps/web/src/views/tenant/external-auth/ExternalAuthListView.vue` | 오류 상태 |
+| `apps/web/src/views/tenant/schemas/SchemaListView.vue` | 오류 상태 + `load()` 추출 (주 데이터 `schemas` 실패만 표면화, 플랫폼 전용 `adminsApi` 실패는 관용) |
+| `apps/web/src/views/tenant/audit/AuditLogView.vue` | 오류 상태 (`loadPage` 만. `onMounted` 의 보조 로딩은 이미 `Promise.allSettled` 로 관용 처리) |
+| `apps/web/src/views/tenant/external-auth/ExternalAuthListView.vue` | 오류 상태 + `try/finally` 신규 (기존에 `try` 자체가 없어 실패 시 로딩이 영구 고착) |
 
 변경 없음: 백엔드 전체, DB 스키마, `http.ts` 인터셉터.
 
@@ -45,8 +45,8 @@
 - [x] 2. `components/shared/ErrorState.vue` 작성 + 테스트 (FR-5, FR-7)
 - [x] 3. 라우터 가드에 테넌트 경계 검사 추가 + 테스트 (FR-1, FR-2, FR-3)
 - [x] 4. `ForbiddenView` 역할별 복귀 경로·문구 (FR-4)
-- [ ] 5. 목록 화면 9곳에 오류 상태 적용 (FR-5)
-- [ ] 6. 4단계 검증 명령 전체 실행 및 통과
+- [x] 5. 목록 화면 9곳에 오류 상태 적용 (FR-5)
+- [x] 6. 4단계 검증 명령 전체 실행 및 통과
 
 1·2 를 먼저 하는 이유: 3·4·5 가 모두 이 두 조각에 의존한다.
 
