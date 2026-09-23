@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminJwtGuard } from './admin-jwt.guard';
 import { AdminRole } from '../../database/entities';
@@ -11,7 +11,7 @@ export class PlatformAdminGuard implements CanActivate {
     await this.jwtGuard.canActivate(context);
     const request = context.switchToHttp().getRequest<Request>();
     if (request.admin?.role !== AdminRole.PLATFORM_ADMIN) {
-      throw new UnauthorizedException('Platform admin access required');
+      throw new ForbiddenException('Platform admin access required');
     }
     return true;
   }
