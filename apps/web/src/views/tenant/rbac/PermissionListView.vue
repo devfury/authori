@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import { Plus, RefreshCw, Pencil, Trash2, Key } from 'lucide-vue-next'
 import { rbacApi, type Permission } from '@/api/rbac'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import PermissionFormDialog from './PermissionFormDialog.vue'
 
@@ -12,15 +14,19 @@ const tenantId = route.params.tenantId as string
 
 const permissions = ref<Permission[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const showForm = ref(false)
 const selectedPermission = ref<Permission | null>(null)
 const deleteTarget = ref<Permission | null>(null)
 
 async function loadPermissions() {
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await rbacApi.findPermissions(tenantId)
     permissions.value = data || []
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -76,6 +82,12 @@ onMounted(loadPermissions)
 
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading && permissions.length === 0" class="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+      <ErrorState
+        v-else-if="loadError"
+        :message="loadError"
+        :retryable="isRetryable(loadError)"
+        @retry="loadPermissions"
+      />
       <div v-else-if="permissions.length === 0" class="p-8 text-center text-sm text-gray-400">
         등록된 권한이 없습니다.
       </div>

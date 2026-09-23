@@ -5,6 +5,8 @@ import { Plus, Search, RefreshCw } from 'lucide-vue-next'
 import { clientsApi, type OAuthClient } from '@/api/clients'
 import { ClientStatus } from '@/api/enums'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
@@ -14,6 +16,7 @@ const tenantId = route.params.tenantId as string
 
 const clients = ref<OAuthClient[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const deactivateTarget = ref<OAuthClient | null>(null)
 
 const currentPage = ref(1)
@@ -48,6 +51,7 @@ const visiblePages = computed(() => {
 
 async function loadPage() {
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await clientsApi.findAll(tenantId, {
       page: currentPage.value,
@@ -58,6 +62,8 @@ async function loadPage() {
 
     clients.value = data?.items || []
     total.value = data?.total || 0
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -177,6 +183,12 @@ onMounted(() => {
 
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading && clients.length === 0" class="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+      <ErrorState
+        v-else-if="loadError"
+        :message="loadError"
+        :retryable="isRetryable(loadError)"
+        @retry="loadPage"
+      />
       <div v-else-if="clients.length === 0" class="p-8 text-center text-sm text-gray-400">
         등록된 클라이언트가 없습니다.
       </div>

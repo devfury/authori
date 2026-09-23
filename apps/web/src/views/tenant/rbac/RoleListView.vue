@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import { Plus, RefreshCw, Pencil, Trash2, ShieldCheck, Key, CheckCircle2 } from 'lucide-vue-next'
 import { rbacApi, type Role } from '@/api/rbac'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ErrorState from '@/components/shared/ErrorState.vue'
+import { toApiErrorMessage, isRetryable } from '@/utils/api-error'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import RoleFormDialog from './RoleFormDialog.vue'
 import RolePermissionDialog from './RolePermissionDialog.vue'
@@ -13,6 +15,7 @@ const tenantId = route.params.tenantId as string
 
 const roles = ref<Role[]>([])
 const loading = ref(true)
+const loadError = ref('')
 const showForm = ref(false)
 const showPermissionDialog = ref(false)
 const selectedRole = ref<Role | null>(null)
@@ -20,9 +23,12 @@ const deleteTarget = ref<Role | null>(null)
 
 async function loadRoles() {
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await rbacApi.findRoles(tenantId)
     roles.value = data || []
+  } catch (e) {
+    loadError.value = toApiErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -83,6 +89,12 @@ onMounted(loadRoles)
 
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div v-if="loading && roles.length === 0" class="p-8 text-center text-sm text-gray-400">불러오는 중...</div>
+      <ErrorState
+        v-else-if="loadError"
+        :message="loadError"
+        :retryable="isRetryable(loadError)"
+        @retry="loadRoles"
+      />
       <div v-else-if="roles.length === 0" class="p-8 text-center text-sm text-gray-400">
         등록된 역할이 없습니다.
       </div>
