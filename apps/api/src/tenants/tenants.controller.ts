@@ -97,9 +97,7 @@ export class TenantsController {
 
     const forbidden = (['status', 'issuer'] as const).filter((key) => dto[key] !== undefined);
     if (forbidden.length > 0) {
-      throw new ForbiddenException(
-        `Tenant admin cannot modify: ${forbidden.join(', ')}`,
-      );
+      throw new ForbiddenException(`Tenant admin cannot modify: ${forbidden.join(', ')}`);
     }
   }
 

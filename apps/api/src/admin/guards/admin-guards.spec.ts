@@ -64,7 +64,9 @@ describe('TenantAdminGuard', () => {
   it('PLATFORM_ADMIN 은 테넌트와 무관하게 통과한다', async () => {
     const guard = new TenantAdminGuard(jwtGuardStub());
     await expect(
-      guard.canActivate(contextWith(payload(AdminRole.PLATFORM_ADMIN, null), { tenantId: TENANT_A })),
+      guard.canActivate(
+        contextWith(payload(AdminRole.PLATFORM_ADMIN, null), { tenantId: TENANT_A }),
+      ),
     ).resolves.toBe(true);
   });
 
