@@ -35,12 +35,16 @@ const failingJwtGuard = (message: string) =>
     },
   }) as unknown as AdminJwtGuard;
 
-/** 배정된 테넌트 집합을 흉내낸다. */
-function accessStub(assigned: string[]) {
+/**
+ * 배정된 테넌트 집합을 흉내낸다.
+ * 목 함수를 따로 돌려준다 — 서비스 객체에서 꺼내 단언하면 unbound-method 규칙에 걸린다.
+ */
+function accessStub(assigned: string[]): { access: AdminTenantAccessService; isMember: jest.Mock } {
   const set = new Set(assigned);
-  return {
-    isMember: jest.fn((_adminId: string, tenantId: string) => Promise.resolve(set.has(tenantId))),
-  } as unknown as AdminTenantAccessService;
+  const isMember = jest.fn((_adminId: string, tenantId: string) =>
+    Promise.resolve(set.has(tenantId)),
+  );
+  return { access: { isMember } as unknown as AdminTenantAccessService, isMember };
 }
 
 describe('PlatformAdminGuard', () => {
@@ -68,24 +72,24 @@ describe('PlatformAdminGuard', () => {
 
 describe('TenantAdminGuard', () => {
   it('PLATFORM_ADMIN 은 테넌트와 무관하게 통과하며 배정을 조회하지 않는다', async () => {
-    const access = accessStub([]);
+    const { access, isMember } = accessStub([]);
     const guard = new TenantAdminGuard(jwtGuardStub, access);
 
     await expect(
       guard.canActivate(contextWith(payload(AdminRole.PLATFORM_ADMIN), { tenantId: TENANT_A })),
     ).resolves.toBe(true);
-    expect(access.isMember).not.toHaveBeenCalled();
+    expect(isMember).not.toHaveBeenCalled();
   });
 
   it('TENANT_ADMIN 은 배정된 테넌트에 접근할 수 있다', async () => {
-    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A]));
+    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A]).access);
     await expect(
       guard.canActivate(contextWith(payload(AdminRole.TENANT_ADMIN), { tenantId: TENANT_A })),
     ).resolves.toBe(true);
   });
 
   it('여러 테넌트를 배정받으면 각각에 접근할 수 있다', async () => {
-    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A, TENANT_B]));
+    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A, TENANT_B]).access);
 
     await expect(
       guard.canActivate(contextWith(payload(AdminRole.TENANT_ADMIN), { tenantId: TENANT_A })),
@@ -96,7 +100,7 @@ describe('TenantAdminGuard', () => {
   });
 
   it('배정되지 않은 테넌트는 403 으로 거부된다', async () => {
-    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A]));
+    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A]).access);
     await expect(
       guard.canActivate(contextWith(payload(AdminRole.TENANT_ADMIN), { tenantId: TENANT_B })),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -118,14 +122,17 @@ describe('TenantAdminGuard', () => {
   });
 
   it('경로에 tenantId 파라미터가 없으면 TENANT_ADMIN 을 거부한다', async () => {
-    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A]));
+    const guard = new TenantAdminGuard(jwtGuardStub, accessStub([TENANT_A]).access);
     await expect(
       guard.canActivate(contextWith(payload(AdminRole.TENANT_ADMIN), {})),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('인증 실패는 401 그대로 전파한다', async () => {
-    const guard = new TenantAdminGuard(failingJwtGuard('Admin token required'), accessStub([]));
+    const guard = new TenantAdminGuard(
+      failingJwtGuard('Admin token required'),
+      accessStub([]).access,
+    );
     await expect(guard.canActivate(contextWith(undefined))).rejects.toBeInstanceOf(
       UnauthorizedException,
     );

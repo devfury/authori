@@ -8,13 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
-import {
-  AdminRole,
-  AdminStatus,
-  AdminUser,
-  Tenant,
-  TenantStatus,
-} from '../../database/entities';
+import { AdminRole, AdminStatus, AdminUser, Tenant, TenantStatus } from '../../database/entities';
 import { CryptoUtil } from '../../common/crypto/crypto.util';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
@@ -284,9 +278,7 @@ export class AdminAuthService {
     if (found.length !== unique.length) {
       const foundIds = new Set(found.map((t) => t.id));
       const invalid = unique.filter((id) => !foundIds.has(id));
-      throw new BadRequestException(
-        `Unknown or inactive tenant: ${invalid.join(', ')}`,
-      );
+      throw new BadRequestException(`Unknown or inactive tenant: ${invalid.join(', ')}`);
     }
 
     return unique;

@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Plus, Search, RefreshCw } from 'lucide-vue-next'
 import { adminsApi, type AdminUser } from '@/api/admins'
-import { tenantsApi } from '@/api/tenants'
 import { AdminRole, AdminStatus } from '@/api/enums'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
@@ -14,7 +13,6 @@ const route = useRoute()
 const router = useRouter()
 
 const admins = ref<AdminUser[]>([])
-const tenantSlugMap = ref<Record<string, string>>({})
 const loading = ref(true)
 const deactivateTarget = ref<AdminUser | null>(null)
 const editTarget = ref<AdminUser | null>(null)
@@ -56,22 +54,25 @@ const visiblePages = computed(() => {
   return pages
 })
 
+/** 배정이 많으면 앞의 셋만 보이고 나머지는 개수로 줄인다. */
+function formatTenants(tenants: { slug: string }[]): string {
+  if (tenants.length === 0) return '—'
+  const slugs = tenants.map((t) => t.slug)
+  return slugs.length > 3 ? `${slugs.slice(0, 3).join(', ')} 외 ${slugs.length - 3}개` : slugs.join(', ')
+}
+
 async function loadPage() {
   loading.value = true
   try {
-    const [{ data: adminPage }, { data: tenantPage }] = await Promise.all([
-      adminsApi.findAll({
-        page: currentPage.value,
-        limit: pageLimit.value,
-        search: searchQuery.value || undefined,
-        status: (statusFilter.value as AdminStatus) || undefined,
-        role: (roleFilter.value as AdminRole) || undefined,
-      }),
-      tenantsApi.findAll({ limit: 1000 }),
-    ])
+    const { data: adminPage } = await adminsApi.findAll({
+      page: currentPage.value,
+      limit: pageLimit.value,
+      search: searchQuery.value || undefined,
+      status: (statusFilter.value as AdminStatus) || undefined,
+      role: (roleFilter.value as AdminRole) || undefined,
+    })
     admins.value = adminPage?.items || []
     total.value = adminPage?.total || 0
-    tenantSlugMap.value = Object.fromEntries((tenantPage?.items || []).map((t) => [t.id, t.slug]))
   } finally {
     loading.value = false
   }
@@ -235,8 +236,11 @@ onMounted(() => {
                     {{ admin.role === AdminRole.PLATFORM_ADMIN ? '플랫폼 관리자' : '테넌트 관리자' }}
                   </span>
                 </td>
-                <td class="px-4 py-3 text-gray-500 font-mono text-xs">
-                  {{ admin.tenantId ? (tenantSlugMap[admin.tenantId] ?? admin.tenantId) : '—' }}
+                <td
+                  class="px-4 py-3 text-gray-500 font-mono text-xs"
+                  :title="admin.tenants.map((t) => t.slug).join(', ')"
+                >
+                  {{ formatTenants(admin.tenants) }}
                 </td>
                 <td class="px-4 py-3"><StatusBadge :status="admin.status" /></td>
                 <td class="px-4 py-3 text-right">

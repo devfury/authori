@@ -13,14 +13,20 @@ const home = computed(() => {
   if (auth.isPlatformAdmin) {
     return { to: '/admin/tenants', label: '테넌트 목록으로' }
   }
-  if (auth.tenantId) {
-    return { to: `/admin/tenants/${auth.tenantId}/dashboard`, label: '내 테넌트로 돌아가기' }
+  if (auth.tenants.length > 1) {
+    return { to: '/admin/select-tenant', label: '테넌트 선택으로' }
+  }
+  if (auth.tenants.length === 1) {
+    return {
+      to: `/admin/tenants/${auth.tenants[0].id}/dashboard`,
+      label: '내 테넌트로 돌아가기',
+    }
   }
   return { to: '/admin/login', label: '로그인 화면으로' }
 })
 
-// 테넌트 관리자가 여기 온 경우 대개 다른 테넌트의 URL 로 들어온 것이다.
-const showTenantHint = computed(() => !auth.isPlatformAdmin && !!auth.tenantId)
+// 테넌트 관리자가 여기 온 경우 대개 배정되지 않은 테넌트의 URL 로 들어온 것이다.
+const showTenantHint = computed(() => !auth.isPlatformAdmin && auth.tenants.length > 0)
 </script>
 
 <template>

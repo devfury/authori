@@ -114,7 +114,11 @@ describe('AdminAuthService — 테넌트 배정', () => {
 
     it('존재하지 않거나 비활성인 테넌트는 거부한다', async () => {
       await expect(
-        service.createAdmin({ ...base, role: AdminRole.TENANT_ADMIN, tenantIds: [TENANT_A, UNKNOWN] }),
+        service.createAdmin({
+          ...base,
+          role: AdminRole.TENANT_ADMIN,
+          tenantIds: [TENANT_A, UNKNOWN],
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 

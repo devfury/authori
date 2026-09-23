@@ -69,7 +69,7 @@ describe('AdminTenantAccessService', () => {
     });
 
     it('배정이 없으면 테넌트를 조회하지 않는다', async () => {
-      mappingRepo.find.mockResolvedValue([])
+      mappingRepo.find.mockResolvedValue([]);
       await expect(service.listTenants(ADMIN_ID)).resolves.toEqual([]);
       expect(tenantRepo.find).not.toHaveBeenCalled();
     });

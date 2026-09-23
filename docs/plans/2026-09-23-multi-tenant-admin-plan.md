@@ -43,6 +43,7 @@
 | `apps/web/src/views/auth/TenantSelectView.vue` | 로그인 직후 테넌트 선택 |
 | `apps/web/src/components/shared/TenantSwitcher.vue` | 사이드바 전환 드롭다운 |
 | `apps/web/src/components/shared/TenantSwitcher.spec.ts` | 테스트 |
+| `apps/web/src/components/shared/TenantMultiSelect.vue` | 생성·수정 화면 공용 다중 선택기 |
 | `apps/web/src/stores/auth.store.spec.ts` | 로그인 이동 분기 테스트 |
 
 ### 프런트엔드 — 수정
@@ -56,9 +57,9 @@
 | `apps/web/src/router/tenant-guard.spec.ts` | 소속 목록 기반으로 갱신 |
 | `apps/web/src/components/shared/AppSidebar.vue` | 배지 → `TenantSwitcher` |
 | `apps/web/src/layouts/AdminLayout.vue` | 전환기에 필요한 값 전달 |
-| `apps/web/src/views/platform/admins/AdminCreateView.vue` | 다중 선택 |
+| `apps/web/src/views/platform/admins/AdminCreateView.vue` | 다중 선택 (`TenantMultiSelect` 사용) |
 | `apps/web/src/views/platform/admins/EditAdminDialog.vue` | 다중 선택 |
-| `apps/web/src/views/platform/admins/AdminListView.vue` | 테넌트 여러 개 표시 |
+| `apps/web/src/views/platform/admins/AdminListView.vue` | 테넌트 여러 개 표시 + 별도 테넌트 조회 제거(목록 API 가 slug 를 내려줌) |
 
 ## 작업 단계
 
@@ -67,11 +68,11 @@
 - [x] 3. `TenantAdminGuard` 소속 조회로 전환 + 가드 테스트 갱신 (FR-6~9)
 - [x] 4. JWT 페이로드에서 `tenantId` 제거, 로그인 응답에 `tenants` 추가, `GET /admin/auth/me` 신설 (FR-10, FR-17)
 - [x] 5. 관리자 생성·수정의 `tenantIds` 처리와 검증 + 서비스 테스트 (FR-11~16)
-- [ ] 6. 프런트 auth store — `tenants` 캐시와 로그인 후 이동 분기 + 테스트 (FR-18·19·23)
-- [ ] 7. 라우터 가드 포함 검사 + `/admin/select-tenant` 라우트·화면 (FR-19, FR-22)
-- [ ] 8. `TenantSwitcher` 컴포넌트 + 사이드바 연결 + 테스트 (FR-20·21)
-- [ ] 9. 관리자 생성·수정·목록 화면 다중 선택 (FR-11·12·16)
-- [ ] 10. 4단계 검증 명령 전체 실행 및 통과
+- [x] 6. 프런트 auth store — `tenants` 캐시와 로그인 후 이동 분기 + 테스트 (FR-18·19·23)
+- [x] 7. 라우터 가드 포함 검사 + `/admin/select-tenant` 라우트·화면 (FR-19, FR-22)
+- [x] 8. `TenantSwitcher` 컴포넌트 + 사이드바 연결 + 테스트 (FR-20·21)
+- [x] 9. 관리자 생성·수정·목록 화면 다중 선택 (FR-11·12·16)
+- [x] 10. 4단계 검증 명령 전체 실행 및 통과
 
 백엔드(1~5)를 먼저 끝내고 프런트(6~9)로 넘어간다. 프런트가 기대하는 응답 형태가 백엔드에서 확정돼야 한다.
 
