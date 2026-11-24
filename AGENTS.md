@@ -265,6 +265,112 @@ telegram-cli "[Authori] <작업명> 완료
 
 모든 문서는 이전 단계 문서를 링크하여 추적성을 유지한다.
 
+### 릴리스 파이프라인 (CI/CD)
+
+버전을 내보내는 일은 아래 12단계를 **이 순서대로** 거친다. **승인(1 · 7 · 10)만 사용자가 하고, 나머지는 에이전트가 이어서 진행한다.**
+승인 단계에 닿으면 그때까지의 결과를 보고하고 멈춘다. 어느 단계든 실패하면 다음 단계로 가지 않고 오류 원문과 함께 보고한다.
+
+| # | 단계 | 누가 | 방법 |
+| --- | --- | --- | --- |
+| 1 | **버전 업데이트 승인** | 사용자 | "X.Y.Z 버전으로 올려줘" · "X.Y.Z 릴리스 진행해줘" 가 곧 승인이다 |
+| 2 | 업데이트 노트 작성 | 에이전트 | [릴리스 노트](#릴리스-노트-태그마다-한-번) — 태그 전이므로 `Status: Draft` |
+| 3 | 패키지 버전 bump | 에이전트 | [버전 상향](#버전-상향-chore-bump-version-to-xyz) |
+| 4 | `main` 병합 · push | 에이전트 | 아래 「`main` 병합」 |
+| 5 | 이미지 빌드 | 에이전트 | `jenkins-cicd` 스킬 `run authori-build-images BUILD_TAG=X.Y.Z` |
+| 6 | git 태그 · 노트 확정 | 에이전트 | 아래 「git 태그」 「노트 확정」 — 빌드가 `SUCCESS` 일 때만 |
+| 7 | **개발 서버 배포 승인** | 사용자 | "개발 배포 진행" 등. 8 · 9 를 함께 승인한 것이다 |
+| 8 | 개발 서버 마이그레이션 | 에이전트 | 아래 「마이그레이션」 — `dev` |
+| 9 | 개발 서버 배포 | 에이전트 | `jenkins-cicd` 스킬 `run authori-deploy-dev DEPLOY_TAG=X.Y.Z` |
+| 10 | **운영 서버 배포 승인** | 사용자 | "운영 배포 진행" 등. 11 · 12 를 함께 승인한 것이다 |
+| 11 | 운영 서버 마이그레이션 | 에이전트 | 같은 절차 — `prd`. 백업 확인은 아래 |
+| 12 | 운영 서버 배포 | 에이전트 | `jenkins-cicd` 스킬 `run authori-deploy-prd DEPLOY_TAG=X.Y.Z` |
+
+- **승인은 그 구간에만 유효하다.** 1 의 승인으로 7 · 10 을 넘지 않고, 7 의 승인으로 10 을 넘지 않는다. 사용자가 한 번에 "운영까지 진행" 이라고 명시하면 그 말대로 한다.
+- **Jenkins job (5 · 9 · 12).** `jenkins.ezcaretech.com` 의 job 세 개이고 정의는 Jenkins 에 직접 적혀 있다(저장소에 `Jenkinsfile` 이 없다). 세 job 모두 동시 실행이 꺼져 있다.
+
+  | job | 파라미터 | 하는 일 |
+  | --- | --- | --- |
+  | `authori-build-images` | `BUILD_TAG` | **`main` 브랜치 HEAD** 를 클론 → `registry.ezcaretech.com/authori/{api,web}:<tag>` 와 `:latest` 로 build · push. **git 태그는 올리지 않는다** |
+  | `authori-deploy-dev` | `DEPLOY_TAG` | GitOps 저장소 `ezspace-dev-k8s` 의 `authori-dev/kustomization.yaml` `newTag` 수정 · push → 개발 서버에 적용 |
+  | `authori-deploy-prd` | `DEPLOY_TAG` | 같은 방식으로 운영 서버에 적용 |
+
+  실행 · 조회는 `jenkins-cicd` 스킬로 한다. 스킬은 job 이름을 갖고 있지 않으므로 **이 표의 job 이름과 파라미터 이름을 그대로 넘긴다**(`status <job>...` · `run <job> <PARAM>=X.Y.Z` · `wait` · `log`).
+  태그는 `X.Y.Z` 형태만 넣는다. 파라미터 기본값이 `latest` 이지만 **`latest` 로 빌드 · 배포하지 않는다**(무엇이 배포됐는지 추적할 수 없다). `BUSY` · `LOGIN_REQUIRED` · `STILL_RUNNING` 은 스킬의 규칙대로 다시 실행하지 않고 보고한다.
+  빌드는 `develop` 에만 있는 변경을 담지 않는다. 배포 job 은 이미지가 레지스트리에 있는지 확인하지 않으므로 빌드가 `SUCCESS` 인 태그만 배포한다. 배포 job 은 DB 를 건드리지 않는다.
+- **`main` 병합 (4).** `main` 에만 있는 변경이 없는지 — `git rev-list --no-merges origin/develop..origin/main` 이 비어 있는지 — 확인하고, 아니면 멈추고 보고한다.
+  `git merge-base --is-ancestor` 로 보지 않는다. 릴리스마다 `main` 에 남기는 병합 커밋(`Merge branch 'develop'`)은 `develop` 으로 돌아오지 않아 그 검사는 매번 걸린다.
+  **fast-forward 로 올리지 않는다** — 릴리스마다 병합 커밋을 남긴다. `main` 은 체크아웃하지 않고 분리 워크트리에서 병합한다.
+
+  ```bash
+  git fetch -q origin
+  git worktree add --detach .worktree/main-merge origin/main
+  git -C .worktree/main-merge merge --no-ff origin/develop -m "Merge branch 'develop'"
+  git -C .worktree/main-merge push origin HEAD:refs/heads/main
+  git worktree remove .worktree/main-merge
+  ```
+
+  `main` 에 강제 push 하지 않는다. 거부되면 멈추고 보고한다.
+- **git 태그 (6).** Jenkins 가 태그를 올리지 않으므로 빌드가 `SUCCESS` 로 끝난 뒤 에이전트가 올린다. 빌드에 들어간 커밋(= 4 에서 push 한 `main` 병합 커밋)에 annotated 태그를 단다. 이름은 `v` 없이 `X.Y.Z` 다.
+
+  ```bash
+  git fetch -q origin --tags
+  git rev-parse origin/main                 # 4 에서 push 한 병합 커밋과 같아야 한다. 다르면 멈추고 보고한다
+  git tag -a X.Y.Z origin/main -m "X.Y.Z"
+  git push origin X.Y.Z
+  ```
+
+  같은 이름의 태그가 이미 있으면 옮기거나 덮어쓰지 않고 보고한다. 빌드가 실패했으면 태그를 올리지 않는다.
+- **노트 확정 (6).** 태그를 올린 뒤 2 에서 쓴 노트의 `Status` 를 `Approved` 로, `Related` 에 태그 해시를 채우고 인덱스 `Updated` 를 맞춰 `develop` 에 병합한다. 내용은 다시 쓰지 않는다.
+  노트 근거 범위(`<직전 태그>..origin/develop`)와 실제 태그 사이에 끼어든 커밋이 있으면 정정으로 보탠다. 이 커밋은 `develop` 에만 들어가고 다음 릴리스 때 `main` 으로 간다.
+- **마이그레이션 (8 · 11).** `apps/api` 에서 CLI 로 실행한다. 루트의 `.env.development.local`(dev) · `.env.production.local`(prd)을 읽어 해당 DB 에 직접 붙는다.
+
+  ```bash
+  cd apps/api
+  bun run migration:show:dev && bun run migration:run:dev   # 개발 DB
+  bun run migration:show:prd && bun run migration:run:prd   # 운영 DB
+  ```
+
+  먼저 `migration:show` 로 무엇이 적용될지 본다. 대기 중인 마이그레이션이 없으면 없다고 보고하고 바로 배포로 간다. 순서는 **마이그레이션 → 배포**이고, 마이그레이션이 실패하면 배포하지 않는다.
+  체크아웃된 커밋의 마이그레이션이 그대로 적용된다 — `git diff --stat X.Y.Z HEAD -- apps/api/src/database/migrations` 가 비어 있지 않으면(배포할 태그보다 앞선 마이그레이션이 섞여 있으면) 실행하지 않고 알린다.
+  운영(11)은 대기 중인 마이그레이션에 `DROP` · `DELETE` · 타입 변경이 있으면 승인을 받았더라도 **멈추고** 해당 SQL 을 인용해 백업 여부를 확인받는다([DB / 마이그레이션](#db--마이그레이션)). 임의로 `migration:revert` 하지 않는다.
+- **알림.** 승인 단계(7 · 10)에서 멈출 때와 12 가 끝났을 때 [5-3](#5-3-알림) 으로 알린다.
+- **되돌리기.** 배포 뒤 문제가 생기면 임의로 되돌리지 않고 보고한다. 직전 배포 태그는 `jenkins-cicd` 스킬 `status` 에서 해당 배포 job 의 최신 `SUCCESS` 줄이다.
+
+### 버전 상향 (`chore: bump version to X.Y.Z`)
+
+[릴리스 파이프라인](#릴리스-파이프라인-cicd) 3단계다. **버전 파일만 고치고 끝내지 않는다.** 아래를 빠짐없이 처리한다.
+작업은 별도 워크트리(`chore/bump-X.Y.Z`)에서 한다. 릴리스 노트는 이 작업 직전(2단계)에 따로 쓴다.
+사용자가 "버전만 올려줘" 처럼 범위를 좁히면 이 절만 하고 멈춘다.
+
+1. **현재 상태 확인.** 루트 · `apps/api` · `apps/web` 의 `version` 이 같은지, 최신 git 태그(`git tag --sort=-creatordate | head`)를 본다.
+   요청 버전이 현재 버전의 바로 다음(patch · minor · major 중 하나)이 아니거나 세 값이 서로 다르면 **임의로 맞추지 말고 사용자에게 알린다.**
+2. **버전 문자열을 바꾼다 — `scripts/bump-version.sh bump X.Y.Z`** (Windows: `scripts/bump-version.ps1`).
+   - 스크립트가 `package.json` · `apps/api/package.json` · `apps/web/package.json` 의 `"version"` 3줄을 바꾸고 `bun install` 뒤 `chore: bump version to X.Y.Z` 로 커밋까지 한다.
+   - `git show --stat HEAD` 로 위 3줄만 바뀌었는지 확인한다. 의존성 변경이 섞여 `bun.lock` 이 함께 바뀌었으면 멈추고 알린다.
+   - `bun.lock` 의 워크스페이스 `"version"` 은 `bun install` 이 갱신하지 않아 옛 값(1.3.1)으로 남아 있다. 정상이며 **손으로 맞추지 않는다.**
+   - `example/*` 는 **별도 버전이라 건드리지 않는다.**
+3. **락파일 일치 확인.** `bun install --frozen-lockfile --dry-run` 이 `lockfile had changes` 오류 없이 끝나야 한다.
+4. **검증.** 버전 문자열만 바뀐 변경이므로 `lint` · `typecheck` · `test` · `build` 는 생략할 수 있으나, **생략했다고 보고에 밝힌다.** 3번은 생략하지 않는다.
+5. **병합 · 정리.** [5-2](#5-2-develop-병합-및-push) 대로 `--no-ff` 로 `develop` 에 병합해 push 하고, 워크트리를 정리한 뒤 파이프라인 4단계로 넘어간다. 알림은 파이프라인의 알림 시점에 함께 보낸다.
+   Windows 에서 워크트리 삭제가 `Permission denied` 로 실패하면 `git worktree prune` 뒤 남은 폴더를 지운다.
+
+**하지 않는 것.** 빌드 전에 git 태그를 만들지 않는다 — 태그는 이미지 빌드가 성공한 뒤 `main` 병합 커밋에 단다(파이프라인 6단계). `chore/bump-X.Y.Z` 를 `main` 에 직접 병합하지 않는다(`main` 에는 `develop` 을 병합한다).
+
+### 릴리스 노트 (태그마다 한 번)
+
+**태그 하나에 노트 파일 하나, 그리고 한 번만 쓴다.** 이미 쓴 노트를 다음 버전을 만들 때 다시 고치지 않는다(오탈자 · 사실 오류 정정만 허용하고, 정정은 사유를 한 줄 남긴다).
+
+- **위치.** `docs/releases/YYYY-MM-DD-<버전>-release-notes.md` (날짜는 빌드 · 태그 예정일. 실제 태그 날짜가 다르면 확정할 때 파일명을 맞춘다). 모든 버전의 목록과 구간 개요는 `docs/releases/README.md` 인덱스에 둔다.
+  `docs/releases/` 와 인덱스는 아직 없다 — 첫 노트를 쓸 때 함께 만든다. 그 이전 버전(1.4.0 까지)의 노트는 요청받았을 때만 소급해 쓴다.
+- **시점.** [릴리스 파이프라인](#릴리스-파이프라인-cicd) 2단계, 버전 bump · 태그 **전**에 쓴다. 근거 범위는 `<직전 태그>..origin/develop` 이고 `Status: Draft`, `Related` 의 태그 해시는 `(빌드 후 확정)` 으로 둔다.
+  태그가 올라가면(6단계) `Status` 와 `Related`(태그 해시)만 고쳐 확정한다. 내용을 다시 쓰지 않는다.
+  파이프라인을 거치지 않고 이미 태그가 올라간 버전은 태그를 근거로 바로 `Approved` 로 쓴다.
+- **머리말.** [docs/README.md](docs/README.md) 의 머리말 형식을 따른다 — `Status` · `Owner` · `Created` · `Updated` · `Related`(인덱스 · git 태그 `X`(해시) · 직전 노트 링크). 다음 노트 링크는 넣지 않는다(쓴 뒤에 고치게 된다).
+- **본문.** `## 변경 내용` 아래 **신규 · 개선 · 수정 · 운영** 항목이다. 근거는 `git log --no-merges <직전 태그>..<태그>` 이고 문서 · 테스트만 바뀐 커밋은 뺀다.
+  **마이그레이션 · 설정 · 환경변수 변경이 없으면 `**운영** … 없음` 이라고 적는다** — 운영자가 가장 먼저 찾는 줄이다. 아직 검증하지 못한 것은 그대로 적는다.
+- **인덱스.** 매번 고치는 곳은 `docs/releases/README.md` 뿐이다 — 해당 구간(`## X.Y.x`)의 목록에 한 줄 추가, 「한눈에 보기」 표의 태그 수 · 주요 흐름, 구간 개요 문단. 갱신일(`Updated`)도 바꾼다.
+- **절차.** 별도 워크트리(`docs/release-notes-X.Y.Z`)에서 쓰고 `develop` 에 병합한다. 파이프라인 안에서는 알림을 파이프라인 알림 시점에 함께 보낸다. 문서만 바뀌므로 `lint` · `typecheck` · `test` · `build` 는 생략할 수 있고 생략했다고 보고에 밝힌다.
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
