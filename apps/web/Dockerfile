@@ -16,7 +16,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 RUN cd apps/web && bun run build
 
-FROM nginx:1.29-alpine AS runtime
+FROM nginx:1.30.8-alpine AS runtime
 
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 
